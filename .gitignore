@@ -1,0 +1,15 @@
+node_modules/
+dist/
+.env
+
+# Scratch and temp files
+temp.json
+temp_roster*.json
+out.json
+*.pdf
+*.log
+*analysis.txt
+user_inputs.txt
+user_raw_request.txt
+recovered_user_request.txt
+spreadsheet_data.json

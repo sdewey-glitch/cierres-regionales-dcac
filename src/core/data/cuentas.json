@@ -1,0 +1,402 @@
+[
+    {
+        "agente": "Lucila Frutos",
+        "razon_social": "CMD AGRO S.R.L.",
+        "cuit": "30712119841",
+        "tipo_cuenta": "Mermas",
+        "fecha_incorporacion": "01 / 11 / 24",
+        "ac_asignado": "Lucila Frutos"
+    },
+    {
+        "agente": "Lucila Frutos",
+        "razon_social": "BIOFARMA AGROPECUARIA S.A. S. A.",
+        "cuit": "30717125394",
+        "tipo_cuenta": "Mermas",
+        "fecha_incorporacion": "01 / 11 / 24",
+        "ac_asignado": "Santiago Julian"
+    },
+    {
+        "agente": "Lucila Frutos",
+        "razon_social": "BIOFARMA AGROPECUARIA S.A. S. A.",
+        "cuit": "30708484926",
+        "tipo_cuenta": "Mermas",
+        "fecha_incorporacion": "01 / 11 / 24",
+        "ac_asignado": "Sebastian Saparrat"
+    },
+    {
+        "agente": "Lucila Frutos",
+        "razon_social": "MAREUBA S A",
+        "cuit": "30591025801",
+        "tipo_cuenta": "Mermas",
+        "fecha_incorporacion": "01 / 11 / 24",
+        "ac_asignado": "Santiago Julian"
+    },
+    {
+        "agente": "Lucila Frutos",
+        "razon_social": "Bustos y Beltran SA",
+        "cuit": "30564189657",
+        "tipo_cuenta": "Activacion CI",
+        "fecha_incorporacion": "01 / 11 / 24",
+        "ac_asignado": ""
+    },
+    {
+        "agente": "Lucila Frutos",
+        "razon_social": "Esidle SA",
+        "cuit": "33714200629",
+        "tipo_cuenta": "Mermas",
+        "fecha_incorporacion": "01 / 11 / 24",
+        "ac_asignado": "Juan José Loza"
+    },
+    {
+        "agente": "Lucila Frutos",
+        "razon_social": "Deltagro Sa",
+        "cuit": "30692272737",
+        "tipo_cuenta": "Mermas",
+        "fecha_incorporacion": "01 / 11 / 24",
+        "ac_asignado": "Sebastian Saparrat"
+    },
+    {
+        "agente": "Lucila Frutos",
+        "razon_social": "Grazia S A",
+        "cuit": "30561394713",
+        "tipo_cuenta": "Mermas",
+        "fecha_incorporacion": "01 / 11 / 24",
+        "ac_asignado": "Jose Olmedo"
+    },
+    {
+        "agente": "Lucila Frutos",
+        "razon_social": "Nestor Tomasello SRL",
+        "cuit": "30715529234",
+        "tipo_cuenta": "Mermas",
+        "fecha_incorporacion": "01 / 11 / 24",
+        "ac_asignado": "Jose Olmedo"
+    },
+    {
+        "agente": "Lucila Frutos",
+        "razon_social": "Ángeles Del Quequen",
+        "cuit": "30666403122",
+        "tipo_cuenta": "Mermas",
+        "fecha_incorporacion": "01 / 11 / 24",
+        "ac_asignado": "Sebastian Saparrat"
+    },
+    {
+        "agente": "Lucila Frutos",
+        "razon_social": "Logros S. A.",
+        "cuit": "30708051191",
+        "tipo_cuenta": "Mermas",
+        "fecha_incorporacion": "01 / 11 / 24",
+        "ac_asignado": ""
+    },
+    {
+        "agente": "Lucila Frutos",
+        "razon_social": "Carfa S.R.L",
+        "cuit": "30711582939",
+        "tipo_cuenta": "Mermas",
+        "fecha_incorporacion": "01 / 11 / 24",
+        "ac_asignado": "Jose Olmedo"
+    },
+    {
+        "agente": "Lucila Frutos",
+        "razon_social": "4 Reinas S.A",
+        "cuit": "30711165904",
+        "tipo_cuenta": "Mermas",
+        "fecha_incorporacion": "01 / 11 / 24",
+        "ac_asignado": "Sebastian Saparrat"
+    },
+    {
+        "agente": "Lucila Frutos",
+        "razon_social": "LOSABU S.A.",
+        "cuit": "30710513852",
+        "tipo_cuenta": "Mermas",
+        "fecha_incorporacion": "01 / 11 / 24",
+        "ac_asignado": "Sebastian Saparrat"
+    },
+    {
+        "agente": "Lucila Frutos",
+        "razon_social": "Alila Sa",
+        "cuit": "30688748905",
+        "tipo_cuenta": "Mermas",
+        "fecha_incorporacion": "01 / 11 / 24",
+        "ac_asignado": "Juan José Loza"
+    },
+    {
+        "agente": "Lucila Frutos",
+        "razon_social": "Las Viboras S A Agricola Ganad",
+        "cuit": "33507162709",
+        "tipo_cuenta": "Mermas",
+        "fecha_incorporacion": "01 / 11 / 24",
+        "ac_asignado": "Juan José Loza"
+    },
+    {
+        "agente": "Lucila Frutos",
+        "razon_social": "Elava Srl",
+        "cuit": "30707652531",
+        "tipo_cuenta": "Mermas",
+        "fecha_incorporacion": "01 / 11 / 24",
+        "ac_asignado": "Juan José Loza"
+    },
+    {
+        "agente": "Lucila Frutos",
+        "razon_social": "Ladislao Popelka Y Cia. S. A.",
+        "cuit": "33513774619",
+        "tipo_cuenta": "Mermas",
+        "fecha_incorporacion": "01 / 11 / 24",
+        "ac_asignado": "Juan José Loza"
+    },
+    {
+        "agente": "Lucila Frutos",
+        "razon_social": "La Noria S C A",
+        "cuit": "30511847288",
+        "tipo_cuenta": "Mermas",
+        "fecha_incorporacion": "01 / 11 / 24",
+        "ac_asignado": "Juan José Loza"
+    },
+    {
+        "agente": "Lucila Frutos",
+        "razon_social": "Frig. Gorina SAIC",
+        "cuit": "30537869158",
+        "tipo_cuenta": "Activacion CI",
+        "fecha_incorporacion": "01 / 02 / 25",
+        "ac_asignado": "Sebastian Saparrat"
+    },
+    {
+        "agente": "Lucila Frutos",
+        "razon_social": "Frig. Gorina SAIC",
+        "cuit": "30537869158",
+        "tipo_cuenta": "Activacion CI",
+        "fecha_incorporacion": "01 / 02 / 25",
+        "ac_asignado": "Sebastian Saparrat"
+    },
+    {
+        "agente": "Lucila Frutos",
+        "razon_social": "Swift Argentina SA",
+        "cuit": "30560378056",
+        "tipo_cuenta": "Activacion CI",
+        "fecha_incorporacion": "01 / 02 / 25",
+        "ac_asignado": ""
+    },
+    {
+        "agente": "Lucila Frutos",
+        "razon_social": "Mat. y Frig. El Mercedino",
+        "cuit": "30663416975",
+        "tipo_cuenta": "Activacion CI",
+        "fecha_incorporacion": "01 / 02 / 25",
+        "ac_asignado": "Jose Olmedo"
+    },
+    {
+        "agente": "Lucila Frutos",
+        "razon_social": "Frigorifico Forres - Belt",
+        "cuit": "30710014287",
+        "tipo_cuenta": "Activacion CI",
+        "fecha_incorporacion": "01 / 02 / 25",
+        "ac_asignado": ""
+    },
+    {
+        "agente": "Lucila Frutos",
+        "razon_social": "El Zamorano",
+        "cuit": "30709864250",
+        "tipo_cuenta": "Activacion CI",
+        "fecha_incorporacion": "01 / 02 / 25",
+        "ac_asignado": ""
+    },
+    {
+        "agente": "Lucila Frutos",
+        "razon_social": "CONALLISON",
+        "cuit": "30707321721",
+        "tipo_cuenta": "Activacion CI",
+        "fecha_incorporacion": "01 / 02 / 25",
+        "ac_asignado": ""
+    },
+    {
+        "agente": "Lucila Frutos",
+        "razon_social": "TEHA AGROPECUARIA S R L",
+        "cuit": "30691206404",
+        "tipo_cuenta": "Mermas",
+        "fecha_incorporacion": "01 / 02 / 25",
+        "ac_asignado": "Agustin Acuña"
+    },
+    {
+        "agente": "Lucila Frutos",
+        "razon_social": "Frig. General Belgrano SA",
+        "cuit": "33709619409",
+        "tipo_cuenta": "Activacion CI",
+        "fecha_incorporacion": "01 / 02 / 25",
+        "ac_asignado": ""
+    },
+    {
+        "agente": "Lucila Frutos",
+        "razon_social": "Luda S.R.L.",
+        "cuit": "30712278699",
+        "tipo_cuenta": "Activacion CI",
+        "fecha_incorporacion": "01 / 02 / 25",
+        "ac_asignado": "Jose Olmedo"
+    },
+    {
+        "agente": "Lucila Frutos",
+        "razon_social": "Rafaela Alimentos SA",
+        "cuit": "3492602477",
+        "tipo_cuenta": "Activacion CI",
+        "fecha_incorporacion": "01 / 02 / 25",
+        "ac_asignado": ""
+    },
+    {
+        "agente": "Lucila Frutos",
+        "razon_social": "Sicemi SCA",
+        "cuit": "3425509423",
+        "tipo_cuenta": "Mermas",
+        "fecha_incorporacion": "01 / 02 / 25",
+        "ac_asignado": "Luli Frutos"
+    },
+    {
+        "agente": "Lucila Frutos",
+        "razon_social": "Agroganados San Nicolas",
+        "cuit": "30716254077",
+        "tipo_cuenta": "Activacion CI",
+        "fecha_incorporacion": "01 / 06 / 25",
+        "ac_asignado": ""
+    },
+    {
+        "agente": "Lucila Frutos",
+        "razon_social": "Agropecuaria San Elias",
+        "cuit": "30717189309",
+        "tipo_cuenta": "Activacion CI",
+        "fecha_incorporacion": "01 / 06 / 25",
+        "ac_asignado": ""
+    },
+    {
+        "agente": "Lucila Frutos",
+        "razon_social": "Nagli Marcelo Elías",
+        "cuit": "20146242430",
+        "tipo_cuenta": "Activacion CI",
+        "fecha_incorporacion": "01 / 06 / 25",
+        "ac_asignado": ""
+    },
+    {
+        "agente": "Lucila Frutos",
+        "razon_social": "Grupo Tresnal S.R.L",
+        "cuit": "30710915969",
+        "tipo_cuenta": "Activacion CI",
+        "fecha_incorporacion": "01 / 06 / 25",
+        "ac_asignado": ""
+    },
+    {
+        "agente": "Lucila Frutos",
+        "razon_social": "Agropecuaria Tresnal",
+        "cuit": "33708830599",
+        "tipo_cuenta": "Activacion CI",
+        "fecha_incorporacion": "01 / 06 / 25",
+        "ac_asignado": ""
+    },
+    {
+        "agente": "Lucila Frutos",
+        "razon_social": "REPETTO RAFAEL ROQUE",
+        "cuit": "20206542587",
+        "tipo_cuenta": "Activacion CI",
+        "fecha_incorporacion": "01 / 11 / 25",
+        "ac_asignado": "Menghi"
+    },
+    {
+        "agente": "Lucila Frutos",
+        "razon_social": "SAN MARAGUSTO",
+        "cuit": "30711074267",
+        "tipo_cuenta": "Activacion CI",
+        "fecha_incorporacion": "01 / 11 / 25",
+        "ac_asignado": ""
+    },
+    {
+        "agente": "Lucila Frutos",
+        "razon_social": "SyD Lafuente S.A",
+        "cuit": "30716554925",
+        "tipo_cuenta": "Mermas",
+        "fecha_incorporacion": "01 / 11 / 25",
+        "ac_asignado": ""
+    },
+    {
+        "agente": "Lucila Frutos",
+        "razon_social": "ESTANCIA FLUGEL",
+        "cuit": "30510931706",
+        "tipo_cuenta": "Mermas",
+        "fecha_incorporacion": "01 / 11 / 25",
+        "ac_asignado": "Repre, Santiago Correa"
+    },
+    {
+        "agente": "Lucila Frutos",
+        "razon_social": "Frigorifico Regional San Antonio de Areco (TL)",
+        "cuit": "30516241612",
+        "tipo_cuenta": "Activacion CI",
+        "fecha_incorporacion": "01 / 11 / 25",
+        "ac_asignado": ""
+    },
+    {
+        "agente": "Lucila Frutos",
+        "razon_social": "Pampa Compania De Carnes S.A.S",
+        "cuit": "30716263645",
+        "tipo_cuenta": "Activacion CI",
+        "fecha_incorporacion": "01 / 11 / 25",
+        "ac_asignado": ""
+    },
+    {
+        "agente": "Lucila Frutos",
+        "razon_social": "Orzali SRL",
+        "cuit": "30717314189",
+        "tipo_cuenta": "Activacion CI",
+        "fecha_incorporacion": "01 / 11 / 25",
+        "ac_asignado": ""
+    },
+    {
+        "agente": "Lucila Frutos",
+        "razon_social": "Abuelo Julio S.A.",
+        "cuit": "30716667738",
+        "tipo_cuenta": "Activacion CI",
+        "fecha_incorporacion": "01 / 11 / 25",
+        "ac_asignado": ""
+    },
+    {
+        "agente": "Lucila Frutos",
+        "razon_social": "Agropecuaria Las Helenas Sa",
+        "cuit": "30716676583",
+        "tipo_cuenta": "Activacion CI",
+        "fecha_incorporacion": "01 / 11 / 25",
+        "ac_asignado": ""
+    },
+    {
+        "agente": "Lucila Frutos",
+        "razon_social": "ASOCIACION DE COOPERATIVAS ARG",
+        "cuit": "30500120882",
+        "tipo_cuenta": "Activacion CI",
+        "fecha_incorporacion": "01 / 11 / 25",
+        "ac_asignado": ""
+    },
+    {
+        "agente": "Lucila Frutos",
+        "razon_social": "Acevedo Arturo Tomas",
+        "cuit": "23083196319",
+        "tipo_cuenta": "Mermas",
+        "fecha_incorporacion": "08 / 12 / 25",
+        "ac_asignado": "Emiliano Sanchez"
+    },
+    {
+        "agente": "Lucila Frutos",
+        "razon_social": "Estancias Llorens SA",
+        "cuit": "30635775897",
+        "tipo_cuenta": "Mermas",
+        "fecha_incorporacion": "01 / 11 / 25",
+        "ac_asignado": ""
+    },
+    {
+        "agente": "Lucila Frutos",
+        "razon_social": "Enrique R Zeni Y Cia Saciafei",
+        "cuit": "30512823099",
+        "tipo_cuenta": "Mermas",
+        "fecha_incorporacion": "15 / 04 / 26",
+        "ac_asignado": ""
+    },
+    {
+        "agente": "Lucila Frutos",
+        "razon_social": "Agrop. Los Pinos Ham Srl",
+        "cuit": "30716553384",
+        "tipo_cuenta": "Mermas",
+        "fecha_incorporacion": "15 / 04 / 26",
+        "ac_asignado": ""
+    }
+]

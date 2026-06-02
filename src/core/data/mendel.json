@@ -1,0 +1,23 @@
+[
+  {
+    "usuario": "Lucia Sposito",
+    "comercio": "MONOTRIBUTO ARCA",
+    "importe": 285678,
+    "categoria": "Otros",
+    "periodo": "202605"
+  },
+  {
+    "usuario": "Lucia Sposito",
+    "comercio": "La caja",
+    "importe": 250330,
+    "categoria": "Veh�culos y Mantenimiento",
+    "periodo": "202605"
+  },
+  {
+    "usuario": "Lucia Sposito",
+    "comercio": "Personal",
+    "importe": 50000,
+    "categoria": "Telecomunicaciones",
+    "periodo": "202606"
+  }
+]

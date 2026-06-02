@@ -1,0 +1,72 @@
+Created At: 2026-05-28T15:01:31Z
+Completed At: 2026-05-28T15:01:31Z
+File Path: `file:///C:/Users/admin/.gemini/antigravity/scratch/Cierre_regionales/frontend/src/components/Hub.tsx`
+Total Lines: 1216
+Total Bytes: 85535
+Showing lines 1 to 800
+The following code has been modified to include a line number before every line, in the format: <line_number>: <original_line>. Please note that any changes targeting the original code should remove the line number, colon, and leading space.
+1: import React, { useState, useEffect } from 'react';
+2: import { Target, Users, Map, FileText, CheckCircle, Activity, ChevronRight, Calculator, RefreshCw, Layers, ArrowLeft, Search, BarChart3, BookOpen, LayoutDashboard, Database, PlayCircle, ExternalLink, ArrowRight, Copy, Check } from 'lucide-react';
+3: 
+4: interface HubProps {
+5:   API_URL: string;
+6:   setActiveTab: (tab: any) => void;
+7: }
+8: 
+9: export default function Hub({ API_URL, setActiveTab }: HubProps) {
+10:   const [data, setData] = useState({
+11:     roster: [],
+12:     cuentas: [],
+13:     mendel: [],
+14:     prices: {}
+15:   });
+16: 
+17:   const [activeView, setActiveView] = useState<'cards' | 'kms' | 'mendel' | 'data_sources'>('cards');
+18:   const [searchTerm, setSearchTerm] = useState('');
+19:   const [copiedId, setCopiedId] = useState<string | null>(null);
+20:   const [activeStep, setActiveStep] = useState(0);
+21:   const [isSimulating, setIsSimulating] = useState(false);
+22:   const [simulationProgress, setSimulationProgress] = useState(0);
+23: 
+24:   const handleCopy = (id: string) => {
+25:     navigator.clipboard.writeText(id);
+26:     setCopiedId(id);
+27:     setTimeout(() => setCopiedId(null), 2000);
+28:   };
+29: 
+30:   const runSimulation = () => {
+31:     setIsSimulating(true);
+32:     setSimulationProgress(0);
+33:     setActiveStep(0);
+34:     
+35:     let step = 0;
+36:     const interval = setInterval(() => {
+37:       step += 1;
+38:       if (step <= 3) {
+39:         setActiveStep(step);
+40:         setSimulationProgress((step / 3) * 100);
+41:       } else 
+<truncated 45283 bytes>
+hite font-bold rounded-lg transition-colors shadow-sm">
+593:                           Abrir Planilla <ExternalLink size={11} />
+594:                         </a>
+595:                       </td>
+596:                     </tr>
+597: 
+598:                     {/* Cierres */}
+599:                     <tr className="hover:bg-slate-50/50">
+600:                       <td className="py-3.5 px-4 font-bold text-slate-800">Planilla de Cierres de Comisiones</td>
+601:                       <td className="py-3.5 px-4 space-y-1 block border-none">
+602:                         <span className="inline-block px-2 py-0.5 rounded bg-violet-50 text-violet-700 font-bold text-[10px] tracking-wide w-max">'Bajada_Dinamica'</span>
+603:                         <span className="inline-block px-2 py-0.5 rounded bg-violet-50 text-violet-700 font-bold text-[10px] tracking-wide w-max ml-1.5">'Bajada_Estatica'</span>
+604:                         <span className="inline-block px-2 py-0.5 rounded bg-violet-50 text-violet-700 font-bold text-[10px] tracking-wide w-max ml-1.5">'Ajustes_Retro'</span>
+605:                         <span className="inline-block px-2 py-0.5 rounded bg-violet-50 text-violet-700 font-bold text-[10px] tracking-wide w-max ml-1.5">'Detalle_Retro'</span>
+606:                         <span className="inline-block px-2 py-0.5 rounded bg-violet-50 text-violet-700 font-bold text-[10px] tracking-wide w-max ml-1.5">'Config_Tajada'</span>
+607:                       </td>
+608:                       <td className="py-3.5 px-4 text-slate-500 leading-normal">
+609:                         Base transaccional para la liquidación. Contiene el recálculo dinámico del mes corriente, la bajada cruda histórica en M-1/2/3 para comparar lotes modificados, y los de ajustes retroactivos validados.
+610:                       </td>
+611:                       <td className="py-3.5 px-4 font-mo
+<truncated 14364 bytes>
+
+NOTE: The output was truncated because it was too long. Use a more targeted query or a smaller range to get the information you need.

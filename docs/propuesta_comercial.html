@@ -1,0 +1,301 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Propuesta Comercial — dCaC</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+  
+  :root {
+    --primary: #1a365d;
+    --accent: #2b6cb0;
+    --light: #ebf4ff;
+    --border: #cbd5e0;
+    --text: #2d3748;
+    --muted: #718096;
+  }
+  
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  
+  body { font-family: 'Inter', sans-serif; color: var(--text); font-size: 11pt; line-height: 1.5; }
+  
+  @page { size: A4; margin: 15mm 18mm; }
+  
+  .page { page-break-after: always; min-height: 100vh; padding: 0; }
+  .page:last-child { page-break-after: avoid; }
+  
+  /* COVER */
+  .cover { display: flex; flex-direction: column; justify-content: center; align-items: center; text-align: center; background: linear-gradient(135deg, #1a365d 0%, #2b6cb0 100%); color: white; }
+  .cover .logo { font-size: 48pt; font-weight: 700; letter-spacing: -2px; margin-bottom: 8px; }
+  .cover .logo span { font-weight: 300; }
+  .cover .subtitle { font-size: 14pt; font-weight: 300; opacity: 0.85; margin-bottom: 60px; }
+  .cover h1 { font-size: 22pt; font-weight: 600; margin-bottom: 12px; }
+  .cover .meta { font-size: 11pt; opacity: 0.7; }
+  .cover .divider { width: 80px; height: 3px; background: rgba(255,255,255,0.5); margin: 30px auto; }
+  
+  /* CONTENT PAGES */
+  h2 { font-size: 16pt; color: var(--primary); border-bottom: 2px solid var(--accent); padding-bottom: 6px; margin-bottom: 16px; }
+  h3 { font-size: 12pt; color: var(--accent); margin: 18px 0 8px; }
+  
+  table { width: 100%; border-collapse: collapse; margin: 10px 0 18px; font-size: 9.5pt; }
+  th { background: var(--primary); color: white; padding: 6px 8px; text-align: left; font-weight: 500; }
+  td { padding: 5px 8px; border-bottom: 1px solid #e2e8f0; }
+  tr:nth-child(even) td { background: #f7fafc; }
+  .right { text-align: right; }
+  .center { text-align: center; }
+  .highlight td { background: var(--light) !important; font-weight: 600; }
+  
+  .note { background: #fffff0; border-left: 3px solid #d69e2e; padding: 8px 12px; margin: 12px 0; font-size: 9pt; }
+  .info { background: var(--light); border-left: 3px solid var(--accent); padding: 8px 12px; margin: 12px 0; font-size: 9pt; }
+  
+  .two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+  
+  .header-bar { display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--border); padding-bottom: 8px; margin-bottom: 16px; }
+  .header-bar .brand { font-size: 14pt; font-weight: 700; color: var(--primary); }
+  .header-bar .page-title { font-size: 9pt; color: var(--muted); }
+  
+  p { margin-bottom: 10px; }
+  ul { margin: 6px 0 12px 20px; }
+  li { margin-bottom: 4px; }
+  
+  .formula { background: #f7fafc; border: 1px solid var(--border); border-radius: 4px; padding: 8px 12px; font-family: monospace; font-size: 9pt; margin: 8px 0; }
+  
+  @media print {
+    body { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+    .no-print { display: none; }
+  }
+</style>
+</head>
+<body>
+
+<!-- PAGE 1: COVER -->
+<div class="page cover">
+  <div class="logo">d<span>CaC</span></div>
+  <div class="subtitle">de Campo a Campo</div>
+  <div class="divider"></div>
+  <h1>Manual de Cierres Regionales</h1>
+  <p style="font-size:13pt; font-weight:300; margin-bottom:30px;">Modelo Remunerativo — Versión 4.0</p>
+  <div class="meta">Actualizado: Mayo 2026</div>
+</div>
+
+<!-- PAGE 2: GLOSARIO DE COMPONENTES -->
+<div class="page">
+  <div class="header-bar">
+    <div class="brand">dCaC</div>
+    <div class="page-title">Manual de Cierres Regionales — v4.0</div>
+  </div>
+  
+  <h2>1. Estructura Remunerativa</h2>
+  <p>La remuneración de cada Asociado Comercial se compone de tres pilares que se suman para formar el <strong>Sueldo Bruto Variable</strong>:</p>
+  
+  <h3>Componente Personal (CP)</h3>
+  <p>Comisión directa sobre las operaciones donde el AC participó como vendedor o comprador.</p>
+  <div class="formula">CP = Resultado Ajustado Personal × Escala Personal</div>
+  <ul>
+    <li><strong>Resultado Ajustado</strong> = Resultado Venta × 2/3 + Resultado Compra × 1/3</li>
+    <li><strong>Escala</strong> = Porcentaje decreciente logarítmico según cabezas operadas (ver tabla pág. 4)</li>
+    <li>Operarios de carga: escala fija del <strong>10%</strong></li>
+  </ul>
+  
+  <h3>Componente Regional (CR)</h3>
+  <p>Participación en la "bolsa provincial": el resultado total de todos los agentes de la misma provincia.</p>
+  <div class="formula">CR = Resultado Regional × Bolsa Provincial × Tajada del AC</div>
+  <ul>
+    <li><strong>Bolsa Provincial</strong> = Escala Provincial aplicada sobre cabezas totales de la provincia</li>
+    <li><strong>Tajada</strong> = Proporción de sociedades que opera el AC vs. el total de la provincia</li>
+    <li>Para <strong>Buenos Aires</strong>: la bolsa se divide por 2</li>
+    <li>Modalidad <strong>Híbrida</strong>: cobra el 50% del Regional</li>
+  </ul>
+  
+  <h3>Componente Oficina (CO)</h3>
+  <p>Participación en operaciones directas de la oficina (sin AC asignado), distribuida entre los miembros.</p>
+  <div class="formula">CO = Resultado Oficina × Escala Oficina × (1 / N° miembros)</div>
+  <ul>
+    <li>Solo aplica a oficinas elegibles: <strong>Córdoba, Bavio, Entre Ríos, Río Cuarto</strong></li>
+    <li>Operaciones de oficina = tropas donde ningún AC fue asignado</li>
+    <li>Modalidad <strong>Híbrida</strong>: no cobra Oficina</li>
+  </ul>
+  
+  <div class="info">
+    <strong>Regla del Mínimo:</strong> Si la suma CP + CR + CO no supera el Mínimo Garantizado de la categoría, el comercial cobra el Mínimo pero <strong>pierde</strong> las componentes Regional y Oficina.
+  </div>
+</div>
+
+<!-- PAGE 3: CATEGORÍAS -->
+<div class="page">
+  <div class="header-bar">
+    <div class="brand">dCaC</div>
+    <div class="page-title">Manual de Cierres Regionales — v4.0</div>
+  </div>
+  
+  <h2>2. Categorías y Mínimos Garantizados</h2>
+  <p>Cada comercial tiene asignada una <strong>categoría</strong> en el Roster que determina su mínimo garantizado mensual.</p>
+  
+  <table>
+    <thead>
+      <tr><th>Cat</th><th>Nombre</th><th>Escala</th><th>Regional</th><th>Oficina</th><th>Agentes Actuales</th></tr>
+    </thead>
+    <tbody>
+      <tr class="highlight"><td>1</td><td>Top AC</td><td>Curva AC (15-30%)</td><td class="center">✅ 100%</td><td class="center">✅</td><td>Saparrat, Torriglia, Julian, Menghi, Pons, Garcia, Deambrocio</td></tr>
+      <tr><td>2</td><td>Corporate</td><td>Curva AC</td><td class="center">✅ 100%</td><td class="center">✅</td><td>Lucila Frutos</td></tr>
+      <tr><td>3</td><td>General</td><td>Curva AC</td><td class="center">✅ 100%</td><td class="center">✅</td><td>Sansot, Sanchez, Poullion, Ganis, Loza, Olmedo, Sposito, Rapp, Bunge</td></tr>
+      <tr><td>4</td><td>Acuerdo</td><td>Curva AC</td><td class="center">✅ 100%</td><td class="center">✅</td><td>Cieri, Rivarola, Mascotena</td></tr>
+      <tr><td>5</td><td>Híbrido</td><td>Curva AC</td><td class="center">50%</td><td class="center">❌</td><td>Barboza (mín. fijo $1.335.848)</td></tr>
+      <tr><td>6</td><td>Sin Mínimo</td><td>Curva AC</td><td class="center">✅ 100%</td><td class="center">✅</td><td>Echezarreta, Acuña, Diehl (pseudo)</td></tr>
+      <tr><td>7</td><td>Op. Carga 1</td><td>Fijo 10%</td><td class="center">✅*</td><td class="center">❌</td><td>Facundo Alonso</td></tr>
+      <tr><td>8</td><td>Op. Carga 2</td><td>Fijo 10%</td><td class="center">✅*</td><td class="center">❌</td><td>Facundo Ruete</td></tr>
+      <tr><td>9</td><td>Op. Carga 3</td><td>Fijo 10%</td><td class="center">✅*</td><td class="center">❌</td><td>Augusto Reynot</td></tr>
+      <tr><td>10</td><td>Op. Carga 4</td><td>Fijo 10%</td><td class="center">✅*</td><td class="center">❌</td><td>Alejo Broggi</td></tr>
+    </tbody>
+  </table>
+  
+  <div class="note">
+    <strong>*</strong> Operarios cobran Regional con escala fija del 10%, no la curva logarítmica.
+  </div>
+  
+  <h3>Excepciones Vigentes</h3>
+  <table>
+    <thead><tr><th>Agente</th><th>Excepción</th><th>Detalle</th></tr></thead>
+    <tbody>
+      <tr><td>Lucila Frutos</td><td>Modelo propio</td><td>Solapa separada con Grandes Cuentas + MERMAS</td></tr>
+      <tr><td>Marcelo Barboza</td><td>Mínimo fijo</td><td>$1.335.848 (no lee de tabla ESCALAS)</td></tr>
+      <tr><td>Pablo Cieri</td><td>Ajuste -20%</td><td>Descuento del 20% del sueldo por gastos SIN DCAC</td></tr>
+      <tr><td>David Menghi</td><td>Sin penalidad mínimo</td><td>Si variable < mínimo, no pierde Regional/Oficina</td></tr>
+      <tr><td>Sebastian Saparrat</td><td>Híbrido especial</td><td>Regional al 50%, sin Oficina</td></tr>
+      <tr><td>Alejo Broggi</td><td>Sin movilidad</td><td>No se le calcula reintegro ni amortización</td></tr>
+    </tbody>
+  </table>
+</div>
+
+<!-- PAGE 4: ESCALAS -->
+<div class="page">
+  <div class="header-bar">
+    <div class="brand">dCaC</div>
+    <div class="page-title">Manual de Cierres Regionales — v4.0</div>
+  </div>
+  
+  <h2>3. Tabla de Escalas por Volumen</h2>
+  <p>Porcentaje aplicado sobre el Resultado según la cantidad de cabezas operadas. La escala es <strong>logarítmica descendente</strong>.</p>
+  
+  <table>
+    <thead>
+      <tr><th>Cabezas</th><th class="right">Escala AC</th><th class="right">Escala Personal</th><th class="right">Escala Provincial</th><th class="right">Escala Oficina</th></tr>
+    </thead>
+    <tbody>
+      <tr><td>250</td><td class="right">26,3%</td><td class="right">20,2%</td><td class="right">9,1%</td><td class="right">15,4%</td></tr>
+      <tr><td>500</td><td class="right">23,5%</td><td class="right">18,9%</td><td class="right">8,4%</td><td class="right">11,9%</td></tr>
+      <tr><td>750</td><td class="right">21,8%</td><td class="right">18,1%</td><td class="right">8,0%</td><td class="right">9,9%</td></tr>
+      <tr><td>1.000</td><td class="right">20,6%</td><td class="right">17,5%</td><td class="right">7,7%</td><td class="right">8,5%</td></tr>
+      <tr><td>1.500</td><td class="right">19,0%</td><td class="right">16,7%</td><td class="right">7,3%</td><td class="right">6,4%</td></tr>
+      <tr><td>2.000</td><td class="right">17,8%</td><td class="right">16,1%</td><td class="right">7,0%</td><td class="right">5,0%</td></tr>
+      <tr><td>2.500</td><td class="right">16,9%</td><td class="right">15,7%</td><td class="right">6,8%</td><td class="right">5,0%</td></tr>
+      <tr><td>3.000</td><td class="right">16,2%</td><td class="right">15,4%</td><td class="right">6,6%</td><td class="right">5,0%</td></tr>
+      <tr><td>4.000</td><td class="right">15,0%</td><td class="right">14,8%</td><td class="right">6,3%</td><td class="right">5,0%</td></tr>
+      <tr><td>5.000</td><td class="right">15,0%</td><td class="right">14,4%</td><td class="right">6,1%</td><td class="right">5,0%</td></tr>
+      <tr><td>6.000</td><td class="right">15,0%</td><td class="right">14,0%</td><td class="right">5,9%</td><td class="right">5,0%</td></tr>
+      <tr><td>8.000</td><td class="right">15,0%</td><td class="right">14,0%</td><td class="right">5,6%</td><td class="right">5,0%</td></tr>
+      <tr><td>10.000</td><td class="right">15,0%</td><td class="right">14,0%</td><td class="right">5,4%</td><td class="right">5,0%</td></tr>
+      <tr><td>15.000</td><td class="right">15,0%</td><td class="right">14,0%</td><td class="right">5,0%</td><td class="right">5,0%</td></tr>
+    </tbody>
+  </table>
+  
+  <div class="info">
+    <strong>¿Qué escala se aplica?</strong><br>
+    • <strong>Escala AC</strong>: Agentes con modalidad Completa (provincias fuera de Córdoba)<br>
+    • <strong>Escala Personal</strong>: Agentes con escalas tipo "Oficina" (Córdoba)<br>
+    • <strong>Escala Provincial</strong>: Se aplica al total de cabezas de la provincia para calcular la Bolsa Regional<br>
+    • <strong>Escala Oficina</strong>: Se aplica al total de cabezas de operaciones directas de la oficina
+  </div>
+  
+  <h2>4. Gastos y Movilidad</h2>
+  
+  <h3>Reintegro de Movilidad (Vehículo Propio)</h3>
+  <p>Si el AC usa vehículo propio, se le reintegra por kilómetro recorrido según tipo de vehículo:</p>
+  <div class="formula">Reintegro = KMS del mes × Precio por KM según tipo vehículo</div>
+  
+  <h3>Amortización DCAC (Vehículo de Empresa)</h3>
+  <p>Si el AC usa vehículo de la empresa, se le descuenta una cuota mensual de amortización.</p>
+  <div class="formula">Amortización Mensual = Valor Amort. Anual del Modelo / 12</div>
+  
+  <h3>Tarjeta Mendel (Gastos Corporativos)</h3>
+  <p>Los gastos con tarjeta Mendel son <strong>informativos</strong>. Solo se descuentan del Reintegro de Movilidad cuando el AC tiene vehículo propio. <strong>No reducen el sueldo bruto.</strong></p>
+  
+  <div class="note">
+    <strong>Fórmula del Monto Total a Facturar:</strong><br>
+    <code>Sueldo Bruto + Ajustes Retroactivos + Reintegro Movilidad (neto de Mendel) − Amortización DCAC</code>
+  </div>
+</div>
+
+<!-- PAGE 5: FLUJO -->
+<div class="page">
+  <div class="header-bar">
+    <div class="brand">dCaC</div>
+    <div class="page-title">Manual de Cierres Regionales — v4.0</div>
+  </div>
+  
+  <h2>5. Flujo de Cálculo</h2>
+  
+  <h3>Paso 1: Importación de Operaciones</h3>
+  <p>Se extraen las operaciones concretadas del mes desde Q95 (Metabase/ClickHouse). Cada operación tiene: cabezas, resultado, AC vendedor, AC comprador, provincia, oficina.</p>
+  
+  <h3>Paso 2: Atribución por AC</h3>
+  <p>Cada operación se atribuye al AC por prioridad: <strong>Legajo → Sociedad → Representante</strong>. El resultado se pondera: <strong>2/3 venta + 1/3 compra</strong>.</p>
+  
+  <h3>Paso 3: Cálculo de Componentes</h3>
+  <div class="two-col">
+    <div>
+      <h3>Personal</h3>
+      <ol>
+        <li>Sumar cabezas y resultado del AC</li>
+        <li>Aplicar escala según cabezas</li>
+        <li>CP = Resultado × Escala</li>
+      </ol>
+      <h3>Regional</h3>
+      <ol>
+        <li>Sumar resultado de toda la provincia</li>
+        <li>Calcular Bolsa Provincial (escala × resultado)</li>
+        <li>Calcular Tajada del AC</li>
+        <li>CR = Bolsa × Tajada</li>
+      </ol>
+    </div>
+    <div>
+      <h3>Oficina</h3>
+      <ol>
+        <li>Identificar ops sin AC (directas)</li>
+        <li>Calcular resultado y escala oficina</li>
+        <li>Dividir entre miembros de la oficina</li>
+        <li>CO = Resultado × Escala × (1/N)</li>
+      </ol>
+      <h3>Sueldo Final</h3>
+      <ol>
+        <li>Bruto = MAX(CP + CR + CO, Mínimo)</li>
+        <li>+ Ajustes retroactivos</li>
+        <li>+ Reintegro movilidad (− Mendel)</li>
+        <li>− Amortización DCAC</li>
+      </ol>
+    </div>
+  </div>
+  
+  <h2>6. Estructura de Oficinas</h2>
+  <table>
+    <thead><tr><th>Oficina</th><th>Provincia</th><th>Comp. Oficina</th><th>Agentes</th></tr></thead>
+    <tbody>
+      <tr><td>Oficina Rio 4to</td><td>Córdoba</td><td class="center">✅</td><td>Torriglia, Julian, Deambrocio, Menghi, Rivarola, Alonso</td></tr>
+      <tr><td>Oficina Entre Rios</td><td>Entre Ríos</td><td class="center">✅</td><td>Ganis, Loza, Pons, Echezarreta, Broggi</td></tr>
+      <tr><td>Oficina Bavio</td><td>Buenos Aires</td><td class="center">✅</td><td>Sanchez, Saparrat</td></tr>
+      <tr><td>Oficina Buenos Aires Central</td><td>Buenos Aires</td><td class="center">—</td><td>Poullion, Diehl (pseudo)</td></tr>
+      <tr><td>Oficina Ayacucho</td><td>Buenos Aires</td><td class="center">—</td><td>Sansot</td></tr>
+      <tr><td>Oficina Central</td><td>Buenos Aires</td><td class="center">—</td><td>Frutos (modelo propio)</td></tr>
+      <tr><td>Sin oficina</td><td>Varias</td><td class="center">—</td><td>Garcia, Sposito, Rapp, Bunge, Olmedo, Barboza, Cieri, Acuña</td></tr>
+    </tbody>
+  </table>
+  
+  <div class="info" style="margin-top: 20px;">
+    <strong>Contacto:</strong> Para consultas sobre este modelo, contactar al equipo de Operaciones dCaC.<br>
+    <strong>Versión:</strong> 4.0 — Motor automatizado TypeScript. Datos fuente: Q95 (Metabase) + Google Sheets.
+  </div>
+</div>
+
+</body>
+</html>

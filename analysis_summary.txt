@@ -1,0 +1,943 @@
+# Spreadsheet: dCaC P&L - Version 3.0
+
+## Sheet: Glorsario Modelo
+Headers: ["","","","","","","","","","","","","","","","","","","","Item","Detalle","202401","202402","202403","202404","202405","202406","202407","202408","202409","202410","202411"]
+Formulas: None found in first 10 rows.
+
+## Sheet: Envío de Reportes
+Headers: ["Nombre Apellido","Codigo","Provincia","Partido","Oficina","Tipo","Modalidad","Mail","Auto","Mendel","Responsable DC","CATEGORIA","Enviar","Hoja","CC",1,2,3,4,5]
+Formulas used:
+- Col 14 (CC): =TEXTJOIN(",", TRUE, P#:T#)
+
+## Sheet: Resumen RRHH
+Headers: ["","Año","Mes","Valores"]
+Formulas: None found in first 10 rows.
+
+## Sheet: Modelo X2
+Headers: ["","","","","","","","YTD","YTD","YTD","YTD","YTD","YTD","YTD","YTD","YTD","YTD","YTD","YTD","","YTD","YTD","YTD","YTD","YTD","YTD","YTD","YTD","YTD","YTD","YTD","ytd","","YTD","YTD","YTD"]
+Formulas used:
+- Col 34 (YTD): =AH#+#
+- Col 35 (YTD): =AI#+#
+- Col 36 (Unknown): =AJ#+#
+- Col 37 (Unknown): =AK#+#
+- Col 38 (Unknown): =AL#+#
+- Col 39 (Unknown): =AM#+#
+- Col 40 (Unknown): =AN#+#
+- Col 41 (Unknown): =AO#+#
+- Col 42 (Unknown): =AP#+#
+- Col 43 (Unknown): =AQ#+#
+- Col 44 (Unknown): =AR#+#
+- Col 7 (YTD): =SUMIFS(Import!$AC:$AC,Import!$AH:$AH,H$#)*(#/#)
++SUMIFS(Import!$AC:$AC,Import!$AH:$AH,H$#)*(#/#)
+- Col 8 (YTD): =SUMIFS(Import!$AC:$AC,Import!$AH:$AH,I$#)*(#/#)
++SUMIFS(Import!$AC:$AC,Import!$AH:$AH,I$#)*(#/#)
+- Col 9 (YTD): =SUMIFS(Import!$AC:$AC,Import!$AH:$AH,J$#)*(#/#)
++SUMIFS(Import!$AC:$AC,Import!$AH:$AH,J$#)*(#/#)
+- Col 10 (YTD): =SUMIFS(Import!$AC:$AC,Import!$AH:$AH,K$#)*(#/#)
++SUMIFS(Import!$AC:$AC,Import!$AH:$AH,K$#)*(#/#)
+- Col 11 (YTD): =SUMIFS(Import!$AC:$AC,Import!$AH:$AH,L$#)*(#/#)
++SUMIFS(Import!$AC:$AC,Import!$AH:$AH,L$#)*(#/#)
+- Col 12 (YTD): =SUMIFS(Import!$AC:$AC,Import!$AH:$AH,M$#)*(#/#)
++SUMIFS(Import!$AC:$AC,Import!$AH:$AH,M$#)*(#/#)
+- Col 13 (YTD): =SUMIFS(Import!$AC:$AC,Import!$AH:$AH,N$#)*(#/#)
++SUMIFS(Import!$AC:$AC,Import!$AH:$AH,N$#)*(#/#)
+- Col 14 (YTD): =SUMIFS(Import!$AC:$AC,Import!$AH:$AH,O$#)*(#/#)
++SUMIFS(Import!$AC:$AC,Import!$AH:$AH,O$#)*(#/#)
+- Col 15 (YTD): =SUMIFS(Import!$AC:$AC,Import!$AH:$AH,P$#)*(#/#)
++SUMIFS(Import!$AC:$AC,Import!$AH:$AH,P$#)*(#/#)
+- Col 16 (YTD): =SUMIFS(Import!$AC:$AC,Import!$AH:$AH,Q$#)*(#/#)
++SUMIFS(Import!$AC:$AC,Import!$AH:$AH,Q$#)*(#/#)
+- Col 17 (YTD): =SUMIFS(Import!$AC:$AC,Import!$AH:$AH,R$#)*(#/#)
++SUMIFS(Import!$AC:$AC,Import!$AH:$AH,R$#)*(#/#)
+- Col 18 (YTD): =SUMIFS(Import!$AC:$AC,Import!$AH:$AH,S$#)*(#/#)
++SUMIFS(Import!$AC:$AC,Import!$AH:$AH,S$#)*(#/#)
+- Col 19 (Unknown): =SUM(H#:S#)
+- Col 20 (YTD): =SUMIFS(Import!$AC:$AC,Import!$AH:$AH,U$#)
+- Col 21 (YTD): =SUMIFS(Import!$AC:$AC,Import!$AH:$AH,V$#)
+- Col 22 (YTD): =SUMIFS(Import!$AC:$AC,Import!$AH:$AH,W$#)
+- Col 23 (YTD): =SUMIFS(Import!$AC:$AC,Import!$AH:$AH,X$#)
+- Col 24 (YTD): =SUMIFS(Import!$AC:$AC,Import!$AH:$AH,Y$#)
+- Col 25 (YTD): =SUMIFS(Import!$AC:$AC,Import!$AH:$AH,Z$#)
+- Col 26 (YTD): =SUMIFS(Import!$AC:$AC,Import!$AH:$AH,AA$#)
+- Col 27 (YTD): =SUMIFS(Import!$AC:$AC,Import!$AH:$AH,AB$#)
+- Col 28 (YTD): =SUMIFS(Import!$AC:$AC,Import!$AH:$AH,AC$#)
+- Col 29 (YTD): =SUMIFS(Import!$AC:$AC,Import!$AH:$AH,AD$#)
+- Col 30 (YTD): =SUMIFS(Import!$AC:$AC,Import!$AH:$AH,AE$#)
+- Col 31 (ytd): =SUMIFS(Import!$AC:$AC,Import!$AH:$AH,AF$#)
+- Col 32 (Unknown): =SUM(U#:AF#)
+- Col 33 (YTD): =SUMIFS(Import!$AC:$AC,Import!$AH:$AH,AH$#)
+- Col 34 (YTD): =SUMIFS(Import!$AC:$AC,Import!$AH:$AH,AI$#)
+- Col 35 (YTD): =SUMIFS(Import!$AC:$AC,Import!$AH:$AH,AJ$#)
+- Col 36 (Unknown): =SUMIFS(Import!$AC:$AC,Import!$AH:$AH,AK$#)
+- Col 37 (Unknown): =SUMIFS(Import!$AC:$AC,Import!$AH:$AH,AL$#)
+- Col 38 (Unknown): =SUMIFS(Import!$AC:$AC,Import!$AH:$AH,AM$#)
+- Col 39 (Unknown): =SUMIFS(Import!$AC:$AC,Import!$AH:$AH,AN$#)
+- Col 40 (Unknown): =SUMIFS(Import!$AC:$AC,Import!$AH:$AH,AO$#)
+- Col 41 (Unknown): =SUMIFS(Import!$AC:$AC,Import!$AH:$AH,AP$#)
+- Col 42 (Unknown): =SUMIFS(Import!$AC:$AC,Import!$AH:$AH,AQ$#)
+- Col 43 (Unknown): =SUMIFS(Import!$AC:$AC,Import!$AH:$AH,AR$#)
+- Col 44 (Unknown): =SUMIFS(Import!$AC:$AC,Import!$AH:$AH,AS$#)
+- Col 45 (Unknown): =SUM(AH#:AS#)
+- Col 7 (YTD): =SUMIFS(H#:H,$F$#:$F,"Total Remuneracion sin tope")
+- Col 8 (YTD): =SUMIFS(I#:I,$F$#:$F,"Total Remuneracion sin tope")
+- Col 9 (YTD): =SUMIFS(J#:J,$F$#:$F,"Total Remuneracion sin tope")
+- Col 10 (YTD): =SUMIFS(K#:K,$F$#:$F,"Total Remuneracion sin tope")
+- Col 11 (YTD): =SUMIFS(L#:L,$F$#:$F,"Total Remuneracion sin tope")
+- Col 12 (YTD): =SUMIFS(M#:M,$F$#:$F,"Total Remuneracion sin tope")
+- Col 13 (YTD): =SUMIFS(N#:N,$F$#:$F,"Total Remuneracion sin tope")
+- Col 14 (YTD): =SUMIFS(O#:O,$F$#:$F,"Total Remuneracion sin tope")
+- Col 15 (YTD): =SUMIFS(P#:P,$F$#:$F,"Total Remuneracion sin tope")
+- Col 16 (YTD): =SUMIFS(Q#:Q,$F$#:$F,"Total Remuneracion sin tope")
+- Col 17 (YTD): =SUMIFS(R#:R,$F$#:$F,"Total Remuneracion sin tope")
+- Col 18 (YTD): =SUMIFS(S#:S,$F$#:$F,"Total Remuneracion sin tope")
+- Col 20 (YTD): =SUMIFS(U#:U,$F$#:$F,"Total Remuneracion sin tope")
+- Col 21 (YTD): =SUMIFS(V#:V,$F$#:$F,"Total Remuneracion sin tope")
+- Col 22 (YTD): =SUMIFS(W#:W,$F$#:$F,"Total Remuneracion sin tope")
+- Col 23 (YTD): =SUMIFS(X#:X,$F$#:$F,"Total Remuneracion sin tope")
+- Col 24 (YTD): =SUMIFS(Y#:Y,$F$#:$F,"Total Remuneracion sin tope")
+- Col 25 (YTD): =SUMIFS(Z#:Z,$F$#:$F,"Total Remuneracion sin tope")
+- Col 26 (YTD): =SUMIFS(AA#:AA,$F$#:$F,"Total Remuneracion sin tope")
+- Col 27 (YTD): =SUMIFS(AB#:AB,$F$#:$F,"Total Remuneracion sin tope")
+- Col 28 (YTD): =SUMIFS(AC#:AC,$F$#:$F,"Total Remuneracion sin tope")
+- Col 29 (YTD): =SUMIFS(AD#:AD,$F$#:$F,"Total Remuneracion sin tope")
+- Col 30 (YTD): =SUMIFS(AE#:AE,$F$#:$F,"Total Remuneracion sin tope")
+- Col 31 (ytd): =SUMIFS(AF#:AF,$F$#:$F,"Total Remuneracion sin tope")
+- Col 33 (YTD): =SUMIFS(AH#:AH,$F$#:$F,"Total Remuneracion sin tope")
+- Col 34 (YTD): =SUMIFS(AI#:AI,$F$#:$F,"Total Remuneracion sin tope")
+- Col 35 (YTD): =SUMIFS(AJ#:AJ,$F$#:$F,"Total Remuneracion sin tope")
+- Col 36 (Unknown): =SUMIFS(AK#:AK,$F$#:$F,"Total Remuneracion sin tope")
+- Col 37 (Unknown): =SUMIFS(AL#:AL,$F$#:$F,"Total Remuneracion sin tope")
+- Col 38 (Unknown): =SUMIFS(AM#:AM,$F$#:$F,"Total Remuneracion sin tope")
+- Col 39 (Unknown): =SUMIFS(AN#:AN,$F$#:$F,"Total Remuneracion sin tope")
+- Col 40 (Unknown): =SUMIFS(AO#:AO,$F$#:$F,"Total Remuneracion sin tope")
+- Col 41 (Unknown): =SUMIFS(AP#:AP,$F$#:$F,"Total Remuneracion sin tope")
+- Col 42 (Unknown): =SUMIFS(AQ#:AQ,$F$#:$F,"Total Remuneracion sin tope")
+- Col 43 (Unknown): =SUMIFS(AR#:AR,$F$#:$F,"Total Remuneracion sin tope")
+- Col 44 (Unknown): =SUMIFS(AS#:AS,$F$#:$F,"Total Remuneracion sin tope")
+- Col 7 (YTD): =IFERROR(H#/H#,)
+- Col 8 (YTD): =IFERROR(I#/I#,)
+- Col 9 (YTD): =IFERROR(J#/J#,)
+- Col 10 (YTD): =IFERROR(K#/K#,)
+- Col 11 (YTD): =IFERROR(L#/L#,)
+- Col 12 (YTD): =IFERROR(M#/M#,)
+- Col 13 (YTD): =IFERROR(N#/N#,)
+- Col 14 (YTD): =IFERROR(O#/O#,)
+- Col 15 (YTD): =IFERROR(P#/P#,)
+- Col 16 (YTD): =IFERROR(Q#/Q#,)
+- Col 17 (YTD): =IFERROR(R#/R#,)
+- Col 18 (YTD): =IFERROR(S#/S#,)
+- Col 19 (Unknown): =IFERROR(T#/T#,)
+- Col 20 (YTD): =IFERROR(U#/U#,)
+- Col 21 (YTD): =IFERROR(V#/V#,)
+- Col 22 (YTD): =IFERROR(W#/W#,)
+- Col 23 (YTD): =IFERROR(X#/X#,)
+- Col 24 (YTD): =IFERROR(Y#/Y#,)
+- Col 25 (YTD): =IFERROR(Z#/Z#,)
+- Col 26 (YTD): =IFERROR(AA#/AA#,)
+- Col 27 (YTD): =IFERROR(AB#/AB#,)
+- Col 28 (YTD): =IFERROR(AC#/AC#,)
+- Col 29 (YTD): =IFERROR(AD#/AD#,)
+- Col 30 (YTD): =IFERROR(AE#/AE#,)
+- Col 31 (ytd): =IFERROR(AF#/AF#,)
+- Col 32 (Unknown): =IFERROR(AG#/AG#,)
+- Col 33 (YTD): =IFERROR(AH#/AH#,)
+- Col 34 (YTD): =IFERROR(AI#/AI#,)
+- Col 35 (YTD): =IFERROR(AJ#/AJ#,)
+- Col 36 (Unknown): =IFERROR(AK#/AK#,)
+- Col 37 (Unknown): =IFERROR(AL#/AL#,)
+- Col 38 (Unknown): =IFERROR(AM#/AM#,)
+- Col 39 (Unknown): =IFERROR(AN#/AN#,)
+- Col 40 (Unknown): =IFERROR(AO#/AO#,)
+- Col 41 (Unknown): =IFERROR(AP#/AP#,)
+- Col 42 (Unknown): =IFERROR(AQ#/AQ#,)
+- Col 43 (Unknown): =IFERROR(AR#/AR#,)
+- Col 44 (Unknown): =IFERROR(AS#/AS#,)
+- Col 45 (Unknown): =IFERROR(AT#/AT#,)
+- Col 6 (Unknown): =XLOOKUP($F#,Roster!$A:$A,Roster!$E:$E,"-",#)
+- Col 0 (Unknown): =F#
+- Col 1 (Unknown): =XLOOKUP(A#,Roster!A:A,Roster!C:C,,#)
+- Col 2 (Unknown): =G#
+- Col 3 (Unknown): =XLOOKUP($A#,'Import Roster'!$A:$A,'Import Roster'!$W:$W,,#)
+- Col 4 (Unknown): =COUNTIF(Roster!E:E,$C#)
+- Col 7 (YTD): =COUNTIFS(Import!$Y:$Y,$A#,Import!$AH:$AH,H$#)+COUNTIFS(Import!$Z:$Z,$A#,Import!$AH:$AH,H$#,Import!$AI:$AI,"=#")
+- Col 8 (YTD): =COUNTIFS(Import!$Y:$Y,$A#,Import!$AH:$AH,I$#)+COUNTIFS(Import!$Z:$Z,$A#,Import!$AH:$AH,I$#,Import!$AI:$AI,"=#")
+- Col 9 (YTD): =COUNTIFS(Import!$Y:$Y,$A#,Import!$AH:$AH,J$#)+COUNTIFS(Import!$Z:$Z,$A#,Import!$AH:$AH,J$#,Import!$AI:$AI,"=#")
+- Col 10 (YTD): =COUNTIFS(Import!$Y:$Y,$A#,Import!$AH:$AH,K$#)+COUNTIFS(Import!$Z:$Z,$A#,Import!$AH:$AH,K$#,Import!$AI:$AI,"=#")
+- Col 11 (YTD): =COUNTIFS(Import!$Y:$Y,$A#,Import!$AH:$AH,L$#)+COUNTIFS(Import!$Z:$Z,$A#,Import!$AH:$AH,L$#,Import!$AI:$AI,"=#")
+- Col 12 (YTD): =COUNTIFS(Import!$Y:$Y,$A#,Import!$AH:$AH,M$#)+COUNTIFS(Import!$Z:$Z,$A#,Import!$AH:$AH,M$#,Import!$AI:$AI,"=#")
+- Col 13 (YTD): =COUNTIFS(Import!$Y:$Y,$A#,Import!$AH:$AH,N$#)+COUNTIFS(Import!$Z:$Z,$A#,Import!$AH:$AH,N$#,Import!$AI:$AI,"=#")
+- Col 14 (YTD): =COUNTIFS(Import!$Y:$Y,$A#,Import!$AH:$AH,O$#)+COUNTIFS(Import!$Z:$Z,$A#,Import!$AH:$AH,O$#,Import!$AI:$AI,"=#")
+- Col 15 (YTD): =COUNTIFS(Import!$Y:$Y,$A#,Import!$AH:$AH,P$#)+COUNTIFS(Import!$Z:$Z,$A#,Import!$AH:$AH,P$#,Import!$AI:$AI,"=#")
+- Col 16 (YTD): =COUNTIFS(Import!$Y:$Y,$A#,Import!$AH:$AH,Q$#)+COUNTIFS(Import!$Z:$Z,$A#,Import!$AH:$AH,Q$#,Import!$AI:$AI,"=#")
+- Col 17 (YTD): =COUNTIFS(Import!$Y:$Y,$A#,Import!$AH:$AH,R$#)+COUNTIFS(Import!$Z:$Z,$A#,Import!$AH:$AH,R$#,Import!$AI:$AI,"=#")
+- Col 18 (YTD): =COUNTIFS(Import!$Y:$Y,$A#,Import!$AH:$AH,S$#)+COUNTIFS(Import!$Z:$Z,$A#,Import!$AH:$AH,S$#,Import!$AI:$AI,"=#")
+- Col 20 (YTD): =COUNTIFS(Import!$Y:$Y,$A#,Import!$AH:$AH,U$#)+COUNTIFS(Import!$Z:$Z,$A#,Import!$AH:$AH,U$#,Import!$AI:$AI,"=#")
+- Col 21 (YTD): =COUNTIFS(Import!$Y:$Y,$A#,Import!$AH:$AH,V$#)+COUNTIFS(Import!$Z:$Z,$A#,Import!$AH:$AH,V$#,Import!$AI:$AI,"=#")
+- Col 22 (YTD): =COUNTIFS(Import!$Y:$Y,$A#,Import!$AH:$AH,W$#)+COUNTIFS(Import!$Z:$Z,$A#,Import!$AH:$AH,W$#,Import!$AI:$AI,"=#")
+- Col 23 (YTD): =COUNTIFS(Import!$Y:$Y,$A#,Import!$AH:$AH,X$#)+COUNTIFS(Import!$Z:$Z,$A#,Import!$AH:$AH,X$#,Import!$AI:$AI,"=#")
+- Col 24 (YTD): =COUNTIFS(Import!$Y:$Y,$A#,Import!$AH:$AH,Y$#)+COUNTIFS(Import!$Z:$Z,$A#,Import!$AH:$AH,Y$#,Import!$AI:$AI,"=#")
+- Col 25 (YTD): =COUNTIFS(Import!$Y:$Y,$A#,Import!$AH:$AH,Z$#)+COUNTIFS(Import!$Z:$Z,$A#,Import!$AH:$AH,Z$#,Import!$AI:$AI,"=#")
+- Col 26 (YTD): =COUNTIFS(Import!$Y:$Y,$A#,Import!$AH:$AH,AA$#)+COUNTIFS(Import!$Z:$Z,$A#,Import!$AH:$AH,AA$#,Import!$AI:$AI,"=#")
+- Col 27 (YTD): =COUNTIFS(Import!$Y:$Y,$A#,Import!$AH:$AH,AB$#)+COUNTIFS(Import!$Z:$Z,$A#,Import!$AH:$AH,AB$#,Import!$AI:$AI,"=#")
+- Col 28 (YTD): =COUNTIFS(Import!$Y:$Y,$A#,Import!$AH:$AH,AC$#)+COUNTIFS(Import!$Z:$Z,$A#,Import!$AH:$AH,AC$#,Import!$AI:$AI,"=#")
+- Col 29 (YTD): =COUNTIFS(Import!$Y:$Y,$A#,Import!$AH:$AH,AD$#)+COUNTIFS(Import!$Z:$Z,$A#,Import!$AH:$AH,AD$#,Import!$AI:$AI,"=#")
+- Col 30 (YTD): =COUNTIFS(Import!$Y:$Y,$A#,Import!$AH:$AH,AE$#)+COUNTIFS(Import!$Z:$Z,$A#,Import!$AH:$AH,AE$#,Import!$AI:$AI,"=#")
+- Col 31 (ytd): =COUNTIFS(Import!$Y:$Y,$A#,Import!$AH:$AH,AF$#)+COUNTIFS(Import!$Z:$Z,$A#,Import!$AH:$AH,AF$#,Import!$AI:$AI,"=#")
+- Col 33 (YTD): =COUNTIFS(Import!$Y:$Y,$A#,Import!$AH:$AH,AH$#)+COUNTIFS(Import!$Z:$Z,$A#,Import!$AH:$AH,AH$#,Import!$AI:$AI,"=#")
+- Col 34 (YTD): =COUNTIFS(Import!$Y:$Y,$A#,Import!$AH:$AH,AI$#)+COUNTIFS(Import!$Z:$Z,$A#,Import!$AH:$AH,AI$#,Import!$AI:$AI,"=#")
+- Col 35 (YTD): =COUNTIFS(Import!$Y:$Y,$A#,Import!$AH:$AH,AJ$#)+COUNTIFS(Import!$Z:$Z,$A#,Import!$AH:$AH,AJ$#,Import!$AI:$AI,"=#")
+- Col 36 (Unknown): =COUNTIFS(Import!$Y:$Y,$A#,Import!$AH:$AH,AK$#)+COUNTIFS(Import!$Z:$Z,$A#,Import!$AH:$AH,AK$#,Import!$AI:$AI,"=#")
+- Col 37 (Unknown): =COUNTIFS(Import!$Y:$Y,$A#,Import!$AH:$AH,AL$#)+COUNTIFS(Import!$Z:$Z,$A#,Import!$AH:$AH,AL$#,Import!$AI:$AI,"=#")
+- Col 38 (Unknown): =COUNTIFS(Import!$Y:$Y,$A#,Import!$AH:$AH,AM$#)+COUNTIFS(Import!$Z:$Z,$A#,Import!$AH:$AH,AM$#,Import!$AI:$AI,"=#")
+- Col 39 (Unknown): =COUNTIFS(Import!$Y:$Y,$A#,Import!$AH:$AH,AN$#)+COUNTIFS(Import!$Z:$Z,$A#,Import!$AH:$AH,AN$#,Import!$AI:$AI,"=#")
+- Col 40 (Unknown): =COUNTIFS(Import!$Y:$Y,$A#,Import!$AH:$AH,AO$#)+COUNTIFS(Import!$Z:$Z,$A#,Import!$AH:$AH,AO$#,Import!$AI:$AI,"=#")
+- Col 41 (Unknown): =COUNTIFS(Import!$Y:$Y,$A#,Import!$AH:$AH,AP$#)+COUNTIFS(Import!$Z:$Z,$A#,Import!$AH:$AH,AP$#,Import!$AI:$AI,"=#")
+- Col 42 (Unknown): =COUNTIFS(Import!$Y:$Y,$A#,Import!$AH:$AH,AQ$#)+COUNTIFS(Import!$Z:$Z,$A#,Import!$AH:$AH,AQ$#,Import!$AI:$AI,"=#")
+- Col 43 (Unknown): =COUNTIFS(Import!$Y:$Y,$A#,Import!$AH:$AH,AR$#)+COUNTIFS(Import!$Z:$Z,$A#,Import!$AH:$AH,AR$#,Import!$AI:$AI,"=#")
+- Col 44 (Unknown): =COUNTIFS(Import!$Y:$Y,$A#,Import!$AH:$AH,AS$#)+COUNTIFS(Import!$Z:$Z,$A#,Import!$AH:$AH,AS$#,Import!$AI:$AI,"=#")
+
+## Sheet: Lucila Frutos
+Headers: ["","","","","","","","","","","","","","","","","Sociedades LULI","Opero en el mes","","","","","","","","","","","","x recibo",2480625,0.7,"","Completar Listado Sociedades Mermas & Activación CI para seguimiento de operaciones"]
+Formulas used:
+- Col 17 (Opero en el mes): =IF((SUMIFS(Import!$E:$E,Import!$C:$C,$Q#,Import!$AH:$AH,$A$#)+SUMIFS(Import!$E:$E,Import!$D:$D,$Q#,Import!$AH:$AH,$A$#))>#,"Si","No")
+- Col 31 (0.7): =AE#/SUM($AE$#:$AE$#)
+- Col 30 (2480625): =AE#/#
+- Col 3 (Unknown): =XLOOKUP(B#,Roster!J#:J#,Roster!L#:L#,,#)
+- Col 4 (Unknown): =XLOOKUP(B#,Roster!A#:A#,Roster!E#:E#,,#)
+- Col 1 (Unknown): =XLOOKUP(B#,'Import Roster'!A:A,'Import Roster'!W:W,,#)
+- Col 5 (Unknown): =IF((F#+F#+F#)<X#,"Sueldo minimo","")
+- Col 1 (Unknown): =COUNTIFS(Import!$Y:$Y,B#,Import!$AH:$AH,A#)+COUNTIFS(Import!$Z:$Z,B#,Import!$AH:$AH,A#,Import!$AI:$AI,"=#")
+- Col 5 (Unknown): =N#
+- Col 10 (Unknown): =F#+F#+F#
+- Col 39 (Unknown): =SUMIFS(Import!$E:$E,Import!$C:$C,$AH#,Import!$AH:$AH,$A$#)
+- Col 40 (Unknown): =SUMIFS(Import!$E:$E,Import!$D:$D,$AH#,Import!$AH:$AH,$A$#)
+- Col 41 (Unknown): =XLOOKUP(AH#,Import!C:C,Import!Y:Y,XLOOKUP(AH#,Import!D:D,Import!Z:Z,,#),#)
+- Col 1 (Unknown): =SUMIFS(Import!$E:$E,Import!$AH:$AH,A#,Import!$Y:$Y,B#)+SUMIFS(Import!$E:$E,Import!$AH:$AH,A#,Import!$Z:$Z,B#,Import!$AI:$AI,"=#")
+- Col 3 (Unknown): =SUMIFS(Import!$E:$E,Import!$AH:$AH,A#,Import!$Y:$Y,B#,Import!$AI:$AI,"=#")+
+SUMIFS(Import!$E:$E,Import!$AH:$AH,A#,Import!$Z:$Z,B#,Import!$AI:$AI,"=#")/#
+- Col 4 (Unknown): =(SUMIFS(Import!$E:$E,Import!$AH:$AH,A#,Import!$Z:$Z,B#,Import!$AI:$AI,"=#")+SUMIFS(Import!$E:$E,Import!$AH:$AH,A#,Import!$Y:$Y,B#,Import!$AI:$AI,"=#")/#)
+- Col 10 (Unknown): =IF(F#="Minimo","", XLOOKUP(B#,RAC!$A:$A,RAC!$NU:$NU,,#))
+- Col 1 (Unknown): =SUMIFS(Import!$AC:$AC,Import!$AH:$AH,A#,Import!$Y:$Y,B#)+SUMIFS(Import!$AC:$AC,Import!$AH:$AH,A#,Import!$Z:$Z,B#,Import!$AI:$AI,"=#")
+- Col 10 (Unknown): =LET(
+    Ventas, SUM(F#:G#),
+    Categoria, B#,
+    
+    ColumnaMinimo, CHOOSE(Categoria, 
+        'ESCALAS RAC AC'!C:C,  
+        'ESCALAS RAC AC'!D:D,  
+        'ESCALAS RAC AC'!E:E, 
+        'ESCALAS RAC AC'!F:F, 
+        'ESCALAS RAC AC'!G:G,  
+        #                       
+    ),
+
+    MinimoGarantizado, IF(Categoria=#, #, XLOOKUP(A#, 'ESCALAS RAC AC'!B:B, ColumnaMinimo,,#)),
+
+    MAX(Ventas, MinimoGarantizado) 
+)
+- Col 11 (Unknown): =IFERROR(K#/(B#+B#+B#),)
+- Col 1 (Unknown): =A#
+- Col 5 (Unknown): =(D#*D#)+(E#*E#)
+- Col 1 (Unknown): =F#
+- Col 3 (Unknown): =SUMIFS($I$#:$I$#,$B$#:$B$#,"Faena")
+- Col 4 (Unknown): =SUMIFS($I$#:$I$#,$B$#:$B$#,"Invernada")
+- Col 8 (Unknown): =IFERROR(IF(XLOOKUP(B#,'Kms & $'!A#:A#,'Kms & $'!A#:A#)=B#,"Gastos de Movilidad",),)
+- Col 10 (Unknown): =IFERROR(IF(XLOOKUP(B#,'Kms & $'!A#:A#,'Kms & $'!A#:A#)=B#,+E#-E#,),)
+
+## Sheet: Reporte Mensual AC
+Headers: []
+Formulas used:
+- Col 5 (Unknown): =XLOOKUP(B#,'Import Roster'!A:A,'Import Roster'!F:F,,#)
+- Col 12 (Unknown): =LET(
+    Categoria, B#,
+    
+    ColumnaMinimo, CHOOSE(Categoria, 
+        'ESCALAS RAC AC'!C:C,  
+        'ESCALAS RAC AC'!D:D, 
+        'ESCALAS RAC AC'!E:E,  
+        'ESCALAS RAC AC'!F:F, 
+        'ESCALAS RAC AC'!G:G, 
+        'ESCALAS RAC AC'!H:H,  
+        'ESCALAS RAC AC'!I:I, 
+        'ESCALAS RAC AC'!J:J, 
+        'ESCALAS RAC AC'!K:K,  
+        'ESCALAS RAC AC'!L:L   
+    ),
+
+    MinimoGarantizado, XLOOKUP(A#, 'ESCALAS RAC AC'!B:B, ColumnaMinimo, #, #),
+
+    MinimoGarantizado
+)
+- Col 17 (Unknown): =IF(F#+F#+F#+F#<#,"SUELDO MIN","")
+- Col 3 (Unknown): =XLOOKUP(B#,'Import Roster'!A:A,'Import Roster'!C:C,,#)
+- Col 4 (Unknown): =XLOOKUP(B#,'Import Roster'!A:A,'Import Roster'!E:E,,#)
+- Col 12 (Unknown): =IF(F#="Operario de carga",F#,IF((F#+F#)>M#,(F#+F#)-M#,""))
+- Col 1 (Unknown): =XLOOKUP(B#,'Import Roster'!A:A,'Import Roster'!W:W,,#)
+- Col 3 (Unknown): =IFERROR(D#/$B$#,)
+- Col 4 (Unknown): =IFERROR(E#/$B$#,)
+- Col 5 (Unknown): =LET(
+    NOMBRE,B#,
+    SUMA_VAL, SUM(F#:G#),
+    RANGO,
+        IF(OR(NOMBRE="Sebastian Rivarola",NOMBRE="Pablo Cieri"),
+            'ESCALAS RAC AC'!F:F,
+        IF(NOMBRE="Marcelo Barboza",
+            'ESCALAS RAC AC'!G:G,
+        IF(NOMBRE="Frutos",
+            'ESCALAS RAC AC'!D:D,
+            'ESCALAS RAC AC'!E:E
+        ))),
+    MINIMO, XLOOKUP(A#,'ESCALAS RAC AC'!B:B,RANGO,,#),
+
+    IF(
+        OR(NOMBRE="Facundo Alonso",NOMBRE="Alejo Broggi",NOMBRE="Nicolas Echezarreta"),
+        "",
+
+        IF(
+            NOMBRE="Hugo Ganis",
+            ,
+
+            IF(SUMA_VAL <= MINIMO, "Minimo", "")
+        )
+    )
+)
+
+- Col 12 (Unknown): =IF(F#="Minimo",,IF(F#="Minimo",SUMIFS(Ajustes!V:V,Ajustes!E:E,B#,Ajustes!D:D,A#), SUMIFS(Ajustes!V:V,Ajustes!E:E,B#,Ajustes!D:D,A#)))
+- Col 16 (Unknown): =IF(B#="Marcelo Barboza", #, XLOOKUP(A#,'ESCALAS RAC AC'!B:B,'ESCALAS RAC AC'!E:E,,#))
+
+- Col 1 (Unknown): =COUNTIFS(Import!$Y:$Y,B#,Import!$AH:$AH,A#)+COUNTIFS(Import!$Z:$Z,B#,Import!$AH:$AH,A#,Import!$AI:$AI,"=#")
+- Col 5 (Unknown): =B#*D#
+
+- Col 12 (Unknown): =IF(F#<>"Minimo",(M#+M#+M#),M#+M#)
+- Col 13 (Unknown): =IFERROR(M#/B#,)
+- Col 1 (Unknown): =SUMIFS(Import!$E:$E,Import!$AH:$AH,A#,Import!$Y:$Y,B#)+
+SUMIFS(Import!$E:$E,Import!$AH:$AH,A#,Import!$Z:$Z,B#,Import!$AI:$AI,"=#")
+- Col 3 (Unknown): =SUMIFS(Import!$E:$E,Import!$AH:$AH,A#,Import!$Y:$Y,B#,Import!$AI:$AI,"=#")+
+SUMIFS(Import!$E:$E,Import!$AH:$AH,A#,Import!$Z:$Z,B#,Import!$AI:$AI,"=#")/#
+- Col 4 (Unknown): =SUMIFS(Import!$E:$E,Import!$AH:$AH,A#,Import!$Z:$Z,B#,Import!$AI:$AI,"=#")+
+SUMIFS(Import!$E:$E,Import!$AH:$AH,A#,Import!$Y:$Y,B#,Import!$AI:$AI,"=#")/#
+- Col 1 (Unknown): =SUMIFS(Import!$AC:$AC,Import!$AH:$AH,A#,Import!$Y:$Y,B#)*(#/#)+
+SUMIFS(Import!$AC:$AC,Import!$AH:$AH,A#,Import!$Z:$Z,B#)*(#/#)
+- Col 3 (Unknown): =IF(OR(B#="Alejo Broggi",B#="Facundo Alonso",B#="Facundo Ruete",B#="Augusto Reynot"),#.#, IF(D#="Cordoba", XLOOKUP(B#,'ESCALAS RAC AC'!$N:$N,'ESCALAS RAC AC'!$O:$O,,-#),XLOOKUP(B#,'ESCALAS RAC AC'!$N:$N,'ESCALAS RAC AC'!$R:$R,,-#)))
+- Col 10 (Unknown): =IFERROR("Gastos de Movilidad",)
+- Col 12 (Unknown): =IFERROR(+E#-E#,)
+- Col 1 (Unknown): =COUNTIFS(Import!$AA:$AA,D#,Import!$AH:$AH,A#)+
+COUNTIFS(Import!$AB:$AB,D#,Import!$AH:$AH,A#,Import!$AJ:$AJ,"=#")
+- Col 1 (Unknown): =SUMIFS(Import!$E:$E,Import!$AH:$AH,$A$#,Import!$AA:$AA,$D$#)+SUMIFS(Import!$E:$E,Import!$AH:$AH,$A$#,Import!$AB:$AB,$D$#,Import!$AJ:$AJ,"=#")
+- Col 3 (Unknown): =XLOOKUP($B$#,'ESCALAS RAC AC'!$N:$N,'ESCALAS RAC AC'!$P:$P,"-",-#)/#
+- Col 4 (Unknown): =IFERROR(SUMIFS(Tajada!$E:$E,Tajada!$A:$A,B#,Tajada!$D:$D,A#)/SUMIFS(Tajada!$E:$E,Tajada!$B:$B,D#,Tajada!$D:$D,A#),)
+- Col 13 (Unknown): =IF(B#="Lucia Sposito",B#+H#+H#,IF(B#="Hugo Ganis",H#+B#,H#+H#))
+
+## Sheet: Reporte Mensual Oficina AC
+Headers: []
+Formulas used:
+- Col 17 (Unknown): =IF(F#+F#+F#+F#<#,"SUELDO MIN","")
+- Col 3 (Unknown): =XLOOKUP(B#,'Import Roster'!A:A,'Import Roster'!C:C,,#)
+- Col 4 (Unknown): =XLOOKUP(B#,'Import Roster'!A:A,'Import Roster'!E:E,,#)
+- Col 12 (Unknown): =LET(
+    Categoria, B#,
+    
+    ColumnaMinimo, CHOOSE(Categoria, 
+        'ESCALAS RAC AC'!C:C,  
+        'ESCALAS RAC AC'!D:D, 
+        'ESCALAS RAC AC'!E:E,  
+        'ESCALAS RAC AC'!F:F, 
+        'ESCALAS RAC AC'!G:G, 
+        'ESCALAS RAC AC'!H:H,  
+        'ESCALAS RAC AC'!I:I, 
+        'ESCALAS RAC AC'!J:J, 
+        'ESCALAS RAC AC'!K:K,  
+        'ESCALAS RAC AC'!L:L   
+    ),
+
+    MinimoGarantizado, XLOOKUP(A#, 'ESCALAS RAC AC'!B:B, ColumnaMinimo, #, #),
+
+    MinimoGarantizado
+)
+- Col 1 (Unknown): =XLOOKUP(B#,'Import Roster'!A:A,'Import Roster'!W:W,,#)
+- Col 5 (Unknown): =IF(AND(NOT(OR(B#="Hugo Ganis")), F#<XLOOKUP(A#,'ESCALAS RAC AC'!$B:$B,'ESCALAS RAC AC'!$E:$E,,#)), "SUELDO MINIMO", "")
+
+- Col 12 (Unknown): =IF((F#-M#)<#,"MINIMO",F#-M#)
+- Col 16 (Unknown): =IF(B#="Marcelo Barboza", #, XLOOKUP(A#,'ESCALAS RAC AC'!B:B,'ESCALAS RAC AC'!E:E,,#))
+
+- Col 1 (Unknown): =COUNTIFS(Import!$Y:$Y,B#,Import!$AH:$AH,A#)+COUNTIFS(Import!$Z:$Z,B#,Import!$AH:$AH,A#,Import!$AI:$AI,"=#")
+- Col 5 (Unknown): =IF(OR(B#="Alejo Broggi",B#="Facundo Alonso"),B#*#.#, B#*D#)
+
+- Col 12 (Unknown): =IF(M#="MINIMO","-",F#)
+- Col 1 (Unknown): =SUMIFS(Import!$E:$E,Import!$AH:$AH,A#,Import!$Y:$Y,B#)+
+SUMIFS(Import!$E:$E,Import!$AH:$AH,A#,Import!$Z:$Z,B#,Import!$AI:$AI,"=#")
+- Col 3 (Unknown): =SUMIFS(Import!$E:$E,Import!$AH:$AH,A#,Import!$Y:$Y,B#,Import!$AI:$AI,"=#")+
+SUMIFS(Import!$E:$E,Import!$AH:$AH,A#,Import!$Z:$Z,B#,Import!$AI:$AI,"=#")/#
+- Col 4 (Unknown): =SUMIFS(Import!$E:$E,Import!$AH:$AH,A#,Import!$Z:$Z,B#,Import!$AI:$AI,"=#")+
+SUMIFS(Import!$E:$E,Import!$AH:$AH,A#,Import!$Y:$Y,B#,Import!$AI:$AI,"=#")/#
+- Col 1 (Unknown): =SUMIFS(Import!$AC:$AC,Import!$AH:$AH,A#,Import!$Y:$Y,B#)*(#/#)+
+SUMIFS(Import!$AC:$AC,Import!$AH:$AH,A#,Import!$Z:$Z,B#)*(#/#)
+- Col 3 (Unknown): =IF(OR(B#="Alejo Broggi",B#="Facundo Alonso"),"", IF(D#="Cordoba", XLOOKUP(B#,'ESCALAS RAC AC'!$N:$N,'ESCALAS RAC AC'!$O:$O,,-#),
+XLOOKUP(B#,'ESCALAS RAC AC'!$N:$N,'ESCALAS RAC AC'!$O:$O,,-#)))
+- Col 12 (Unknown): =IF(M#="MINIMO",F#,M#+M#+M#+M#)
+- Col 1 (Unknown): =COUNTIFS(Import!$AA:$AA,D#,Import!$AH:$AH,A#)+
+COUNTIFS(Import!$AB:$AB,D#,Import!$AH:$AH,A#,Import!$AJ:$AJ,"=#")
+- Col 5 (Unknown): =IF(M#="MINIMO","-",IFERROR(B#*D#*E#,))
+- Col 12 (Unknown): =SUMIFS(Ajustes!V:V,Ajustes!E:E,B#,Ajustes!D:D,A#)
+- Col 1 (Unknown): =SUMIFS(Import!$E:$E,Import!$AH:$AH,$A$#,Import!$AA:$AA,$D$#)+SUMIFS(Import!$E:$E,Import!$AH:$AH,$A$#,Import!$AB:$AB,$D$#,Import!$AJ:$AJ,"=#")
+- Col 3 (Unknown): =IF(D#="Buenos Aires",XLOOKUP($B$#,'ESCALAS RAC AC'!$N:$N,'ESCALAS RAC AC'!$P:$P,"-",-#)/#,XLOOKUP($B$#,'ESCALAS RAC AC'!$N:$N,'ESCALAS RAC AC'!$P:$P,"-",-#))
+- Col 4 (Unknown): =IFERROR(SUMIFS(Tajada!$E:$E,Tajada!$A:$A,B#,Tajada!$D:$D,A#)/SUMIFS(Tajada!$E:$E,Tajada!$B:$B,D#,Tajada!$D:$D,A#),)
+- Col 12 (Unknown): =IF((F#-M#)<#,M#,IF(B#="Sebastian Saparrat",F#+F#+M#,M#+M#+M#+M#+M#))
+- Col 13 (Unknown): =IFERROR(M#/B#,)
+
+## Sheet: AGUINALDOS
+Headers: ["","",202501,202502,202503,202504,202505,202506,202507,202508,202509,202510,202511,202512]
+Formulas used:
+- Col 1 (Unknown): =XLOOKUP(A#,'Import Roster'!A:A,'Import Roster'!W:W,,#)
+- Col 2 (202501): =SUMIFS(
+ INDEX('ESCALAS RAC AC'!$A$#:$K$#,,MATCH($B#,'ESCALAS RAC AC'!$A$#:$K$#,#)),
+ 'ESCALAS RAC AC'!$B$#:$B$#,C$#
+)
+
+- Col 3 (202502): =SUMPRODUCT(
+ 'ESCALAS RAC AC'!$A$#:$K$# *
+('ESCALAS RAC AC'!$B$#:$B$#=D$#) *
+('ESCALAS RAC AC'!$A$#:$K$#=$B#)
+)
+- Col 4 (202503): =SUMPRODUCT(
+ 'ESCALAS RAC AC'!$A$#:$K$# *
+('ESCALAS RAC AC'!$B$#:$B$#=E$#) *
+('ESCALAS RAC AC'!$A$#:$K$#=$B#)
+)
+- Col 5 (202504): =SUMPRODUCT(
+ 'ESCALAS RAC AC'!$A$#:$K$# *
+('ESCALAS RAC AC'!$B$#:$B$#=F$#) *
+('ESCALAS RAC AC'!$A$#:$K$#=$B#)
+)
+- Col 6 (202505): =SUMPRODUCT(
+ 'ESCALAS RAC AC'!$A$#:$K$# *
+('ESCALAS RAC AC'!$B$#:$B$#=G$#) *
+('ESCALAS RAC AC'!$A$#:$K$#=$B#)
+)
+- Col 7 (202506): =SUMPRODUCT(
+ 'ESCALAS RAC AC'!$A$#:$K$# *
+('ESCALAS RAC AC'!$B$#:$B$#=H$#) *
+('ESCALAS RAC AC'!$A$#:$K$#=$B#)
+)
+- Col 8 (202507): =SUMPRODUCT(
+ 'ESCALAS RAC AC'!$A$#:$K$# *
+('ESCALAS RAC AC'!$B$#:$B$#=I$#) *
+('ESCALAS RAC AC'!$A$#:$K$#=$B#)
+)
+- Col 9 (202508): =SUMPRODUCT(
+ 'ESCALAS RAC AC'!$A$#:$K$# *
+('ESCALAS RAC AC'!$B$#:$B$#=J$#) *
+('ESCALAS RAC AC'!$A$#:$K$#=$B#)
+)
+- Col 10 (202509): =SUMPRODUCT(
+ 'ESCALAS RAC AC'!$A$#:$K$# *
+('ESCALAS RAC AC'!$B$#:$B$#=K$#) *
+('ESCALAS RAC AC'!$A$#:$K$#=$B#)
+)
+- Col 11 (202510): =SUMPRODUCT(
+ 'ESCALAS RAC AC'!$A$#:$K$# *
+('ESCALAS RAC AC'!$B$#:$B$#=L$#) *
+('ESCALAS RAC AC'!$A$#:$K$#=$B#)
+)
+- Col 12 (202511): =SUMPRODUCT(
+ 'ESCALAS RAC AC'!$A$#:$K$# *
+('ESCALAS RAC AC'!$B$#:$B$#=M$#) *
+('ESCALAS RAC AC'!$A$#:$K$#=$B#)
+)
+- Col 13 (202512): =SUMPRODUCT(
+ 'ESCALAS RAC AC'!$A$#:$K$# *
+('ESCALAS RAC AC'!$B$#:$B$#=N$#) *
+('ESCALAS RAC AC'!$A$#:$K$#=$B#)
+)
+- Col 14 (Unknown): =MAX(C#:H#)/#
+- Col 15 (Unknown): =(MAX(I#:N#)/#)*(COUNT(I#:N#)/#)
+
+## Sheet: Kms & $
+Headers: ["","","","","","","","","","Actualizado: 5/1/2026, 12:51:30 AM","Actualizado: 2/1/2026, 12:51:34 AM"]
+Formulas: None found in first 10 rows.
+
+## Sheet: BDGASTOS
+Headers: ["Año","Mes","AñoMes","Asociado Comercial","Remuneracion","Cabezas","Componente Personal","Componente Regional","Componente Oficina","Ajuste","Gastos","Amortización"]
+Formulas used:
+- Col 2 (AñoMes): =VALUE(CONCATENATE(A#,TEXT(B#,"#")))
+- Col 11 (Amortización): =SUMPRODUCT(
+  'Kms & $'!$C$#:$I$# * 
+  ('Kms & $'!$C$#:$I$# = C#) *
+  ('Kms & $'!$A$#:$A$# = D#)
+)
+
+## Sheet: RAC
+Headers: ["","","","","","","","","","","","202311","202311",202312,202312,"","","","","","202401","202401","","","","","","202402","202402","","","","","","","","","",202403,202403,"","","","","","","","","","",202404,202404,"","","","","","","","","","","","","","","",202405,202405]
+Formulas: None found in first 10 rows.
+
+## Sheet: BaseMendelGastos
+Headers: ["ID Transaccion","Fecha transaccion","Fecha confirmacion","Usuario","Comercio","Importe Total","Metodo de pago","Estado transaccion","Usuario normalizado","Categoria normalizada","Periodo normalizado"]
+Formulas: None found in first 10 rows.
+
+## Sheet: BDsueldos
+Headers: ["Fecha de Cierre","Año","Mes","AñoMes","Asociado_Comercial","Codigo","Provincia","Partido","Oficina","Tipo","Modalidad","Escalas","Categoria","SUELDO","CIERRE_REAL","MINIMO","Gastos","Tropas_General","Cabezas_General","Cabz_Gen_Venta","Cabz_Gen_Compra","Importe_Gen","Resultado_Gen","Escala_Gen","Componente_P","Componente_P_Aju","Tropas_Regional","Cabezas_Regional","Cabz_Reg_Venta","Cabz_Reg_Compra","Importe_Reg","Resultado_Reg","Bolsa_Region","Tajada_Region","Componente_R","Tropas_Oficina","Cabezas_Ofi","Cabz_Reg_Ofi","Cabz_Ofi_Compra","Importe_Ofi","Resultado_Ofi","Escala_Oficina","OP_Oficina","Componente_O","Ajustes","Cierre_Mes_-3","Cierre_Mes_-2","Cierre_Mes_-1","Extras","Rendimiento_Gen","CCC'_Gen","SocOp_Gen","Amortizacion_AP","Gastos_Movilidad","KMS","Auto","Precio x KM","Reintegro_Movilidad","Gastos MKT","Gastos Oficina","Amortizacione_DCAC","Gastos Corp","Resutlado_real_negocios"]
+Formulas used:
+- Col 0 (Fecha de Cierre): =DATE(B#,C#,#)
+- Col 5 (Codigo): =arrayformula(XLOOKUP($E$#:$E,'Import Roster'!$A:$A,'Import Roster'!B:B,,#))
+- Col 6 (Provincia): =arrayformula(XLOOKUP($E$#:$E,'Import Roster'!$A:$A,'Import Roster'!C:C,,#))
+- Col 7 (Partido): =arrayformula(XLOOKUP($E$#:$E,'Import Roster'!$A:$A,'Import Roster'!D:D,,#))
+- Col 8 (Oficina): =arrayformula(XLOOKUP($E$#:$E,'Import Roster'!$A:$A,'Import Roster'!E:E,,#))
+- Col 9 (Tipo): =arrayformula(XLOOKUP($E$#:$E,'Import Roster'!$A:$A,'Import Roster'!F:F,,#))
+- Col 10 (Modalidad): =arrayformula(XLOOKUP($E$#:$E,'Import Roster'!$A:$A,'Import Roster'!G:G,,#))
+- Col 11 (Escalas): =XLOOKUP($E$#:$E,'Import Roster'!$A:$A,'Import Roster'!H:H,,#)
+- Col 12 (Categoria): =arrayformula(XLOOKUP($E$#:$E,'Import Roster'!$A:$A,'Import Roster'!W:W,,#))
+- Col 13 (SUELDO): =LET(
+    Categoria, M#,
+    Oficina, L#,
+    Asociado, E#,
+    
+    BonoOperario, IF(J#="Operario de carga", W#*#.#+AW#+AS#, #),
+
+    VentaVariable, IF(Oficina="Oficina", Y#+AI#+AR#+AS#+AW#, 
+        IF(Asociado="Agustin Acuna", W#*#.#, 
+            IF(Asociado="Sebastian Saparrat", Y#+AI#+AS#, Y#+AS#+AW#)
+        )
+    ),
+
+    ColumnaMinimo, CHOOSE(Categoria, 
+        'ESCALAS RAC AC'!C:C,  
+        'ESCALAS RAC AC'!D:D, 
+        'ESCALAS RAC AC'!E:E,  
+        'ESCALAS RAC AC'!F:F, 
+        'ESCALAS RAC AC'!G:G, 
+        'ESCALAS RAC AC'!H:H,  
+        'ESCALAS RAC AC'!I:I, 
+        'ESCALAS RAC AC'!J:J, 
+        'ESCALAS RAC AC'!K:K,  
+        'ESCALAS RAC AC'!L:L   
+    ),
+    
+    MinimoGarantizado, IF(Categoria=#, #, XLOOKUP(D#, 'ESCALAS RAC AC'!B:B, ColumnaMinimo, #, #)),
+    
+    IFERROR(ROUND(IF(MinimoGarantizado > Y#, MinimoGarantizado, VentaVariable + BonoOperario), #), #)
+)
+- Col 14 (CIERRE_REAL): =LET(
+    Categoria, M#,
+    Oficina, L#,
+    Asociado, E#,
+    FechaLookup, D#,
+
+    VentaVariable, IF(Oficina="Oficina", Y#+AI#+AR#, 
+            IF(Asociado="Sebastian Saparrat", Y#+AI#, Y#)
+      
+    ),
+
+    ColumnaMinimo, CHOOSE(Categoria, 
+        'ESCALAS RAC AC'!C:C, 
+        'ESCALAS RAC AC'!D:D, 
+        'ESCALAS RAC AC'!E:E, 
+        'ESCALAS RAC AC'!F:F, 
+        'ESCALAS RAC AC'!G:G, 
+        'ESCALAS RAC AC'!H:H, 
+        'ESCALAS RAC AC'!I:I, 
+        'ESCALAS RAC AC'!J:J, 
+        'ESCALAS RAC AC'!K:K, 
+        'ESCALAS RAC AC'!L:L
+    ),
+    
+    MinimoGarantizado, IF(Categoria=#, #, XLOOKUP(FechaLookup, 'ESCALAS RAC AC'!B:B, ColumnaMinimo, #, #)),
+    
+    IFERROR(ROUND(MAX(VentaVariable, MinimoGarantizado), #), #)
+)
+- Col 15 (MINIMO): =LET(
+    Ventas, Y#,
+    Categoria, M#,
+    
+    ColumnaMinimo, CHOOSE(Categoria, 
+        'ESCALAS RAC AC'!C:C,  
+        'ESCALAS RAC AC'!D:D, 
+        'ESCALAS RAC AC'!E:E,  
+        'ESCALAS RAC AC'!F:F, 
+        'ESCALAS RAC AC'!G:G, 
+        'ESCALAS RAC AC'!H:H,  
+        'ESCALAS RAC AC'!I:I, 
+        'ESCALAS RAC AC'!J:J, 
+        'ESCALAS RAC AC'!K:K,  
+        'ESCALAS RAC AC'!L:L   
+    ),
+
+    FechaCorregida, VALUE(D#),
+
+    MinimoGarantizado, IF(Categoria=#, #, XLOOKUP(FechaCorregida, 'ESCALAS RAC AC'!B:B, ColumnaMinimo, #, #)),
+
+    IFERROR(MinimoGarantizado, #)
+)
+- Col 16 (Gastos): =MAP(E#:E, D#:D,
+  LAMBDA(d, c,
+    IF(d="","",
+      SUMIFS(
+        BaseMendelGastos!F:F,
+        BaseMendelGastos!I:I, d,
+        BaseMendelGastos!K:K, c,
+        BaseMendelGastos!H:H, "CONFIRMADA"
+      )
+    )
+  )
+)
+
+- Col 17 (Tropas_General): =COUNTIFS(Import!$Y:$Y,E#,Import!$AH:$AH,D#)+COUNTIFS(Import!$Z:$Z,E#,Import!$AH:$AH,D#,Import!$AI:$AI,"=#")
+- Col 18 (Cabezas_General): =SUMIFS(Import!$E:$E,Import!$AH:$AH,D#,Import!$Y:$Y,E#)+SUMIFS(Import!$E:$E,Import!$AH:$AH,D#,Import!$Z:$Z,E#,Import!$AI:$AI,"=#")
+- Col 19 (Cabz_Gen_Venta): =SUMIFS(Import!$E:$E,Import!$AH:$AH,D#,Import!$Y:$Y,E#,Import!$AI:$AI,"=#")+SUMIFS(Import!$E:$E,Import!$AH:$AH,D#,Import!$Z:$Z,E#,Import!$AI:$AI,"=#")/#
+- Col 20 (Cabz_Gen_Compra): =SUMIFS(Import!$E:$E,Import!$AH:$AH,D#,Import!$Z:$Z,E#,Import!$AI:$AI,"=#")+SUMIFS(Import!$E:$E,Import!$AH:$AH,D#,Import!$Y:$Y,E#,Import!$AI:$AI,"=#")/#
+- Col 21 (Importe_Gen): =SUMIFS(Import!$G:$G,Import!$AH:$AH,D#,Import!$Y:$Y,E#)
++SUMIFS(Import!$G:$G,Import!$AH:$AH,D#,Import!$Z:$Z,E#,Import!$Y:$Y,"<>"&E#)
++SUMIFS(Import!$I:$I,Import!$AH:$AH,D#,Import!$Y:$Y,E#)
++SUMIFS(Import!$J:$J,Import!$AH:$AH,D#,Import!$Z:$Z,E#)
+- Col 22 (Resultado_Gen): =SUMIFS(Import!$AC:$AC,Import!$AH:$AH,D#,Import!$Y:$Y,E#)*(#/#)
++SUMIFS(Import!$AC:$AC,Import!$AH:$AH,D#,Import!$Z:$Z,E#)*(#/#)
+- Col 23 (Escala_Gen): =IF(J#="Operario de carga",#.#, IF(L#="Oficina", XLOOKUP(S#,'ESCALAS RAC AC'!$N$#:$N,'ESCALAS RAC AC'!$O$#:$O,"-",-#), XLOOKUP(S#,'ESCALAS RAC AC'!$N$#:$N,'ESCALAS RAC AC'!$R$#:$R,"-",-#)))
+- Col 24 (Componente_P): =X#*W#
+- Col 26 (Tropas_Regional): =COUNTIFS(Import!$AA:$AA,G#,Import!$AH:$AH,D#)+COUNTIFS(Import!$AB:$AB,G#,Import!$AH:$AH,D#,Import!$AJ:$AJ,"=#")
+- Col 27 (Cabezas_Regional): =SUMIFS(Import!$E:$E,Import!$AH:$AH,D#,Import!$AA:$AA,G#)
++SUMIFS(Import!$E:$E,Import!$AH:$AH,D#,Import!$AB:$AB,G#,Import!$AJ:$AJ,"=#")
+- Col 28 (Cabz_Reg_Venta): =SUMIFS(Import!$E:$E,Import!$AH:$AH,D#,Import!$AA:$AA,G#,Import!$AJ:$AJ,"=#",Import!$AN:$AN,"=#")+
+SUMIFS(Import!$E:$E,Import!$AH:$AH,D#,Import!$AB:$AB,G#,Import!$AJ:$AJ,"=#",Import!$AN:$AN,"=#")/#
+- Col 29 (Cabz_Reg_Compra): =SUMIFS(Import!$E:$E,Import!$AH:$AH,D#,Import!$AB:$AB,G#,Import!$AJ:$AJ,"=#",Import!$AN:$AN,"=#")+
+SUMIFS(Import!$E:$E,Import!$AH:$AH,D#,Import!$AA:$AA,G#,Import!$AJ:$AJ,"=#",Import!$AN:$AN,"=#")/#
+- Col 30 (Importe_Reg): =SUMIFS(Import!$G:$G,Import!$AH:$AH,D#,Import!$AA:$AA,G#)*(#/#)
++SUMIFS(Import!$G:$G,Import!$AH:$AH,D#,Import!$AB:$AB,G#)*(#/#)
++SUMIFS(Import!$I:$I,Import!$AH:$AH,D#,Import!$AA:$AA,G#)*(#/#)
++SUMIFS(Import!$J:$J,Import!$AH:$AH,D#,Import!$AB:$AB,G#)*(#/#)
+- Col 31 (Resultado_Reg): =SUMIFS(Import!$AC:$AC,Import!$AH:$AH,D#,Import!$AA:$AA,G#)*(#/#)
++SUMIFS(Import!$AC:$AC,Import!$AH:$AH,D#,Import!$AB:$AB,G#)*(#/#)
+- Col 32 (Bolsa_Region): =XLOOKUP(AB#,'ESCALAS RAC AC'!$N:$N,'ESCALAS RAC AC'!$P:$P,"-",-#)
+- Col 33 (Tajada_Region): =IFERROR(SUMIFS(Tajada!$E:$E,Tajada!$A:$A,E#,Tajada!$D:$D,D#)/SUMIFS(Tajada!$E:$E,Tajada!$B:$B,G#,Tajada!$D:$D,D#),)
+- Col 34 (Componente_R): =AH#*AG#*AF#
+- Col 35 (Tropas_Oficina): =COUNTIFS(Import!$AF:$AF,I#,Import!$AH:$AH,D#,Import!$AA:$AA,"",Import!$AB:$AB,"")+
+COUNTIFS(Import!$AG:$AG,I#,Import!$AH:$AH,D#,Import!$AK:$AK,"=#",Import!$AA:$AA,"",Import!$AB:$AB,"")
+- Col 36 (Cabezas_Ofi): =SUMIFS(Import!$E:$E,Import!$AH:$AH,D#,Import!$AF:$AF,I#,Import!$AA:$AA,"",Import!$AB:$AB,"")+
+SUMIFS(Import!$E:$E,Import!$AH:$AH,D#,Import!$AG:$AG,I#,Import!$AK:$AK,"=#",Import!$AA:$AA,"",Import!$AB:$AB,"")
+- Col 37 (Cabz_Reg_Ofi): =SUMIFS(Import!$E:$E,Import!$AH:$AH,D#,Import!$AF:$AF,I#,Import!$AK:$AK,"=#",Import!$AA:$AA,"",Import!$AB:$AB,"")+SUMIFS(Import!$E:$E,Import!$AH:$AH,D#,Import!$AG:$AG,I#,Import!$AK:$AK,"=#",Import!$AA:$AA,"",Import!$AB:$AB,"")/#
+- Col 38 (Cabz_Ofi_Compra): =SUMIFS(Import!$E:$E,Import!$AH:$AH,D#,Import!$AG:$AG,I#,Import!$AK:$AK,"=#",Import!$AA:$AA,"",Import!$AB:$AB,"")+SUMIFS(Import!$E:$E,Import!$AH:$AH,D#,Import!$AF:$AF,I#,Import!$AK:$AK,"=#",Import!$AA:$AA,"",Import!$AB:$AB,"")/#
+- Col 39 (Importe_Ofi): =SUMIFS(Import!$G:$G,Import!$AH:$AH,D#,Import!$AF:$AF,I#,Import!$AA:$AA,"",Import!$AB:$AB,"")*(#/#)
++SUMIFS(Import!$G:$G,Import!$AH:$AH,D#,Import!$AG:$AG,I#,Import!$AK:$AK,"=#",Import!$AA:$AA,"",Import!$AB:$AB,"")*(#/#)
++SUMIFS(Import!$I:$I,Import!$AH:$AH,D#,Import!$AF:$AF,I#,Import!$AA:$AA,"",Import!$AB:$AB,"")*(#/#)
++SUMIFS(Import!$J:$J,Import!$AH:$AH,D#,Import!$AG:$AG,I#,Import!$AK:$AK,"=#",Import!$AA:$AA,"",Import!$AB:$AB,"")*(#/#)
+- Col 40 (Resultado_Ofi): =SUMIFS(Import!$AC:$AC,Import!$AH:$AH,D#,Import!$AF:$AF,I#,Import!$AA:$AA,"",Import!$AB:$AB,"")*(#/#)+
+SUMIFS(Import!$AC:$AC,Import!$AH:$AH,D#,Import!$AG:$AG,I#,Import!$AK:$AK,"=#",Import!$AA:$AA,"",Import!$AB:$AB,"")*(#/#)
+- Col 41 (Escala_Oficina): =XLOOKUP(AK#, 'ESCALAS RAC AC'!$N:$N,'ESCALAS RAC AC'!$Q:$Q,"-",-#)
+- Col 42 (OP_Oficina): =IFERROR(#/COUNTUNIQUEIFS(E:E,I:I,I#),)
+- Col 43 (Componente_O): =AQ#*AP#*AO#
+- Col 44 (Ajustes): =SUMIFS(Ajustes!$V:$V,Ajustes!$E:$E,$E#,Ajustes!$D:$D,$D#)
+- Col 45 (Cierre_Mes_-3): =LET(
+   fecha_calc, DATE($B#, $C#-#, #),
+   periodo_obj, YEAR(fecha_calc)*# + MONTH(fecha_calc),
+
+   prod_ponderada, (SUMIFS(Import!$AC:$AC, Import!$AH:$AH, periodo_obj, Import!$Y:$Y, $E#) * (#/#)) + 
+                   (SUMIFS(Import!$AC:$AC, Import!$AH:$AH, periodo_obj, Import!$Z:$Z, $E#) * (#/#)),
+
+   cabezas_calc, SUMIFS(Import!$E:$E, Import!$AH:$AH, periodo_obj, Import!$Y:$Y, $E#) + 
+                 SUMIFS(Import!$E:$E, Import!$AH:$AH, periodo_obj, Import!$Z:$Z, $E#, Import!$AI:$AI, "=#"),
+
+   es_comercial_esp, OR($E#="Valentin Torriglia", $E#="Santiago Julian", $E#="David Menghi", $E#="Alexis Deambrocio", $E#="Sebastian Saparrat"),
+   
+   columna_escala, IF(es_comercial_esp, 'ESCALAS RAC AC'!$O$#:$O, 'ESCALAS RAC AC'!$R$#:$R),
+
+   factor_bono, IF($J#="Operario de carga", #.#, XLOOKUP(cabezas_calc, 'ESCALAS RAC AC'!$N$#:$N, columna_escala, #, -#)),
+
+   prod_ponderada * factor_bono
+)
+- Col 46 (Cierre_Mes_-2): =LET(
+   fecha_calc, DATE($B#, $C#-#, #),
+   periodo_obj, YEAR(fecha_calc)*# + MONTH(fecha_calc),
+
+   prod_ponderada, (SUMIFS(Import!$AC:$AC, Import!$AH:$AH, periodo_obj, Import!$Y:$Y, $E#) * (#/#)) + 
+                   (SUMIFS(Import!$AC:$AC, Import!$AH:$AH, periodo_obj, Import!$Z:$Z, $E#) * (#/#)),
+
+   cabezas_calc, SUMIFS(Import!$E:$E, Import!$AH:$AH, periodo_obj, Import!$Y:$Y, $E#) + 
+                 SUMIFS(Import!$E:$E, Import!$AH:$AH, periodo_obj, Import!$Z:$Z, $E#, Import!$AI:$AI, "=#"),
+
+   es_comercial_esp, OR($E#="Valentin Torriglia", $E#="Santiago Julian", $E#="David Menghi", $E#="Alexis Deambrocio", $E#="Sebastian Saparrat"),
+   
+   columna_escala, IF(es_comercial_esp, 'ESCALAS RAC AC'!$O$#:$O, 'ESCALAS RAC AC'!$R$#:$R),
+
+   factor_bono, IF($J#="Operario de carga", #.#, XLOOKUP(cabezas_calc, 'ESCALAS RAC AC'!$N$#:$N, columna_escala, #, -#)),
+
+   prod_ponderada * factor_bono
+)
+- Col 47 (Cierre_Mes_-1): =LET(
+   fecha_calc, DATE($B#, $C#-#, #),
+   periodo_obj, YEAR(fecha_calc)*# + MONTH(fecha_calc),
+
+   prod_ponderada, (SUMIFS(Import!$AC:$AC, Import!$AH:$AH, periodo_obj, Import!$Y:$Y, $E#) * (#/#)) + 
+                   (SUMIFS(Import!$AC:$AC, Import!$AH:$AH, periodo_obj, Import!$Z:$Z, $E#) * (#/#)),
+
+   cabezas_calc, SUMIFS(Import!$E:$E, Import!$AH:$AH, periodo_obj, Import!$Y:$Y, $E#) + 
+                 SUMIFS(Import!$E:$E, Import!$AH:$AH, periodo_obj, Import!$Z:$Z, $E#, Import!$AI:$AI, "=#"),
+
+   es_comercial_esp, OR($E#="Valentin Torriglia", $E#="Santiago Julian", $E#="David Menghi", $E#="Alexis Deambrocio", $E#="Sebastian Saparrat"),
+   
+   columna_escala, IF(es_comercial_esp, 'ESCALAS RAC AC'!$O$#:$O, 'ESCALAS RAC AC'!$R$#:$R),
+
+   factor_bono, IF($J#="Operario de carga", #.#, XLOOKUP(cabezas_calc, 'ESCALAS RAC AC'!$N$#:$N, columna_escala, #, -#)),
+
+   prod_ponderada * factor_bono
+)
+- Col 49 (Rendimiento_Gen): =arrayformula(IFERROR(BK#:BK/V#:V,))
+- Col 50 (CCC'_Gen): =IFERROR($T#/(SUMIFS(Import#!$J:$J,Import#!$D:$D,$D#,Import#!$V:$V,$E#)+$T#))
+- Col 51 (SocOp_Gen): =COUNTUNIQUE(FLATTEN({
+  FILTER(Import!C:C, (LEN(Import!C:C)>#), Import!Y:Y=TRIM(E#), Import!AH:AH=TRIM(D#));
+  FILTER(Import!D:D, (LEN(Import!D:D)>#), Import!Y:Y=TRIM(E#), Import!AH:AH=TRIM(D#))
+}))
+
+- Col 52 (Amortizacion_AP): =IFERROR(BC#*BE#,)
+- Col 53 (Gastos_Movilidad): =IF(XLOOKUP($E#,KMS!$D:$D,KMS!F:F,,#)="propio",SUMIFS(BaseMendelGastos!$F:$F,BaseMendelGastos!$J:$J,"Combustible",BaseMendelGastos!$K:$K,D#,BaseMendelGastos!$I:$I,E#)+SUMIFS(BaseMendelGastos!$F:$F,BaseMendelGastos!$J:$J,"Peajes",BaseMendelGastos!$K:$K,D#,BaseMendelGastos!$I:$I,E#)+SUMIFS(BaseMendelGastos!$F:$F,BaseMendelGastos!$J:$J,"Service / Reparaciones Auto",BaseMendelGastos!$K:$K,D#,BaseMendelGastos!$I:$I,E#),)
+- Col 54 (KMS): =SUMIFS(KMS!$G:$G,KMS!$D:$D,$E#,KMS!$A:$A,B#,KMS!$B:$B,$C#)
+- Col 55 (Auto): =XLOOKUP($E#,KMS!$D:$D,KMS!$K:$K,,#)
+- Col 56 (Precio x KM): =IF(BD#="suv",#,IF(BD#="Chata",#, IF(BD#="auto",#,)))
+- Col 57 (Reintegro_Movilidad): =BA#-BB#
+- Col 59 (Gastos Oficina): =IFERROR((SUMIFS($R:$R,$I:$I,$I#,$D:$D,$D#,$E:$E,$E#)/SUMIFS($R:$R,$I:$I,$I#,$D:$D,$D#))*SUMIFS(Oficinas!$O:$O,Oficinas!$D:$D,$I#,Oficinas!$C:$C,$D#),)
+- Col 62 (Resutlado_real_negocios): =SUMIFS(Import!$AC:$AC,Import!$AH:$AH,D#,Import!$Y:$Y,E#)
++SUMIFS(Import!$AC:$AC,Import!$AH:$AH,D#,Import!$Z:$Z,E#,Import!$Y:$Y,"<>"&E#)
+- Col 36 (Cabezas_Ofi): =SUMIFS(Import!$E:$E,Import!$AH:$AH,D#,Import!$AF:$AF,I#,Import!$AA:$AA,"",Import!$AB:$AB,"")+SUMIFS(Import!$E:$E,Import!$AH:$AH,D#,Import!$AG:$AG,I#,Import!$AK:$AK,"=#",Import!$AA:$AA,"",Import!$AB:$AB,"")
+- Col 48 (Extras): =IF(D#=#, SUMIFS(AGUINALDOS!P:P,AGUINALDOS!A:A,E#),)
+- Col 58 (Gastos MKT): =SUMIFS(MKT!D:D,MKT!I:I,D#,MKT!A:A,E#)
+- Col 60 (Amortizacione_DCAC): =IF(B#=#,SUMIFS(Amort_DCAC!E:E,Amort_DCAC!A:A,E#),IF(B#=#,SUMIFS(Amort_DCAC!F:F,Amort_DCAC!A:A,E#),))
+
+## Sheet: BDSUELDO_REAL
+Headers: ["Fecha de Cierre","Año","Mes","AñoMes","Asociado_Comercial","Codigo","Provincia","Partido","Oficina","Tipo","Modalidad","Escalas","Categoria","SUELDO","CIERRE_REAL","MINIMO","Gastos","Tropas_General","Cabezas_General","Cabz_Gen_Venta","Cabz_Gen_Compra","Importe_Gen","Resultado_Gen","Escala_Gen","Componente_P","Componente_P_Aju","Tropas_Regional","Cabezas_Regional","Cabz_Reg_Venta","Cabz_Reg_Compra","Importe_Reg","Resultado_Reg","Bolsa_Region","Tajada_Region","Componente_R","Tropas_Oficina","Cabezas_Ofi","Cabz_Reg_Ofi","Cabz_Ofi_Compra","Importe_Ofi","Resultado_Ofi","Escala_Oficina","OP_Oficina","Componente_O","Ajustes","Cierre_Mes_-3","Cierre_Mes_-2","Cierre_Mes_-1","Extras","Rendimiento_Gen","CCC'_Gen","SocOp_Gen","Amortizacion_AP","Gastos_Movilidad","KMS","Auto","Precio x KM","Reintegro_Movilidad","Gastos MKT","Gastos Oficina","Amortizacione_DCAC"]
+Formulas used:
+- Col 0 (Fecha de Cierre): =DATE(B#,C#,#)
+- Col 14 (CIERRE_REAL): =SUMIFS(BDGASTOS!E:E,BDGASTOS!D:D,E#,BDGASTOS!C:C,D#)-SUMIFS(BDGASTOS!J:J,BDGASTOS!D:D,E#,BDGASTOS!C:C,D#)
+- Col 16 (Gastos): =SUMIFS(BDGASTOS!K:K,BDGASTOS!C:C,D#,BDGASTOS!D:D,E#)
+- Col 17 (Tropas_General): =COUNTIFS(Import!$Y:$Y,E#,Import!$AH:$AH,D#)+COUNTIFS(Import!$Z:$Z,E#,Import!$AH:$AH,D#,Import!$AI:$AI,"=#")
+- Col 18 (Cabezas_General): =SUMIFS(Import!$E:$E,Import!$AH:$AH,D#,Import!$Y:$Y,E#)+SUMIFS(Import!$E:$E,Import!$AH:$AH,D#,Import!$Z:$Z,E#,Import!$AI:$AI,"=#")
+- Col 19 (Cabz_Gen_Venta): =SUMIFS(Import!$E:$E,Import!$AH:$AH,D#,Import!$Y:$Y,E#,Import!$AI:$AI,"=#")+SUMIFS(Import!$E:$E,Import!$AH:$AH,D#,Import!$Z:$Z,E#,Import!$AI:$AI,"=#")/#
+- Col 20 (Cabz_Gen_Compra): =SUMIFS(Import!$E:$E,Import!$AH:$AH,D#,Import!$Z:$Z,E#,Import!$AI:$AI,"=#")+SUMIFS(Import!$E:$E,Import!$AH:$AH,D#,Import!$Y:$Y,E#,Import!$AI:$AI,"=#")/#
+- Col 21 (Importe_Gen): =SUMIFS(Import!$G:$G,Import!$AH:$AH,D#,Import!$Y:$Y,E#)
++SUMIFS(Import!$G:$G,Import!$AH:$AH,D#,Import!$Z:$Z,E#)
++SUMIFS(Import!$I:$I,Import!$AH:$AH,D#,Import!$Y:$Y,E#)
++SUMIFS(Import!$J:$J,Import!$AH:$AH,D#,Import!$Z:$Z,E#)
+- Col 22 (Resultado_Gen): =SUMIFS(Import!$AC:$AC,Import!$AH:$AH,D#,Import!$Y:$Y,E#)*(#/#)
++SUMIFS(Import!$AC:$AC,Import!$AH:$AH,D#,Import!$Z:$Z,E#)*(#/#)
+- Col 23 (Escala_Gen): =IF(J#="Operario de carga",#.#, XLOOKUP(S#,'ESCALAS RAC AC'!$N$#:$N,'ESCALAS RAC AC'!$O$#:$O,"-",-#))
+- Col 24 (Componente_P): =X#*W#
+- Col 26 (Tropas_Regional): =COUNTIFS(Import!$AA:$AA,G#,Import!$AH:$AH,D#)+COUNTIFS(Import!$AB:$AB,G#,Import!$AH:$AH,D#,Import!$AJ:$AJ,"=#")
+- Col 27 (Cabezas_Regional): =SUMIFS(Import!$E:$E,Import!$AH:$AH,D#,Import!$AA:$AA,G#)
++SUMIFS(Import!$E:$E,Import!$AH:$AH,D#,Import!$AB:$AB,G#,Import!$AJ:$AJ,"=#")
+- Col 28 (Cabz_Reg_Venta): =SUMIFS(Import!$E:$E,Import!$AH:$AH,D#,Import!$AA:$AA,G#,Import!$AJ:$AJ,"=#",Import!$AN:$AN,"=#")+
+SUMIFS(Import!$E:$E,Import!$AH:$AH,D#,Import!$AB:$AB,G#,Import!$AJ:$AJ,"=#",Import!$AN:$AN,"=#")/#
+- Col 29 (Cabz_Reg_Compra): =SUMIFS(Import!$E:$E,Import!$AH:$AH,D#,Import!$AB:$AB,G#,Import!$AJ:$AJ,"=#",Import!$AN:$AN,"=#")+
+SUMIFS(Import!$E:$E,Import!$AH:$AH,D#,Import!$AA:$AA,G#,Import!$AJ:$AJ,"=#",Import!$AN:$AN,"=#")/#
+- Col 30 (Importe_Reg): =SUMIFS(Import!$G:$G,Import!$AH:$AH,D#,Import!$AA:$AA,G#)*(#/#)
++SUMIFS(Import!$G:$G,Import!$AH:$AH,D#,Import!$AB:$AB,G#)*(#/#)
++SUMIFS(Import!$I:$I,Import!$AH:$AH,D#,Import!$AA:$AA,G#)*(#/#)
++SUMIFS(Import!$J:$J,Import!$AH:$AH,D#,Import!$AB:$AB,G#)*(#/#)
+- Col 31 (Resultado_Reg): =SUMIFS(Import!$AC:$AC,Import!$AH:$AH,D#,Import!$AA:$AA,G#)*(#/#)
++SUMIFS(Import!$AC:$AC,Import!$AH:$AH,D#,Import!$AB:$AB,G#)*(#/#)
+- Col 32 (Bolsa_Region): =XLOOKUP(AB#,'ESCALAS RAC AC'!$N:$N,'ESCALAS RAC AC'!$P:$P,"-",-#)
+- Col 33 (Tajada_Region): =IFERROR(SUMIFS(Tajada!$E:$E,Tajada!$A:$A,E#,Tajada!$D:$D,D#)/SUMIFS(Tajada!$E:$E,Tajada!$B:$B,G#,Tajada!$D:$D,D#),)
+- Col 34 (Componente_R): =AH#*AG#*AF#
+- Col 35 (Tropas_Oficina): =COUNTIFS(Import!$AF:$AF,I#,Import!$AH:$AH,D#,Import!$AA:$AA,"",Import!$AB:$AB,"")+
+COUNTIFS(Import!$AG:$AG,I#,Import!$AH:$AH,D#,Import!$AK:$AK,"=#",Import!$AA:$AA,"",Import!$AB:$AB,"")
+- Col 36 (Cabezas_Ofi): =SUMIFS(Import!$E:$E,Import!$AH:$AH,D#,Import!$AF:$AF,I#,Import!$AA:$AA,"",Import!$AB:$AB,"")+
+SUMIFS(Import!$E:$E,Import!$AH:$AH,D#,Import!$AG:$AG,I#,Import!$AK:$AK,"=#",Import!$AA:$AA,"",Import!$AB:$AB,"")
+- Col 37 (Cabz_Reg_Ofi): =SUMIFS(Import!$E:$E,Import!$AH:$AH,D#,Import!$AF:$AF,I#,Import!$AK:$AK,"=#",Import!$AA:$AA,"",Import!$AB:$AB,"")+SUMIFS(Import!$E:$E,Import!$AH:$AH,D#,Import!$AG:$AG,I#,Import!$AK:$AK,"=#",Import!$AA:$AA,"",Import!$AB:$AB,"")/#
+- Col 38 (Cabz_Ofi_Compra): =SUMIFS(Import!$E:$E,Import!$AH:$AH,D#,Import!$AG:$AG,I#,Import!$AK:$AK,"=#",Import!$AA:$AA,"",Import!$AB:$AB,"")+SUMIFS(Import!$E:$E,Import!$AH:$AH,D#,Import!$AF:$AF,I#,Import!$AK:$AK,"=#",Import!$AA:$AA,"",Import!$AB:$AB,"")/#
+- Col 39 (Importe_Ofi): =SUMIFS(Import!$G:$G,Import!$AH:$AH,D#,Import!$AF:$AF,I#,Import!$AA:$AA,"",Import!$AB:$AB,"")*(#/#)
++SUMIFS(Import!$G:$G,Import!$AH:$AH,D#,Import!$AG:$AG,I#,Import!$AK:$AK,"=#",Import!$AA:$AA,"",Import!$AB:$AB,"")*(#/#)
++SUMIFS(Import!$I:$I,Import!$AH:$AH,D#,Import!$AF:$AF,I#,Import!$AA:$AA,"",Import!$AB:$AB,"")*(#/#)
++SUMIFS(Import!$J:$J,Import!$AH:$AH,D#,Import!$AG:$AG,I#,Import!$AK:$AK,"=#",Import!$AA:$AA,"",Import!$AB:$AB,"")*(#/#)
+- Col 40 (Resultado_Ofi): =SUMIFS(Import!$AC:$AC,Import!$AH:$AH,D#,Import!$AF:$AF,I#,Import!$AA:$AA,"",Import!$AB:$AB,"")*(#/#)+
+SUMIFS(Import!$AC:$AC,Import!$AH:$AH,D#,Import!$AG:$AG,I#,Import!$AK:$AK,"=#",Import!$AA:$AA,"",Import!$AB:$AB,"")*(#/#)
+- Col 41 (Escala_Oficina): =XLOOKUP(AK#, 'ESCALAS RAC AC'!$N:$N,'ESCALAS RAC AC'!$Q:$Q,"-",-#)
+- Col 42 (OP_Oficina): =IFERROR(#/COUNTUNIQUEIFS(E:E,I:I,I#),)
+- Col 43 (Componente_O): =AQ#*AP#*AO#
+- Col 44 (Ajustes): =SUMIFS(BDGASTOS!$J:$J,BDGASTOS!$D:$D,$E#,BDGASTOS!$C:$C,$D#)
+- Col 45 (Cierre_Mes_-3): =LET(
+   fecha_calc, DATE($B#, $C#-#, #),
+   periodo_obj, YEAR(fecha_calc)*# + MONTH(fecha_calc),
+
+   prod_ponderada, (SUMIFS(Import!$AC:$AC, Import!$AH:$AH, periodo_obj, Import!$Y:$Y, $E#) * (#/#)) + 
+                   (SUMIFS(Import!$AC:$AC, Import!$AH:$AH, periodo_obj, Import!$Z:$Z, $E#) * (#/#)),
+
+   cabezas_calc, SUMIFS(Import!$E:$E, Import!$AH:$AH, periodo_obj, Import!$Y:$Y, $E#) + 
+                 SUMIFS(Import!$E:$E, Import!$AH:$AH, periodo_obj, Import!$Z:$Z, $E#, Import!$AI:$AI, "=#"),
+
+   factor_bono, IF($J#="Operario de carga", #.#, XLOOKUP(cabezas_calc, 'ESCALAS RAC AC'!$N$#:$N, 'ESCALAS RAC AC'!$O$#:$O, "-", -#)),
+
+   prod_ponderada * factor_bono
+)
+- Col 46 (Cierre_Mes_-2): =LET(
+   fecha_calc, DATE($B#, $C#-#, #),
+   periodo_obj, YEAR(fecha_calc)*# + MONTH(fecha_calc),
+
+   prod_ponderada, (SUMIFS(Import!$AC:$AC, Import!$AH:$AH, periodo_obj, Import!$Y:$Y, $E#) * (#/#)) + 
+                   (SUMIFS(Import!$AC:$AC, Import!$AH:$AH, periodo_obj, Import!$Z:$Z, $E#) * (#/#)),
+
+   cabezas_calc, SUMIFS(Import!$E:$E, Import!$AH:$AH, periodo_obj, Import!$Y:$Y, $E#) + 
+                 SUMIFS(Import!$E:$E, Import!$AH:$AH, periodo_obj, Import!$Z:$Z, $E#, Import!$AI:$AI, "=#"),
+
+   factor_bono, IF($J#="Operario de carga", #.#, XLOOKUP(cabezas_calc, 'ESCALAS RAC AC'!$N$#:$N, 'ESCALAS RAC AC'!$O$#:$O, "-", -#)),
+
+   prod_ponderada * factor_bono
+)
+- Col 47 (Cierre_Mes_-1): =LET(
+   fecha_calc, DATE($B#, $C#-#, #),
+   periodo_obj, YEAR(fecha_calc)*# + MONTH(fecha_calc),
+
+   prod_ponderada, (SUMIFS(Import!$AC:$AC, Import!$AH:$AH, periodo_obj, Import!$Y:$Y, $E#) * (#/#)) + 
+                   (SUMIFS(Import!$AC:$AC, Import!$AH:$AH, periodo_obj, Import!$Z:$Z, $E#) * (#/#)),
+
+   cabezas_calc, SUMIFS(Import!$E:$E, Import!$AH:$AH, periodo_obj, Import!$Y:$Y, $E#) + 
+                 SUMIFS(Import!$E:$E, Import!$AH:$AH, periodo_obj, Import!$Z:$Z, $E#, Import!$AI:$AI, "=#"),
+
+   factor_bono, IF($J#="Operario de carga", #.#, XLOOKUP(cabezas_calc, 'ESCALAS RAC AC'!$N$#:$N, 'ESCALAS RAC AC'!$O$#:$O, "-", -#)),
+
+   prod_ponderada * factor_bono
+)
+- Col 49 (Rendimiento_Gen): =IFERROR(W#/V#,)
+- Col 50 (CCC'_Gen): =IFERROR($T#/(SUMIFS(Import#!$J:$J,Import#!$D:$D,$D#,Import#!$V:$V,$E#)+$T#))
+- Col 51 (SocOp_Gen): =COUNTUNIQUE(FLATTEN({
+  FILTER(Import!C:C, (LEN(Import!C:C)>#), Import!Y:Y=TRIM(E#), Import!AH:AH=TRIM(D#));
+  FILTER(Import!D:D, (LEN(Import!D:D)>#), Import!Y:Y=TRIM(E#), Import!AH:AH=TRIM(D#))
+}))
+
+- Col 52 (Amortizacion_AP): =IFERROR(BC#*BE#,)
+- Col 53 (Gastos_Movilidad): =IF(XLOOKUP($E#,KMS!$D:$D,KMS!F:F,,#)="propio",SUMIFS(BaseMendelGastos!$F:$F,BaseMendelGastos!$J:$J,"Combustible",BaseMendelGastos!$K:$K,D#,BaseMendelGastos!$I:$I,E#)+SUMIFS(BaseMendelGastos!$F:$F,BaseMendelGastos!$J:$J,"Peajes",BaseMendelGastos!$K:$K,D#,BaseMendelGastos!$I:$I,E#)+SUMIFS(BaseMendelGastos!$F:$F,BaseMendelGastos!$J:$J,"Service / Reparaciones Auto",BaseMendelGastos!$K:$K,D#,BaseMendelGastos!$I:$I,E#),)
+- Col 54 (KMS): =SUMIFS(KMS!$G:$G,KMS!$D:$D,$E#,KMS!$A:$A,B#,KMS!$B:$B,$C#)
+- Col 55 (Auto): =XLOOKUP($E#,KMS!$D:$D,KMS!$K:$K,,#)
+- Col 56 (Precio x KM): =IF(BD#="suv",#,IF(BD#="Chata",#, IF(BD#="auto",#,)))
+- Col 58 (Gastos MKT): =SUMIFS(MKT!D:D,MKT!I:I,D#,MKT!A:A,E#)
+- Col 59 (Gastos Oficina): =IFERROR((SUMIFS($R:$R,$I:$I,$I#,$D:$D,$D#,$E:$E,$E#)/SUMIFS($R:$R,$I:$I,$I#,$D:$D,$D#))*SUMIFS(Oficinas!$O:$O,Oficinas!$D:$D,$I#,Oficinas!$C:$C,$D#),)
+- Col 60 (Amortizacione_DCAC): =IF(B#=#,SUMIFS(Amort_DCAC!E:E,Amort_DCAC!A:A,E#),IF(B#=#,SUMIFS(Amort_DCAC!F:F,Amort_DCAC!A:A,E#),))
+
+## Sheet: Ajustes
+Headers: ["Fecha","Año","Mes","AñoMes","Asociado_Comercial","Codigo","Provincia","Partido","Oficina","Tipo","Modalidad","Escalas","Categoria","Sueldo","Componente_P_D","Mes-3_D","Mes-2_D","Mes-1_D","Mes-2_Fijo_M-1","Mes-1_Fijo_M-1","Componente_P_Fijo_M-1","Ajuste"]
+Formulas used:
+- Col 0 (Fecha): =query(BDsueldos!A:M,"Select * ")
+- Col 13 (Sueldo): =SUMIFS(BDSUELDO_REAL!$N:$N,BDSUELDO_REAL!$E:$E,$E#,BDSUELDO_REAL!$D:$D,$D#)
+- Col 14 (Componente_P_D): =SUMIFS(BDSUELDO_REAL!$Y:$Y,BDSUELDO_REAL!$E:$E,$E#,BDSUELDO_REAL!$D:$D,$D#)
+- Col 15 (Mes-3_D): =SUMIFS(BDSUELDO_REAL!AT:AT,BDSUELDO_REAL!$E:$E,$E#,BDSUELDO_REAL!$D:$D,$D#)
+- Col 16 (Mes-2_D): =SUMIFS(BDSUELDO_REAL!AU:AU,BDSUELDO_REAL!$E:$E,$E#,BDSUELDO_REAL!$D:$D,$D#)
+- Col 17 (Mes-1_D): =SUMIFS(BDSUELDO_REAL!AV:AV,BDSUELDO_REAL!$E:$E,$E#,BDSUELDO_REAL!$D:$D,$D#)
+- Col 18 (Mes-2_Fijo_M-1): =SUMIFS(BDSUELDO_REAL!$AU:$AU, BDSUELDO_REAL!$E:$E, $E#, BDSUELDO_REAL!$D:$D, VALUE(TEXT(EDATE($A#, -#), "yyyymm")))
+- Col 19 (Mes-1_Fijo_M-1): =SUMIFS(BDSUELDO_REAL!$AV:$AV, BDSUELDO_REAL!$E:$E, $E#, BDSUELDO_REAL!$D:$D, VALUE(TEXT(EDATE($A#, -#), "yyyymm")))
+- Col 20 (Componente_P_Fijo_M-1): =SUMIFS(BDSUELDO_REAL!$Y:$Y,BDSUELDO_REAL!$E:$E,$E#,BDSUELDO_REAL!$D:$D,VALUE(TEXT(EDATE($A#, -#), "yyyymm")))
+
+## Sheet: Amort_DCAC
+Headers: ["Asociado Comercial","Provincia","Año","Modelo",2024,2025,2026]
+Formulas: None found in first 10 rows.
+
+## Sheet: KMS
+Headers: ["AÑO","MES","MAIL","COMERCIAL","PATENTE","TIPO","KMS_EMPRESA","KMS_TOTAL","FECHA_ACTUALIZACION","","Vehiculo"]
+Formulas: None found in first 10 rows.
+
+## Sheet: BDCorp
+Headers: ["Año","Mes","AñoMes","Gasto Corp"]
+Formulas: None found in first 10 rows.
+
+## Sheet: Oficinas
+Headers: ["Año","Mes","AñoMes","Oficina","Cabezas","Sueldos Equipo Soporte","Alquiler Oficina","Gastos Oficina","MKT","","","","","Otros","Gastos"]
+Formulas used:
+- Col 14 (Gastos): =SUM(F#:I#)
+
+## Sheet: MKT
+Headers: ["Solicitante","Empresa / Localidad","Detalle","Monto","Periodicidad","Aclaracion","mensual","Mes contratación","Desde","Mes"]
+Formulas: None found in first 10 rows.
+
+## Sheet: Import4507
+Headers: ["id_lote","fecha_operacion","fecha_publicaciones","Fecha_op","Fecha_pub","Tipo","UN","RS_Vendedora","RS_Compradora","Cabezas","importe_vendedor","importe_comprador","bonificacion_vendedor","bonificacion_comprador","resultado_total_proyectado","resultado_final","rendimiento","AEP","atraso_pago","repre_vendedor","repre_comprador","AC_Vend","AC_Comp","Oficina Compra","ESTADO","Estado_Trop","Motivo_NC","cotizada","Prov_AC_Vend","Prov_AC_Comp","Canal_Venta","Canal_compra","Oficina Venta","Usuario_comp_g","ACT CI","usuario_op","usuario_acotz","numero_semana","YAER","Trimestre","Cierre","cuit_vend","part_id_vend","cuit_comp"]
+Formulas: None found in first 10 rows.
+
+## Sheet: Import
+Headers: ["id_lote","fecha_operacion","sociedad_vendedora","sociedad_compradora","cantidad","categoria","importe_vendedor","importe_comprador","bonificacion_vendedor","bonificacion_comprador","resultado_economico","resultado_financiero_proyectado","resultado_total_proyectado","AEP","atraso_pago","resultado_financiero","resultado_final","asociado_comercial_soc_vend","asociado_comercial_id_vend","asociado_comercial_soc_comp","asociado_comercial_id_comp","Tipo","RepreVendedor","RepreComprador","AC_Vend!","AC_Comp!","Prov_AC_Vend!","Prov_AC_Comp!","Resultado _Topeado","Rendimiento","Rend_TOPEADO","Ofi Vendedor","Ofi Comprador","Fecha","Asociados Compra&Venta","Provincia Compra&Venta","Oficina Compra&Venta","Tope Superior","Tope Inferior","Asoc. Comercial 2 Puntas dcac ","Canal","Min_if_vend","Min_if_comp","Soc Vend (& Comp?)","Soc Comp(& Vend?)","Usuario Comprador","ACT CI"]
+Formulas used:
+- Col 24 (AC_Vend!): =IF(B#>=DATE(#,#,#),
+ IF(R#<>"", 
+    IF(R#=XLOOKUP(R#, 'Import Roster'!A:A, 'Import Roster'!A:A, , #), R#, 
+    IF(S#=XLOOKUP(S#, 'Import Roster'!A:A, 'Import Roster'!A:A, , #), S#,)),
+    IF(S#=XLOOKUP(S#, 'Import Roster'!A:A, 'Import Roster'!A:A, , #), S#,)),
+)
+- Col 25 (AC_Comp!): =IF(C#>=DATE(#,#,#),
+ IF(T#<>"", 
+    IF(T#=XLOOKUP(T#, 'Import Roster'!A:A, 'Import Roster'!A:A, , #), T#, 
+    IF(U#=XLOOKUP(U#, 'Import Roster'!A:A, 'Import Roster'!A:A, , #), U#,)),
+    IF(U#=XLOOKUP(U#, 'Import Roster'!A:A, 'Import Roster'!A:A, , #), U#,)),
+)
+- Col 26 (Prov_AC_Vend!): =XLOOKUP(Y#,Roster!$A:$A,Roster!$C:$C,,#)
+- Col 27 (Prov_AC_Comp!): =XLOOKUP(Z#,Roster!$A:$A,Roster!$C:$C,,#)
+- Col 28 (Resultado _Topeado): =ARRAYFORMULA(
+IF(AND(V#="Faena",AD#>AL#),G#*AL#,
+        IF(AND(V#="Faena",AD#<AM#),G#*AM#,
+              IF(AND(V#="Faena",AD#<AL#,AD#>AM#),M#,
+IF(AND(V#="Invernada",AD#>AL#),G#*AL#,
+        IF(AND(V#="Invernada",AD#<AM#),G#*AM#,Q#))))))
+- Col 29 (Rendimiento): =IFERROR(IF(V#="Faena",M#,Q#)/G#,#)
+- Col 30 (Rend_TOPEADO): =IFERROR(AC#/G#,#)
+- Col 31 (Ofi Vendedor): =ARRAYFORMULA(
+  IF(ROW(W#:W)=#, "Resultado",
+    IF(
+      (W#:W="Oficina Rio #to") + (W#:W="Oficina Entre Rios"),
+      W#:W,
+      IF(
+        (Y#:Y="Sebastian Saparrat") + (W#:W="Sebastian Saparrat"),
+        "Oficina Bavio",
+        ""
+      )
+    )
+  )
+)
+
+- Col 32 (Ofi Comprador): =ARRAYFORMULA(
+  IF(ROW(X#:X)=#, "Resultado",
+    IF(
+      (X#:X="Oficina Rio #to") + (X#:X="Oficina Entre Rios"),
+      X#:X,
+      IF(
+        (Z#:Z="Sebastian Saparrat") + (X#:X="Sebastian Saparrat"),
+        "Oficina Bavio",
+        ""
+      )
+    )
+  )
+)
+
+- Col 33 (Fecha): =ARRAYFORMULA(CONCATENATE(YEAR(B#),TEXT(MONTH(B#),"#")))
+- Col 34 (Asociados Compra&Venta): =IF(AND(Y#=Z#,OR(Y#<>"",Z#<>"")),#,#)
+- Col 35 (Provincia Compra&Venta): =IF(AND(AA#=AB#,OR(AA#<>"",AB#<>"")),#,#)
+- Col 36 (Oficina Compra&Venta): =arrayformula(IF(AND(AF#=AG#,OR(AF#<>"",AG#<>"")),#,#))
+- Col 37 (Tope Superior): =arrayformula(IF(V#:V="Faena",#.#,#.#))
+- Col 38 (Tope Inferior): =arrayformula(IF(V#:V="Faena",-#.#,-#.#))
+- Col 39 (Asoc. Comercial 2 Puntas dcac ): =IF(AND(Y#<>"",Z#<>""),#,#)
+- Col 40 (Canal): =IF(AND(AF#="",AG#="",Y#="",Z#=""),"Directo",
+IF(OR(AF#<>"",AG#<>"",Y#<>"",Z#<>""),"Indirecto",))
+- Col 41 (Min_if_vend): =IF($B#>=DATE(#,#,#),MINIFS($B:$B, C:C, C#),)
+- Col 42 (Min_if_comp): =IF($B#>=DATE(#,#,#),MINIFS($B:$B, D:D, D#),)
+- Col 43 (Soc Vend (& Comp?)): =IF($B#>=DATE(#,#,#),IF(C#=XLOOKUP(C#,D:D,D:D,,#),#,#),)
+- Col 44 (Soc Comp(& Vend?)): =IF($B#>=DATE(#,#,#),IF(D#=XLOOKUP(D#,C:C,C:C,,#),#,#),)
+
+## Sheet: Tajada
+Headers: ["Asociado Comercial","Provincia","Oficina","Fecha","SOC UNICAS"]
+Formulas: None found in first 10 rows.
+
+## Sheet: Import Roster
+Headers: ["Nombre Apellido","Codigo","Provincia","Partido","Oficina","Tipo","Modalidad","Escalas","Detalle Escalas","Activo","Link","Tier","Ingreso","Mail","Auto","Mendel","Responsable DC","Operador FAENA","Operador INV","Operador INV NEO","Operador CRIA","Beneficios","CATEGORIA"]
+Formulas: None found in first 10 rows.
+
+## Sheet: ESCALAS RAC AC
+Headers: ["SUELDOS ","","TOP AC","CORP","GENERAL","ACUERDO","HIBRIDO","SIN MINIMO","OPERARIO CARGA","OPERARIO CARGA","OPERARIO CARGA","OPERARIO CARGA","","","","Oficina","","Asoc. Com","Operario de carga"]
+Formulas used:
+- Col 14 (Unknown): =IF($N#=#, V$#,
+IF($N#>V$#,V$#, (V$# + (V$# - V$#) * (# - (LOG(MAX($N#, #)) - LOG(#)) / (LOG(V$#) - LOG(#))))) )/#
+- Col 15 (Oficina): =IF($N#=#, W$#,
+IF($N#>W$#,W$#, (W$# + (W$# - W$#) * (# - (LOG(MAX($N#, #)) - LOG(#)) / (LOG(W$#) - LOG(#))))) )/#
+- Col 16 (Unknown): =IF($N#=#, X$#,
+IF($N#>X$#,X$#, (X$# + (X$# - X$#) * (# - (LOG(MAX($N#, #)) - LOG(#)) / (LOG(X$#) - LOG(#))))) )/#
+- Col 17 (Asoc. Com): =IF($N#=#, Y$#,
+IF($N#>Y$#,Y$#, (Y$# + (Y$# - Y$#) * (# - (LOG(MAX($N#, #)) - LOG(#)) / (LOG(Y$#) - LOG(#))))) )/#
+- Col 13 (Unknown): =N#+#
+
+## Sheet: Roster
+Headers: ["","","","","","","","","FECHAS DESPLEGABLES"]
+Formulas: None found in first 10 rows.
+
+## Sheet: Escalas Viejas
+Headers: []
+Formulas: None found in first 10 rows.
+

@@ -1,0 +1,51 @@
+[
+  {
+    "cabezas": 0,
+    "escalaPersonal": 0.22,
+    "escalaProvincial": 0.1,
+    "escalaOficina": 0.2,
+    "escalaAC": 0.3
+  },
+  {
+    "cabezas": 250,
+    "escalaPersonal": 0.20209646075557722,
+    "escalaProvincial": 0.09085654135560647,
+    "escalaOficina": 0.15412019592189163,
+    "escalaAC": 0.2627410948254646
+  },
+  {
+    "cabezas": 500,
+    "escalaPersonal": 0.1885529561476747,
+    "escalaProvincial": 0.08393978190419876,
+    "escalaOficina": 0.11941346394792778,
+    "escalaAC": 0.23455582111909842
+  },
+  {
+    "cabezas": 750,
+    "escalaPersonal": 0.1806305138237075,
+    "escalaProvincial": 0.07989373699861663,
+    "escalaOficina": 0.09911132722057893,
+    "escalaAC": 0.21806849292831224
+  },
+  {
+    "cabezas": 1000,
+    "escalaPersonal": 0.1750094515397722,
+    "escalaProvincial": 0.07702302245279107,
+    "escalaOficina": 0.08470673197396389,
+    "escalaAC": 0.20637054741273228
+  },
+  {
+    "cabezas": 1250,
+    "escalaPersonal": 0.17064941690325192,
+    "escalaProvincial": 0.07479632325980523,
+    "escalaOficina": 0.07353365986981941,
+    "escalaAC": 0.19729691594456297
+  },
+  {
+    "cabezas": 1500,
+    "escalaPersonal": 0.16708700921580502,
+    "escalaProvincial": 0.07297697754720893,
+    "escalaOficina": 0.06440459524661506,
+    "escalaAC": 0.18988321922194606
+  }
+]
