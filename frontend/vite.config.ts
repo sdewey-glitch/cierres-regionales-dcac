@@ -5,7 +5,7 @@ import tailwindcss from '@tailwindcss/vite'
 export default defineConfig({
   plugins: [react(), tailwindcss()],
   build: {
-    outDir: '../public',
+    outDir: process.env.VERCEL === '1' ? 'dist' : '../public',
     emptyOutDir: true
   },
   server: {
