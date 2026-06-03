@@ -76,8 +76,7 @@ export function generateClosureHtml(data: CommercialResult): string {
         (b.fecha_operacion || '').localeCompare(a.fecha_operacion || '')
     );
     const hasOps = operaciones.length > 0;
-    const hasRetro = data.retroactivosDetalle && data.retroactivosDetalle.length > 0;
-    const totalPages = 1 + (hasOps ? 1 : 0) + (hasRetro ? 1 : 0);
+    const totalPages = 1 + (hasOps ? 1 : 0);
     const bolsa = data.bolsaRegion || 0;
 
     const totalResAj = operaciones.reduce((s, o) => s + (o.resultado_topeado_venta || 0) + (o.resultado_topeado_compra || 0), 0);
@@ -160,10 +159,7 @@ export function generateClosureHtml(data: CommercialResult): string {
             <div style="font-size:8px;font-weight:700;color:${B.textMuted};text-transform:uppercase;letter-spacing:1.5px;margin-bottom:2px">Oficina</div>
             <div style="font-size:12px;font-weight:600;color:${B.text}">${data.oficina}</div>
         </div>
-        <div>
-            <div style="font-size:8px;font-weight:700;color:${B.textMuted};text-transform:uppercase;letter-spacing:1.5px;margin-bottom:2px">Modalidad</div>
-            <div style="font-size:12px;font-weight:600;color:${B.text}">${data.modalidad}</div>
-        </div>
+
         <div>
             <div style="font-size:8px;font-weight:700;color:${B.textMuted};text-transform:uppercase;letter-spacing:1.5px;margin-bottom:2px">Código</div>
             <div style="font-size:12px;font-weight:600;color:${B.text}">${data.codigo || '—'}</div>
@@ -209,12 +205,11 @@ export function generateClosureHtml(data: CommercialResult): string {
                     <td style="padding:6px 10px;font-size:10.5px;font-weight:800;color:${data.componenteP < 0 ? B.danger : B.dark};text-align:right">${fmt(data.componenteP)}</td>
                 </tr>
                 <tr>
-                    <td colspan="3" style="padding:4px 10px 6px 15px;font-size:8px;color:${B.textSec};line-height:1.35;border-bottom:1px dashed ${B.border}">
-                        <div style="display:flex;justify-content:space-between;margin-bottom:1px">
-                            <span>Escala (%) personal: <strong>${fmtPct(data.escalaGen)}</strong></span>
-                            <span>Resultado (Aj. Top.): <strong>${fmt(data.resultado_final_ajustado)}</strong></span>
-                        </div>
-                        <div>Tropas: <strong>${data.tropasGeneral}</strong> | Cabezas: <strong>${fmtNum(data.cabezasGeneral)}</strong></div>
+                    <td colspan="3" style="padding:4px 10px 6px 20px;font-size:8px;color:${B.textSec};line-height:1.6;border-bottom:1px dashed ${B.border}">
+                        <div style="display:flex;justify-content:space-between"><span>Tropas</span> <strong>${data.tropasGeneral}</strong></div>
+                        <div style="display:flex;justify-content:space-between"><span>Cabezas</span> <strong>${fmtNum(data.cabezasGeneral)}</strong></div>
+                        <div style="display:flex;justify-content:space-between"><span>Resultado</span> <strong>${fmt(data.resultado_final_ajustado)}</strong></div>
+                        <div style="display:flex;justify-content:space-between"><span>Escala</span> <strong>${fmtPct(data.escalaGen)}</strong></div>
                     </td>
                 </tr>
                 <!-- Desglose por Unidad de Negocio -->
@@ -248,15 +243,12 @@ export function generateClosureHtml(data: CommercialResult): string {
                     <td style="padding:6px 10px;font-size:10.5px;font-weight:800;color:${data.componenteR < 0 ? B.danger : B.dark};text-align:right">${fmt(data.componenteR)}</td>
                 </tr>
                 <tr>
-                    <td colspan="3" style="padding:4px 10px 6px 15px;font-size:8px;color:${B.textSec};line-height:1.35;border-bottom:1px dashed ${B.border}">
-                        <div style="display:flex;justify-content:space-between;margin-bottom:1px">
-                            <span>Escala (%) Regional: <strong>${fmtPct(data.bolsaRegion)}</strong></span>
-                            <span>Tajada (%): <strong>${fmtPct(data.tajadaRegion)}</strong></span>
-                        </div>
-                        <div style="display:flex;justify-content:space-between">
-                            <span>Tropas: <strong>${data.tropasRegional}</strong> | Cabezas: <strong>${fmtNum(data.cabezasRegional)}</strong></span>
-                            <span>Resultado Regional (Aj. Top.): <strong>${fmt(data.resultadoReg)}</strong></span>
-                        </div>
+                    <td colspan="3" style="padding:4px 10px 6px 20px;font-size:8px;color:${B.textSec};line-height:1.6;border-bottom:1px dashed ${B.border}">
+                        <div style="display:flex;justify-content:space-between"><span>Tropas</span> <strong>${data.tropasRegional}</strong></div>
+                        <div style="display:flex;justify-content:space-between"><span>Cabezas</span> <strong>${fmtNum(data.cabezasRegional)}</strong></div>
+                        <div style="display:flex;justify-content:space-between"><span>Resultado</span> <strong>${fmt(data.resultadoReg)}</strong></div>
+                        <div style="display:flex;justify-content:space-between"><span>Escala Regional</span> <strong>${fmtPct(data.bolsaRegion)}</strong></div>
+                        <div style="display:flex;justify-content:space-between"><span>Tajada sobre Escala</span> <strong>${fmtPct(data.tajadaRegion)}</strong></div>
                     </td>
                 </tr>` : ''}
 
@@ -268,15 +260,12 @@ export function generateClosureHtml(data: CommercialResult): string {
                     <td style="padding:6px 10px;font-size:10.5px;font-weight:800;color:${data.componenteO < 0 ? B.danger : B.dark};text-align:right">${fmt(data.componenteO)}</td>
                 </tr>
                 <tr>
-                    <td colspan="3" style="padding:4px 10px 6px 15px;font-size:8px;color:${B.textSec};line-height:1.35">
-                        <div style="display:flex;justify-content:space-between;margin-bottom:1px">
-                            <span>Escala (%) Oficina: <strong>${fmtPct(data.escalaOficina)}</strong></span>
-                            <span>OP Oficina (%) : <strong>${fmtPct(data.opOficina)}</strong></span>
-                        </div>
-                        <div style="display:flex;justify-content:space-between">
-                            <span>Tropas: <strong>${data.tropasOficina}</strong> | Cabezas: <strong>${fmtNum(data.cabezasOfi)}</strong></span>
-                            <span>Resultado Oficina (Aj. Top.): <strong>${fmt(data.resultadoOfi)}</strong></span>
-                        </div>
+                    <td colspan="3" style="padding:4px 10px 6px 20px;font-size:8px;color:${B.textSec};line-height:1.6">
+                        <div style="display:flex;justify-content:space-between"><span>Tropas</span> <strong>${data.tropasOficina}</strong></div>
+                        <div style="display:flex;justify-content:space-between"><span>Cabezas</span> <strong>${fmtNum(data.cabezasOfi)}</strong></div>
+                        <div style="display:flex;justify-content:space-between"><span>Resultado</span> <strong>${fmt(data.resultadoOfi)}</strong></div>
+                        <div style="display:flex;justify-content:space-between"><span>Escala Oficina</span> <strong>${fmtPct(data.escalaOficina)}</strong></div>
+                        <div style="display:flex;justify-content:space-between"><span>Participación Oficina</span> <strong>${fmtPct(data.opOficina)}</strong></div>
                     </td>
                 </tr>` : ''}
             </table>
@@ -310,6 +299,49 @@ export function generateClosureHtml(data: CommercialResult): string {
                     </tr>
                 </table>
             </div>` : ''}
+            
+            <!-- Rendiciones y Movilidad -->
+            <div style="margin-top:20px;padding-top:16px;border-top:2px solid ${B.primary}">
+                <div style="font-size:10px;font-weight:800;color:${B.dark};text-transform:uppercase;letter-spacing:1.5px;margin-bottom:10px">Movilidad y Rendiciones</div>
+
+                ${tieneAutoPropio ? `
+                <!-- Info Vehículo Propio -->
+                <div style="background:${B.bg};border-radius:8px;padding:8px 10px;margin-bottom:8px;border:1px solid ${B.border}">
+                    <div style="display:flex;justify-content:space-between;margin-bottom:6px;border-bottom:1px solid ${B.border};padding-bottom:4px">
+                        <div style="font-size:8px;font-weight:700;color:${B.textMuted};text-transform:uppercase;letter-spacing:1px">Vehículo Propio</div>
+                        <div style="font-size:9px;font-weight:700;color:${B.dark}">${data.auto || '—'}</div>
+                    </div>
+                    <div style="display:flex;justify-content:space-between;margin-bottom:4px">
+                        <div style="font-size:8px;color:${B.textMuted}">Reintegro (${fmtNum(data.kms || 0)} km x ${fmt(data.precioPorKm || 0)})</div>
+                        <div style="font-size:9px;font-weight:600;color:${B.success}">+${fmt(data.reintegroMovilidad || 0)}</div>
+                    </div>
+                    <div style="display:flex;justify-content:space-between;margin-bottom:4px">
+                        <div style="font-size:8px;color:${B.textMuted}">Gastos Tarjeta Mendel (Combustible/Peajes)</div>
+                        <div style="font-size:9px;font-weight:600;color:${B.danger}">-${fmt(data.gastosMendelMovilidad || 0)}</div>
+                    </div>
+                    <div style="display:flex;justify-content:space-between;margin-top:6px;padding-top:4px;border-top:1px dashed ${B.border}">
+                        <div style="font-size:8.5px;font-weight:800;color:${B.dark}">Rendición Neta</div>
+                        <div style="font-size:9.5px;font-weight:800;color:${((data.reintegroMovilidad || 0) - (data.gastosMendelMovilidad || 0)) >= 0 ? B.success : B.danger}">${((data.reintegroMovilidad || 0) - (data.gastosMendelMovilidad || 0)) >= 0 ? '+' : ''}${fmt((data.reintegroMovilidad || 0) - (data.gastosMendelMovilidad || 0))}</div>
+                    </div>
+                </div>` : ''}
+
+                ${tieneAutoDcac ? `
+                <!-- Info Vehículo de la Empresa -->
+                <div style="background:${B.bg};border-radius:8px;padding:8px 10px;margin-bottom:8px;border:1px solid ${B.border}">
+                    <div style="display:flex;justify-content:space-between;margin-bottom:6px;border-bottom:1px solid ${B.border};padding-bottom:4px">
+                        <div style="font-size:8px;font-weight:700;color:${B.textMuted};text-transform:uppercase;letter-spacing:1px">Vehículo de la Empresa</div>
+                        <div style="font-size:9px;font-weight:700;color:${B.dark}">${data.auto || 'Asignado'}</div>
+                    </div>
+                    <div style="display:flex;justify-content:space-between;margin-bottom:4px">
+                        <div style="font-size:8px;color:${B.textMuted}">Amortización Vehículo DCAC</div>
+                        <div style="font-size:9px;font-weight:600;color:${B.danger}">-${fmt(data.amortizacioneDcac || 0)}</div>
+                    </div>
+                    <div style="display:flex;justify-content:space-between;margin-top:6px;padding-top:4px;border-top:1px dashed ${B.border}">
+                        <div style="font-size:8.5px;font-weight:800;color:${B.dark}">Descuento Neto</div>
+                        <div style="font-size:9.5px;font-weight:800;color:${B.danger}">-${fmt(data.amortizacioneDcac || 0)}</div>
+                    </div>
+                </div>` : ''}
+            </div>
         </div>
 
         <!-- RIGHT: Conceptos Contractuales -->
@@ -340,124 +372,13 @@ export function generateClosureHtml(data: CommercialResult): string {
                 </tr>` : ''}
             </table>
 
-            <!-- Rendiciones y Movilidad -->
-            <div style="margin-top:16px;padding-top:12px;border-top:1px solid ${B.border}">
-                <div style="font-size:9px;font-weight:700;color:${B.textSec};text-transform:uppercase;letter-spacing:1px;margin-bottom:8px">Rendiciones y Descuentos</div>
-
-                ${tieneAutoPropio ? `
-                <!-- Info Vehículo Propio -->
-                <div style="background:${B.bg};border-radius:8px;padding:8px 10px;margin-bottom:8px;border:1px solid ${B.border}">
-                    <div style="display:flex;justify-content:space-between;margin-bottom:4px">
-                        <div style="font-size:8px;font-weight:700;color:${B.textMuted};text-transform:uppercase;letter-spacing:1px">Vehículo Propio</div>
-                        <div style="font-size:9px;font-weight:700;color:${B.dark}">${data.auto || '—'}</div>
-                    </div>
-                    <div style="display:flex;gap:16px">
-                        <div>
-                            <span style="font-size:8px;color:${B.textMuted}">KMs: </span>
-                            <span style="font-size:9px;font-weight:700;color:${B.dark}">${fmtNum(data.kms || 0)}</span>
-                        </div>
-                        <div>
-                            <span style="font-size:8px;color:${B.textMuted}">$/Km: </span>
-                            <span style="font-size:9px;font-weight:700;color:${B.dark}">${fmt(data.precioPorKm || 0)}</span>
-                        </div>
-                        <div>
-                            <span style="font-size:8px;color:${B.textMuted}">Cat: </span>
-                            <span style="font-size:9px;font-weight:700;color:${B.dark}">${data.categoria || '—'}</span>
-                        </div>
-                    </div>
-                </div>` : ''}
-
-                ${tieneAutoDcac ? `
-                <!-- Info Vehículo de la Empresa -->
-                <div style="background:${B.bg};border-radius:8px;padding:8px 10px;margin-bottom:8px;border:1px solid ${B.border}">
-                    <div style="display:flex;justify-content:space-between;margin-bottom:4px">
-                        <div style="font-size:8px;font-weight:700;color:${B.textMuted};text-transform:uppercase;letter-spacing:1px">Vehículo de la Empresa</div>
-                        <div style="font-size:9px;font-weight:700;color:${B.dark}">${data.auto || 'Asignado'}</div>
-                    </div>
-                    <div style="display:flex;gap:16px">
-                        <div>
-                            <span style="font-size:8px;color:${B.textMuted}">KMs recorridos: </span>
-                            <span style="font-size:9px;font-weight:700;color:${B.dark}">${fmtNum(data.kms || 0)}</span>
-                        </div>
-                        ${data.amortizacioneDcac ? `
-                        <div>
-                            <span style="font-size:8px;color:${B.textMuted}">Amortización: </span>
-                            <span style="font-size:9px;font-weight:700;color:${B.textSec}">${fmt(data.amortizacioneDcac)}</span>
-                        </div>` : ''}
-                    </div>
-                </div>` : ''}
-
-                <table style="width:100%;border-collapse:collapse">
-                    ${tieneAutoPropio && data.reintegroMovilidad ? `
-                    <tr>
-                        <td style="padding:5px 10px;font-size:9px;color:${B.textSec}">Reintegro Movilidad (${fmtNum(data.kms || 0)} km)</td>
-                        <td style="padding:5px 10px;font-size:9px;font-weight:600;color:${B.success};text-align:right">+${fmt(data.reintegroMovilidad)}</td>
-                    </tr>` : ''}
-                    
-                    ${tieneAutoPropio && data.gastosMendelMovilidad ? `
-                    <tr>
-                        <td style="padding:5px 10px;font-size:9px;color:${B.textSec}">Descuento Combustible/Peajes (Mendel)</td>
-                        <td style="padding:5px 10px;font-size:9px;font-weight:600;color:${B.danger};text-align:right">-${fmt(data.gastosMendelMovilidad)}</td>
-                    </tr>` : ''}
-
-                    ${(tieneAutoDcac || tieneAutoPropio) && data.amortizacioneDcac ? `
-                    <tr>
-                        <td style="padding:5px 10px;font-size:9px;color:${B.textSec}">Amortización Vehículo DCAC</td>
-                        <td style="padding:5px 10px;font-size:9px;font-weight:600;color:${B.textSec};text-align:right">${fmt(data.amortizacioneDcac)}</td>
-                    </tr>` : ''}
-                    <tr style="border-top:1px solid ${B.border}">
-                        <td style="padding:8px 10px;font-size:10px;font-weight:700;color:${B.dark}">Total Rendiciones</td>
-                        <td style="padding:8px 10px;font-size:10px;font-weight:800;color:${totalRendiciones >= 0 ? B.success : B.danger};text-align:right">${totalRendiciones >= 0 ? '+' : ''}${fmt(totalRendiciones)}</td>
-                    </tr>
-                </table>
-            </div>
-
             ${hasAjustesToShow ? `
             <!-- Ajustes Retroactivos y Manuales -->
             <div style="margin-top:16px;padding-top:12px;border-top:1px solid ${B.border}">
-                <div style="font-size:9px;font-weight:700;color:${B.textSec};text-transform:uppercase;letter-spacing:1px;margin-bottom:8px">Ajustes (Retroactivos / Novedades)</div>
                 <table style="width:100%;border-collapse:collapse">
-                    ${(data.retroactivosDetalle || []).map((r: any) => {
-                        const MONTHS_SPANISH = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
-                        const mesLabel = MONTHS_SPANISH[r.mesAjustado - 1] || `Mes ${r.mesAjustado}`;
-                        const yearLabel = r.añoAjustado || '';
-                        const diffMonto = r.ajusteComponenteP || 0;
-                        const loteJustification = r.detalleLotes && r.detalleLotes.length > 0
-                            ? `<div style="font-size:7.5px;color:${B.textMuted};margin-top:1px;padding-left:4px;line-height:1.1">
-                                 Lotes: ${r.detalleLotes.map((l: any) => `#${l.idLote} (${l.tipo === 'nuevo' ? 'Nuevo' : l.tipo === 'caido' ? 'Caído' : 'Mod.'})`).join(', ')}
-                               </div>`
-                            : '';
-                        return `
-                        <tr>
-                            <td style="padding:5px 10px;font-size:9px;color:${B.textSec}">
-                                <div>Ajuste ${mesLabel} ${yearLabel} (Dinámico vs Real)</div>
-                                ${loteJustification}
-                            </td>
-                            <td style="padding:5px 10px;font-size:9px;font-weight:600;color:${diffMonto >= 0 ? B.success : B.danger};text-align:right">
-                                ${diffMonto >= 0 ? '+' : ''}${fmt(diffMonto)}
-                            </td>
-                        </tr>
-                        `;
-                    }).join('')}
-                    ${(() => {
-                        const manualMonto = Math.round(data.ajustesManuales !== undefined ? data.ajustesManuales : (data.ajustes - (data.retroactivosDetalle || []).reduce((sum, r) => sum + (r.ajusteComponenteP || 0), 0)));
-                        if (Math.abs(manualMonto) >= 1) {
-                            return `
-                            <tr>
-                                <td style="padding:5px 10px;font-size:9px;color:${B.textSec}">Ajustes Manuales (Extras / Novedades)</td>
-                                <td style="padding:5px 10px;font-size:9px;font-weight:600;color:${manualMonto >= 0 ? B.success : B.danger};text-align:right">
-                                    ${manualMonto >= 0 ? '+' : ''}${fmt(manualMonto)}
-                                </td>
-                            </tr>
-                            `;
-                        }
-                        return '';
-                    })()}
-                    <tr style="border-top:1px solid ${B.border}">
-                        <td style="padding:8px 10px;font-size:10px;font-weight:700;color:${B.dark}">Total Ajustes</td>
-                        <td style="padding:8px 10px;font-size:10px;font-weight:800;color:${data.ajustes >= 0 ? B.success : B.danger};text-align:right">
-                            ${data.ajustes >= 0 ? '+' : ''}${fmt(data.ajustes)}
-                        </td>
+                    <tr>
+                        <td style="padding:8px 10px;font-size:10px;font-weight:700;color:${B.dark}">Ajustes (Retroactivos / Novedades)</td>
+                        <td style="padding:8px 10px;font-size:10px;font-weight:800;color:${data.ajustes >= 0 ? B.success : B.danger};text-align:right">${data.ajustes >= 0 ? '+' : ''}${fmt(data.ajustes)}</td>
                     </tr>
                 </table>
             </div>` : ''}
@@ -546,115 +467,7 @@ ${hasOps ? `
 </div>
 ` : ''}
 
-${(data.retroactivosDetalle && data.retroactivosDetalle.length > 0) ? `
-<!-- ═══════════════════════════════════════ -->
-<!-- PÁGINA: DETALLE DE AJUSTES RETROACTIVOS -->
-<!-- ═══════════════════════════════════════ -->
-<div class="page page-break" style="padding:28px 32px 60px">
-    <!-- Header mini -->
-    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:20px;padding-bottom:14px;border-bottom:2px solid ${B.border}">
-        <div style="display:flex;align-items:center;gap:10px">
-            <div style="font-size:13px;font-weight:800;color:${B.dark}">Detalle de Ajustes Retroactivos</div>
-            <div style="font-size:9px;color:${B.textMuted};font-weight:600">— ${data.asociadoComercial} · ${periodo}</div>
-        </div>
-        <div style="background:${B.bg};border-radius:8px;padding:6px 10px;border:1px solid ${B.border};display:flex;align-items:center;gap:4px">
-            <span style="font-size:8px;color:${B.textSec};font-weight:600">Total Ajuste</span>
-            <span style="font-size:12px;font-weight:800;color:${data.ajustes < 0 ? B.danger : B.success}">${fmt(data.ajustes)}</span>
-        </div>
-    </div>
 
-    <!-- Tabla 1: Resumen por Mes -->
-    <div style="margin-bottom:24px">
-        <div style="font-size:9.5px;font-weight:800;color:${B.dark};text-transform:uppercase;letter-spacing:1px;margin-bottom:8px">Resumen por Período Ajustado</div>
-        <table style="width:100%;border-collapse:collapse">
-            <thead>
-                <tr style="border-bottom:2px solid ${B.dark};background:${B.bg}">
-                    <th style="padding:5px 8px;font-size:7.5px;font-weight:800;color:${B.dark};text-align:left">Período Ajustado</th>
-                    <th style="padding:5px 8px;font-size:7.5px;font-weight:800;color:${B.dark};text-align:right">Escala Congelada</th>
-                    <th style="padding:5px 8px;font-size:7.5px;font-weight:800;color:${B.dark};text-align:right">Resultado Congelado</th>
-                    <th style="padding:5px 8px;font-size:7.5px;font-weight:800;color:${B.dark};text-align:right">Resultado Dinámico</th>
-                    <th style="padding:5px 8px;font-size:7.5px;font-weight:800;color:${B.dark};text-align:right">Delta Resultado</th>
-                    <th style="padding:5px 8px;font-size:7.5px;font-weight:800;color:${B.dark};text-align:right">Ajuste Componente P</th>
-                </tr>
-            </thead>
-            <tbody>
-                ${data.retroactivosDetalle.map(r => {
-                    const mesAjuNombre = MONTHS[r.mesAjustado - 1];
-                    const perAju = `${mesAjuNombre} ${r.añoAjustado}`;
-                    return `
-                    <tr style="border-bottom:1px solid ${B.border}">
-                        <td style="padding:6px 8px;font-size:8.5px;font-weight:700;color:${B.dark}">${perAju}</td>
-                        <td style="padding:6px 8px;font-size:8.5px;text-align:right;color:${B.textSec}">${fmtPct(r.escalaCongelada)}</td>
-                        <td style="padding:6px 8px;font-size:8.5px;text-align:right;color:${B.textSec}">${fmt(r.resultadoCongelado)}</td>
-                        <td style="padding:6px 8px;font-size:8.5px;text-align:right;color:${B.textSec}">${fmt(r.resultadoDinamico)}</td>
-                        <td style="padding:6px 8px;font-size:8.5px;text-align:right;font-weight:600;color:${r.deltaResultado < 0 ? B.danger : B.success}">${r.deltaResultado >= 0 ? '+' : ''}${fmt(r.deltaResultado)}</td>
-                        <td style="padding:6px 8px;font-size:8.5px;text-align:right;font-weight:800;color:${r.ajusteComponenteP < 0 ? B.danger : B.success}">${r.ajusteComponenteP >= 0 ? '+' : ''}${fmt(r.ajusteComponenteP)}</td>
-                    </tr>`;
-                }).join('')}
-            </tbody>
-            <tfoot>
-                <tr style="border-top:2px solid ${B.dark};background:${B.bg};font-weight:800">
-                    <td style="padding:6px 8px;font-size:8.5px;color:${B.dark}">TOTAL RETROACTIVOS</td>
-                    <td colspan="4"></td>
-                    <td style="padding:6px 8px;font-size:9px;text-align:right;color:${data.retroactivosDetalle.reduce((s, r) => s + r.ajusteComponenteP, 0) < 0 ? B.danger : B.success}">${data.retroactivosDetalle.reduce((s, r) => s + r.ajusteComponenteP, 0) >= 0 ? '+' : ''}${fmt(data.retroactivosDetalle.reduce((s, r) => s + r.ajusteComponenteP, 0))}</td>
-                </tr>
-            </tfoot>
-        </table>
-    </div>
-
-    <!-- Tabla 2: Negocios Modificados -->
-    <div>
-        <div style="font-size:9.5px;font-weight:800;color:${B.dark};text-transform:uppercase;letter-spacing:1px;margin-bottom:8px">Negocios y Lotes que Sufrieron Cambios</div>
-        <table style="width:100%;border-collapse:collapse">
-            <thead>
-                <tr style="border-bottom:2px solid ${B.dark};background:${B.bg}">
-                    <th style="padding:5px 6px;font-size:7px;font-weight:800;color:${B.dark};text-align:left">ID Lote</th>
-                    <th style="padding:5px 6px;font-size:7px;font-weight:800;color:${B.dark};text-align:left">Mes</th>
-                    <th style="padding:5px 6px;font-size:7px;font-weight:800;color:${B.dark};text-align:left">Cambio</th>
-                    <th style="padding:5px 6px;font-size:7px;font-weight:800;color:${B.dark};text-align:right">Cabezas</th>
-                    <th style="padding:5px 6px;font-size:7px;font-weight:800;color:${B.dark};text-align:right">Resultado Lote</th>
-                    <th style="padding:5px 6px;font-size:7px;font-weight:800;color:${B.dark};text-align:left">Sociedad Vendedora</th>
-                    <th style="padding:5px 6px;font-size:7px;font-weight:800;color:${B.dark};text-align:left">Sociedad Compradora</th>
-                </tr>
-            </thead>
-            <tbody>
-                ${data.retroactivosDetalle.flatMap(r => 
-                    r.detalleLotes.map(l => {
-                        const badgeColor = l.tipo === 'nuevo' ? '#d1fae5' : (l.tipo === 'caido' ? '#fee2e2' : '#fef3c7');
-                        const badgeText = l.tipo === 'nuevo' ? '#065f46' : (l.tipo === 'caido' ? '#991b1b' : '#92400e');
-                        const labelText = l.tipo.toUpperCase();
-                        
-                        const cabStr = l.tipo === 'nuevo' ? `0 → ${l.cabezasDespues}` : (l.tipo === 'caido' ? `${l.cabezasAntes} → 0` : `${l.cabezasAntes} → ${l.cabezasDespues}`);
-                        const resStr = l.tipo === 'nuevo' ? `$0 → ${fmt(l.resultadoDespues)}` : (l.tipo === 'caido' ? `${fmt(l.resultadoAntes)} → $0` : `${fmt(l.resultadoAntes)} → ${fmt(l.resultadoDespues)}`);
-                        const deltaRes = l.resultadoDespues - l.resultadoAntes;
-                        
-                        return `
-                        <tr style="border-bottom:1px solid ${B.border}">
-                            <td style="padding:5px 6px;font-size:7.5px;color:${B.text};font-weight:600">${l.idLote}</td>
-                            <td style="padding:5px 6px;font-size:7.5px;color:${B.textSec}">${MONTHS[r.mesAjustado - 1].substring(0, 3)}</td>
-                            <td style="padding:5px 6px;font-size:7px">
-                                <span style="display:inline-block;padding:2px 4px;border-radius:4px;background:${badgeColor};color:${badgeText};font-weight:800">${labelText}</span>
-                            </td>
-                            <td style="padding:5px 6px;font-size:7.5px;text-align:right;color:${B.textSec};font-variant-numeric:tabular-nums">${cabStr}</td>
-                            <td style="padding:5px 6px;font-size:7.5px;text-align:right;color:${B.text};font-weight:600;font-variant-numeric:tabular-nums">
-                                <div>${resStr}</div>
-                                <div style="font-size:6px;color:${deltaRes < 0 ? B.danger : B.success};margin-top:1px">${deltaRes >= 0 ? '+' : ''}${fmt(deltaRes)}</div>
-                            </td>
-                            <td style="padding:5px 6px;font-size:7.5px;color:${B.textSec};max-width:90px;overflow:hidden;text-overflow:ellipsis" title="${l.sociedadVendedora}">${l.sociedadVendedora || '—'}</td>
-                            <td style="padding:5px 6px;font-size:7.5px;color:${B.textSec};max-width:90px;overflow:hidden;text-overflow:ellipsis" title="${l.sociedadCompradora}">${l.sociedadCompradora || '—'}</td>
-                        </tr>`;
-                    })
-                ).join('')}
-            </tbody>
-        </table>
-    </div>
-
-    <!-- Footer -->
-    <div style="position:absolute;bottom:20px;left:32px;right:32px;padding-top:12px;border-top:1px solid ${B.border};display:flex;justify-content:space-between;align-items:center">
-        <div style="font-size:7px;color:${B.textMuted};font-weight:500">Generado el ${timestamp} · deCampo aCampo — Sistema de Cierres</div>
-        <div style="font-size:7px;color:${B.textMuted};font-weight:600">${totalPages} de ${totalPages}</div>
-    </div>
-</div>` : ''}
 
 </body>
 </html>`;

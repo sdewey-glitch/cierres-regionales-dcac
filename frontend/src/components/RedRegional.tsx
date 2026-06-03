@@ -1,6 +1,8 @@
-import React, { useState, useMemo } from 'react';
-import { ArrowLeft, Layers, TrendingUp, RefreshCw, ChevronDown } from 'lucide-react';
+import React, { useState, useMemo, useEffect } from 'react';
+import { ArrowLeft, Layers, TrendingUp, Loader2, AlertTriangle } from 'lucide-react';
 import MermaidChart from './MermaidChart';
+
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:4000/api';
 import {
   ResponsiveContainer,
   ComposedChart,
@@ -10,8 +12,6 @@ import {
   YAxis,
   CartesianGrid,
   Tooltip,
-  Cell,
-  BarChart
 } from 'recharts';
 
 interface RedRegionalProps {
@@ -33,11 +33,33 @@ const CH_LABELS: Record<string, string> = { REGIONAL: 'Regional', REPRESENTANTE:
 const CH_COLORS: Record<string, string> = { REGIONAL: '#3b82f6', REPRESENTANTE: '#94a3b8', COMISIONISTA: '#475569', DIRECTO: '#1e3a8a' };
 const CH_BG: Record<string, string> = { REGIONAL: 'bg-blue-50 border-blue-200', REPRESENTANTE: 'bg-slate-50 border-slate-200', COMISIONISTA: 'bg-slate-100 border-slate-300', DIRECTO: 'bg-indigo-50 border-indigo-200' };
 
-export default function RedRegional({ data, selectedMonth, onSelectMonth, onBack, activeYear, activeMonth }: RedRegionalProps) {
+export default function RedRegional({ data, selectedMonth, onSelectMonth, onBack, activeYear, activeMonth, initialSubTab = 'canales' }: RedRegionalProps) {
   const [matrixCategory, setMatrixCategory] = useState<string>('OVERALL');
-  const [expandedSection, setExpandedSection] = useState<string | null>(null);
+
   const [expandedChannel, setExpandedChannel] = useState<string | null>(null);
   const [periodType, setPeriodType] = useState<string>('MES');
+
+  const [activeSubTab, setActiveSubTab] = useState<'canales' | 'plm'>(initialSubTab);
+  const [plmData, setPlmData] = useState<any>(null);
+  const [loadingPlm, setLoadingPlm] = useState<boolean>(false);
+  const [plmYear, setPlmYear] = useState<string>('2026');
+  const [plmViewType, setPlmViewType] = useState<'percent' | 'cabezas' | 'rendimiento'>('percent');
+
+  useEffect(() => {
+    if (activeSubTab === 'plm' && !plmData) {
+      setLoadingPlm(true);
+      fetch(`${API_URL}/metricas-plm`)
+        .then(res => res.json())
+        .then(data => {
+          setPlmData(data);
+          setLoadingPlm(false);
+        })
+        .catch(err => {
+          console.error(err);
+          setLoadingPlm(false);
+        });
+    }
+  }, [activeSubTab, plmData]);
 
   const baseMonth = selectedMonth;
   if (!baseMonth) return null;
@@ -293,7 +315,7 @@ export default function RedRegional({ data, selectedMonth, onSelectMonth, onBack
         const val = catData.cruces?.[`${vCh} - ${cCh}`] || 0;
         if (val > 0) {
           const maxVal = Math.max(...Object.values(catData.cruces || {}).map(Number)) || 1;
-          const thickness = Math.max(1, Math.round((val / maxVal) * 8));
+
           const pct = catData.totalCabezas > 0 ? ((val / catData.totalCabezas) * 100).toFixed(0) : '0';
           mmd += `  V_${vCh} -->|"${fmtK(val)} (${pct}%)"| C_${cCh}\n`;
         }
@@ -388,7 +410,33 @@ export default function RedRegional({ data, selectedMonth, onSelectMonth, onBack
         </span>
       </div>
 
-      {/* ═══ KPI CARDS — Fila 1 ═══ */}
+      {/* Sub-tab selection */}
+      <div className="flex gap-4 mb-6 border-b border-slate-200">
+        <button
+          onClick={() => setActiveSubTab('canales')}
+          className={`pb-2 px-4 font-black text-xs transition-all border-b-2 cursor-pointer ${
+            activeSubTab === 'canales'
+              ? 'border-teal-500 text-teal-600'
+              : 'border-transparent text-slate-400 hover:text-slate-600'
+          }`}
+        >
+          Canales e Intermediación
+        </button>
+        <button
+          onClick={() => setActiveSubTab('plm')}
+          className={`pb-2 px-4 font-black text-xs transition-all border-b-2 cursor-pointer ${
+            activeSubTab === 'plm'
+              ? 'border-teal-500 text-teal-600'
+              : 'border-transparent text-slate-400 hover:text-slate-600'
+          }`}
+        >
+          Métricas PLM (Share por UN)
+        </button>
+      </div>
+
+      {activeSubTab === 'canales' && (
+        <>
+          {/* ═══ KPI CARDS — Fila 1 ═══ */}
       <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-8 gap-2 mb-4">
         {[
           { label: 'Cabezas', value: fmt.format(totalCabezas), sub: yoyGrowth !== null ? `${yoyGrowth > 0 ? '↑' : '↓'} ${Math.abs(yoyGrowth).toFixed(0)}% YoY` : '', color: 'text-teal-600', subColor: yoyGrowth !== null && yoyGrowth >= 0 ? 'text-emerald-500' : 'text-rose-500' },
@@ -903,6 +951,258 @@ export default function RedRegional({ data, selectedMonth, onSelectMonth, onBack
           </div>
         </div>
       </div>
+      </>
+      )}
+
+      {/* ═══ METRICAS PLM ═══ */}
+      {activeSubTab === 'plm' && (
+        <div className="space-y-6">
+          {/* Controls Card */}
+          <div className="bg-white rounded-2xl p-4 border border-slate-200/60 shadow-sm flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+            <div>
+              <h2 className="text-base font-black text-slate-800">Métricas PLM / Share Regional</h2>
+              <p className="text-xs text-slate-400 mt-0.5">Basado en cabezas del canal de Venta (Q95 Concretadas).</p>
+            </div>
+            
+            <div className="flex flex-wrap items-center gap-3">
+              {/* Year Filter */}
+              <div className="flex items-center gap-0.5 bg-slate-100 rounded-xl p-0.5 border border-slate-200">
+                {['2023', '2024', '2025', '2026', 'Todos'].map(y => (
+                  <button
+                    key={y}
+                    onClick={() => setPlmYear(y)}
+                    className={`px-3 py-1 rounded-lg text-[10px] font-black whitespace-nowrap transition-all cursor-pointer ${
+                      plmYear === y ? 'bg-teal-600 text-white shadow-sm' : 'text-slate-500 hover:text-slate-700 hover:bg-white'
+                    }`}
+                  >
+                    {y}
+                  </button>
+                ))}
+              </div>
+
+              {/* View Type Toggle */}
+              <div className="flex items-center gap-0.5 bg-slate-100 rounded-xl p-0.5 border border-slate-200">
+                <button
+                  onClick={() => setPlmViewType('percent')}
+                  className={`px-3 py-1 rounded-lg text-[10px] font-black whitespace-nowrap transition-all cursor-pointer ${
+                    plmViewType === 'percent' ? 'bg-teal-600 text-white shadow-sm' : 'text-slate-500 hover:text-slate-700 hover:bg-white'
+                  }`}
+                >
+                  % Share
+                </button>
+                <button
+                  onClick={() => setPlmViewType('cabezas')}
+                  className={`px-3 py-1 rounded-lg text-[10px] font-black whitespace-nowrap transition-all cursor-pointer ${
+                    plmViewType === 'cabezas' ? 'bg-teal-600 text-white shadow-sm' : 'text-slate-500 hover:text-slate-700 hover:bg-white'
+                  }`}
+                >
+                  Cabezas
+                </button>
+                <button
+                  onClick={() => setPlmViewType('rendimiento')}
+                  className={`px-3 py-1 rounded-lg text-[10px] font-black whitespace-nowrap transition-all cursor-pointer ${
+                    plmViewType === 'rendimiento' ? 'bg-teal-600 text-white shadow-sm' : 'text-slate-500 hover:text-slate-700 hover:bg-white'
+                  }`}
+                >
+                  Rendimiento
+                </button>
+              </div>
+            </div>
+          </div>
+
+          {/* Loading or Content */}
+          {loadingPlm ? (
+            <div className="bg-white rounded-2xl border border-slate-200/60 shadow-sm p-16 flex flex-col items-center justify-center text-slate-400">
+              <Loader2 size={36} className="animate-spin text-teal-500 mb-3" />
+              <p className="text-sm font-bold">Procesando y agrupando datos Q95...</p>
+            </div>
+          ) : !plmData || !plmData.months ? (
+            <div className="bg-white rounded-2xl border border-slate-200/60 shadow-sm p-16 flex flex-col items-center justify-center text-slate-400">
+              <AlertTriangle size={36} className="text-amber-500 mb-3" />
+              <p className="text-sm font-bold">No se pudieron cargar los datos de PLM.</p>
+            </div>
+          ) : (() => {
+            // Re-map filtered periods dynamically
+            const filteredMonths = plmData.months.filter((m: any) => 
+              plmYear === 'Todos' || String(m.year) === plmYear
+            ).reverse(); // chronological
+
+            const getUNColor = (un: string) => {
+              if (un === 'Faena') return '#3b82f6';
+              if (un === 'Invernada') return '#991b1b';
+              if (un === 'Invernada Neo') return '#dc2626';
+              if (un === 'Cria') return '#f59e0b';
+              if (un === 'MAG') return '#10b981';
+              return '#64748b';
+            };
+
+            const getUNBgClass = (un: string) => {
+              if (un === 'Faena') return 'bg-blue-500';
+              if (un === 'Invernada') return 'bg-red-900';
+              if (un === 'Invernada Neo') return 'bg-red-600';
+              if (un === 'Cria') return 'bg-amber-500';
+              if (un === 'MAG') return 'bg-emerald-500';
+              return 'bg-slate-500';
+            };
+
+            return (
+              <div className="space-y-6">
+                {/* PLM Table */}
+                <div className="bg-white rounded-2xl border border-slate-200/60 shadow-sm overflow-hidden">
+                  <div className="px-4 py-3 border-b border-slate-100 bg-slate-50/50 flex items-center justify-between">
+                    <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">
+                      📋 Matriz de {plmViewType === 'percent' ? 'Share Regional' : plmViewType === 'cabezas' ? 'Cabezas (Reg / Total)' : 'Rendimiento ($/cbz)'} por UN
+                    </span>
+                    <span className="text-[9px] font-black text-slate-400 bg-slate-100 px-2 py-0.5 rounded-lg">
+                      {plmViewType === 'percent' ? 'Fórmula: Cabezas Regionales / Cabezas Totales' : 
+                       plmViewType === 'cabezas' ? 'Fórmula: Cabezas Canal Venta = REGIONAL vs Total' :
+                       'Fórmula: Resultado Final / Cabezas Regionales'}
+                    </span>
+                  </div>
+
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-xs">
+                      <thead>
+                        <tr className="bg-slate-50 border-b border-slate-200">
+                          <th className="px-4 py-3 text-left font-black text-[9px] uppercase tracking-widest text-slate-400 sticky left-0 bg-slate-50 z-20 shadow-[2px_0_5px_rgba(0,0,0,0.05)] border-r border-slate-200">
+                            Unidad de Negocio
+                          </th>
+                          {filteredMonths.map((m: any) => (
+                            <th key={m.periodId} className="px-3 py-3 text-right font-black text-[9px] uppercase tracking-wider text-slate-400">
+                              {plmYear === 'Todos' ? `${String(m.year).substring(2)}/${String(m.month).padStart(2, '0')}` : m.monthName.substring(0, 3)}
+                            </th>
+                          ))}
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {plmData.unList.map((un: string) => {
+                          return (
+                            <tr key={un} className="border-b border-slate-100 hover:bg-slate-50/50 transition-colors">
+                              <td className="px-4 py-3 font-black text-[11px] text-slate-800 sticky left-0 bg-white z-10 shadow-[2px_0_5px_rgba(0,0,0,0.05)] border-r border-slate-200 whitespace-nowrap">
+                                <span className="flex items-center gap-2">
+                                  <span className={`w-2.5 h-2.5 rounded-full ${getUNBgClass(un)}`} />
+                                  {un}
+                                </span>
+                              </td>
+                              {filteredMonths.map((m: any) => {
+                                const ud = m.unData[un] || { totalCabezas: 0, regionalCabezas: 0, resultadoFinal: 0 };
+                                const share = ud.totalCabezas > 0 ? (ud.regionalCabezas / ud.totalCabezas) : 0;
+                                const rend = ud.regionalCabezas > 0 ? (ud.resultadoFinal / ud.regionalCabezas) : 0;
+
+                                return (
+                                  <td key={m.periodId} className="px-3 py-3 text-right border-r border-slate-100/50">
+                                    {plmViewType === 'percent' ? (
+                                      <div>
+                                        <span className="font-black text-slate-800">
+                                          {(share * 100).toFixed(1)}%
+                                        </span>
+                                        <div className="w-full h-1 bg-slate-100 rounded-full mt-1 overflow-hidden">
+                                          <div className={`h-full ${getUNBgClass(un)}`} style={{ width: `${share * 100}%` }} />
+                                        </div>
+                                      </div>
+                                    ) : plmViewType === 'cabezas' ? (
+                                      <div className="flex flex-col text-[10px]">
+                                        <span className="font-extrabold text-teal-700">{fmtK(ud.regionalCabezas)}</span>
+                                        <span className="font-bold text-slate-400 border-t border-slate-100 mt-0.5 pt-0.5">{fmtK(ud.totalCabezas)}</span>
+                                      </div>
+                                    ) : (
+                                      <span className="font-bold text-slate-700">
+                                        {fmtCur.format(rend)}
+                                      </span>
+                                    )}
+                                  </td>
+                                );
+                              })}
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+
+                {/* PLM Trend Chart */}
+                {(() => {
+                  const chartData = filteredMonths.map((m: any) => {
+                    const obj: any = { 
+                      name: plmYear === 'Todos' ? `${String(m.year).substring(2)}/${String(m.month).padStart(2, '0')}` : m.monthName.substring(0, 3) 
+                    };
+                    plmData.unList.forEach((un: string) => {
+                      const ud = m.unData[un] || { totalCabezas: 0, regionalCabezas: 0, resultadoFinal: 0 };
+                      if (plmViewType === 'percent') {
+                        obj[un] = ud.totalCabezas > 0 ? (ud.regionalCabezas / ud.totalCabezas) * 100 : 0;
+                      } else if (plmViewType === 'cabezas') {
+                        obj[un] = ud.regionalCabezas;
+                      } else {
+                        obj[un] = ud.regionalCabezas > 0 ? (ud.resultadoFinal / ud.regionalCabezas) : 0;
+                      }
+                    });
+                    return obj;
+                  });
+
+                  return (
+                    <div className="bg-white rounded-2xl border border-slate-200/60 shadow-sm overflow-hidden">
+                      <div className="px-4 py-3 border-b border-slate-100 bg-slate-50/50 flex items-center justify-between">
+                        <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">
+                          📈 Evolución Histórica
+                        </span>
+                        <div className="flex items-center gap-2 text-[8px] font-extrabold uppercase text-slate-500">
+                          {plmData.unList.map((un: string) => (
+                            <span key={un} className="flex items-center gap-0.5">
+                              <span className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: getUNColor(un) }} />
+                              {un}
+                            </span>
+                          ))}
+                        </div>
+                      </div>
+                      <div className="p-4 min-h-[300px]">
+                        <ResponsiveContainer width="100%" height={280}>
+                          <ComposedChart data={chartData} margin={{ top: 15, right: 10, left: -10, bottom: 0 }}>
+                            <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" vertical={false} />
+                            <XAxis dataKey="name" tickLine={false} axisLine={false} tick={{ fill: '#64748b', fontSize: 9, fontWeight: '800' }} />
+                            <YAxis 
+                              tickLine={false} 
+                              axisLine={false} 
+                              tick={{ fill: '#64748b', fontSize: 9, fontWeight: '700' }} 
+                              tickFormatter={(val) => plmViewType === 'percent' ? `${val.toFixed(0)}%` : fmtK(val)} 
+                            />
+                            <Tooltip 
+                              content={({ active, payload, label }: any) => {
+                                if (!active || !payload) return null;
+                                return (
+                                  <div className="bg-white/95 backdrop-blur-sm border border-slate-200 rounded-xl px-3 py-2 shadow-lg text-[10px]">
+                                    <p className="font-black text-slate-800 mb-1">Período: {label}</p>
+                                    {payload.map((p: any) => (
+                                      <p key={p.name} className="font-bold" style={{ color: p.color }}>
+                                        {p.name}: {plmViewType === 'percent' ? `${p.value.toFixed(1)}%` : plmViewType === 'cabezas' ? fmtK(p.value) : fmtCur.format(p.value)}
+                                      </p>
+                                    ))}
+                                  </div>
+                                );
+                              }} 
+                            />
+                            {plmData.unList.map((un: string) => (
+                              <Line 
+                                key={un}
+                                type="monotone" 
+                                dataKey={un} 
+                                stroke={getUNColor(un)} 
+                                strokeWidth={2.5}
+                                dot={{ r: 3, fill: '#ffffff', stroke: getUNColor(un), strokeWidth: 2 }}
+                                activeDot={{ r: 5 }}
+                              />
+                            ))}
+                          </ComposedChart>
+                        </ResponsiveContainer>
+                      </div>
+                    </div>
+                  );
+                })()}
+              </div>
+            );
+          })()}
+        </div>
+      )}
     </div>
   );
 }

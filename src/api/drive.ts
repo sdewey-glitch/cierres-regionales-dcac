@@ -3,7 +3,7 @@ import { config } from '../config/env';
 import { Readable } from 'stream';
 
 // Root folder ID for Cierres AC
-const CIERRES_ROOT_FOLDER = '1ryE13Qo7C_DAknwFTZq9QWKUhkUOu4Oh';
+const CIERRES_ROOT_FOLDER = config.CIERRES_ROOT_FOLDER_ID;
 
 function getDriveClient() {
     const auth = new google.auth.JWT({

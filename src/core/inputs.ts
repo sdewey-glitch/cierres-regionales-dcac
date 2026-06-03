@@ -1,5 +1,27 @@
 import { readSheet } from '../api/sheets';
 import { config } from '../config/env';
+import { getRoster } from './normalization';
+
+export function cleanSheetsNumber(val: any): number {
+    if (val === undefined || val === null || val === '') return 0;
+    let str = String(val).trim();
+    // Limpiar signo $, espacios
+    str = str.replace('$', '').replace(/\s/g, '');
+    
+    const hasComma = str.includes(',');
+    const hasDot = str.includes('.');
+    
+    if (hasComma && hasDot) {
+        // Formato español: 1.200.000,50 -> quitar puntos y cambiar coma a punto
+        str = str.replace(/\./g, '').replace(',', '.');
+    } else if (hasComma) {
+        // Solo coma decimal -> ej. 120000,50 -> cambiar coma a punto
+        str = str.replace(',', '.');
+    }
+    
+    const parsed = Number(str);
+    return isNaN(parsed) ? 0 : parsed;
+}
 
 export interface GastoEntry {
     año: number;
@@ -42,6 +64,9 @@ export interface MendelGasto {
     importe: number;
     categoria: string;
     periodo: string;
+    provincia?: string;
+    codigo?: string;
+    fecha?: string;
 }
 
 // Para leer los inputs usaremos las planillas divididas por dominio
@@ -76,7 +101,7 @@ export async function fetchAjustesManuales(): Promise<AjusteEntry[]> {
             mes: Number(row[1]),
             comercial: String(row[3] || '').trim(),  // D: Asociado_Comercial
             motivo: String(row[4] || '').trim(),      // E: Motivo
-            monto: Number(row[5]) || 0                // F: Monto
+            monto: cleanSheetsNumber(row[5])          // F: Monto
         }));
     } catch (e: any) {
         console.warn("No se pudo leer Ajustes.", e.message);
@@ -193,18 +218,112 @@ export async function fetchAmortDcac(): Promise<AmortEntry[]> {
 
 export async function fetchMendelGastos(): Promise<MendelGasto[]> {
     try {
-        // Config_Mendel REAL headers (10 cols):
-        // A:Año | B:Mes | C:AñoMes | D:ID Usuario | E:Comercial | F:Email | G:Provincia | H:Oficina | I:Categoría | J:Monto Agrupado
-        const data = await readSheet(GASTOS_ID, "'Config_Mendel'!A2:J");
-        return data.filter(row => row[2]).map(row => ({
-            periodo: String(row[2]).trim(),        // C: AñoMes
-            usuario: String(row[4] || '').trim(),   // E: Comercial
-            categoria: String(row[8] || '').trim(), // I: Categoría
-            importe: Number(row[9]) || 0,           // J: Monto Agrupado
-            comercio: 'Varios'
-        }));
+        const spreadsheetId = config.MENDEL_SPREADSHEET_ID;
+        
+        // 1. Read Base Mendel
+        const rawMendel = await readSheet(spreadsheetId, "'Base Mendel'!A2:BC");
+        
+        // 2. Read Copia de Correlaciones usuarios Mendel
+        const rawCorr = await readSheet(spreadsheetId, "'Copia de Correlaciones usuarios Mendel'!A2:B");
+        
+        // 3. Get Roster
+        const roster = await getRoster();
+
+        const cleanKey = (s: string) => {
+            if (!s) return '';
+            return String(s)
+                .normalize("NFD")
+                .replace(/[\u0300-\u036f]/g, "")
+                .replace(/[^a-z0-9]/gi, '')
+                .toLowerCase();
+        };
+
+        const corrMap: Record<string, string> = {};
+        for (const row of rawCorr) {
+            const mendelUser = String(row[0] || '').trim();
+            const histUser = String(row[1] || '').trim();
+            if (mendelUser && histUser) {
+                corrMap[cleanKey(mendelUser)] = cleanKey(histUser);
+            }
+        }
+
+        const rosterCleanMap = new Map<string, { nombre: string; provincia: string; codigo: string; email: string }>();
+        for (const [key, r] of roster.entries()) {
+            const cKey = key.normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9]/gi, '');
+            rosterCleanMap.set(cKey, {
+                nombre: r.nombre,
+                provincia: r.provincia,
+                codigo: r.codigo,
+                email: r.mail || r.email
+            });
+        }
+
+        const list: MendelGasto[] = [];
+
+        const parseNum = (val: any): number => {
+            if (val === null || val === undefined || val === '') return 0;
+            if (typeof val === 'number') return val;
+            let str = String(val).trim();
+            if (str.startsWith('#')) return 0;
+            str = str.replace(/[^\d.,-]/g, '');
+            if (str.includes(',') && str.includes('.')) {
+                if (str.indexOf(',') > str.lastIndexOf('.')) str = str.replace(/\./g, '').replace(',', '.');
+                else str = str.replace(/,/g, '');
+            } else if (str.includes(',')) {
+                if (/,\d{1,2}$/.test(str)) str = str.replace(',', '.');
+                else str = str.replace(/,/g, '');
+            }
+            let parsed = parseFloat(str);
+            return isNaN(parsed) ? 0 : parsed;
+        };
+
+        const parseSheetDate = (val: any): string => {
+            if (!val) return '-';
+            if (typeof val === 'number') {
+                const date = new Date((val - 25569) * 86400 * 1000);
+                const d = date.getUTCDate();
+                const m = date.getUTCMonth() + 1;
+                const y = date.getUTCFullYear();
+                return `${d.toString().padStart(2, '0')}/${m.toString().padStart(2, '0')}/${y}`;
+            }
+            return String(val).split('T')[0];
+        };
+
+        for (const row of rawMendel) {
+            if (row.length < 16) continue;
+            
+            const estado = String(row[15] || '').trim().toUpperCase();
+            if (estado !== 'CONFIRMADA' && estado !== 'CONFIRMADO') continue;
+
+            const periodo = String(row[54] || '').trim();
+            if (!periodo) continue;
+
+            const rawUser = String(row[3] || '').trim();
+            let normUser = String(row[52] || '').trim();
+            if (!normUser) {
+                normUser = rawUser;
+            }
+
+            const key = cleanKey(normUser);
+            const mappedKey = corrMap[cleanKey(rawUser)] || corrMap[key] || key;
+            const rosterInfo = rosterCleanMap.get(mappedKey) || rosterCleanMap.get(key) || { nombre: normUser || rawUser, provincia: 'Sin Región', codigo: '' };
+
+            list.push({
+                periodo: periodo,
+                usuario: rosterInfo.nombre,
+                categoria: String(row[53] || '').trim() || 'Otros',
+                importe: parseNum(row[5]),
+                comercio: String(row[4] || '').trim() || 'Varios',
+                provincia: rosterInfo.provincia,
+                codigo: rosterInfo.codigo,
+                fecha: parseSheetDate(row[1])
+            });
+        }
+
+        return list;
     } catch (e: any) {
-        console.warn("No se pudo leer MendelGastos.", e.message);
+        console.warn("No se pudo leer MendelGastos dinámicamente.", e.message);
         return [];
     }
 }
+

@@ -8,6 +8,7 @@ import { generateClosureHtml } from '../core/pdf-template';
 import { CommercialResult } from '../core/types';
 import { calculateDynamicMonth, calculateRetroactiveAdjustments } from '../core/engine';
 import { saveMonthSnapshot } from '../core/snapshot';
+import { updateDynamicSueldos } from '../core/writer';
 
 const router = express.Router();
 
@@ -117,8 +118,8 @@ function adjustAgentDataWithConfig(agentData: CommercialResult, c: any) {
 }
 
 /** Genera PDF buffer para un agente */
-async function generatePdfBuffer(agentData: CommercialResult): Promise<Buffer> {
-    const html = generateClosureHtml(agentData);
+async function generatePdfBuffer(agentData: CommercialResult, overrideHtml?: string): Promise<Buffer> {
+    const html = overrideHtml || generateClosureHtml(agentData);
     const browser = await puppeteer.launch({ headless: true, args: ['--no-sandbox'] });
     const page = await browser.newPage();
     await page.setContent(html, { waitUntil: 'load', timeout: 15000 });
@@ -232,7 +233,7 @@ router.get('/dispatch/config', async (req, res) => {
         let configData: any[][] = [];
         try {
             configData = await readSheet(config.HUB_CIERRES_ID, `${ENVIO_SHEET}!A:I`);
-        } catch { /* hoja vacía */ }
+        } catch (e: any) { console.warn('[dispatch] No se pudo leer config de envío:', e.message); }
 
         // Si está vacía, inicializar desde el snapshot
         if (configData.length <= 1) {
@@ -299,7 +300,7 @@ router.get('/dispatch/config', async (req, res) => {
         let historialData: any[][] = [];
         try {
             historialData = await readSheet(config.HUB_CIERRES_ID, `${HISTORIAL_SHEET}!A:I`);
-        } catch { /* vacío */ }
+        } catch (e: any) { console.warn('[dispatch] No se pudo leer historial:', e.message); }
 
         const historial = historialData.slice(1)
             .filter(row => row[1] === añoMes)
@@ -458,6 +459,11 @@ router.post('/dispatch/config', async (req, res) => {
                 }
 
                 saveMonthSnapshot(targetYear, targetMonth, results);
+                try {
+                    await updateDynamicSueldos(targetYear, targetMonth, results);
+                } catch (err: any) {
+                    console.warn(`[dispatch/config] ⚠️ Error escribiendo cierre al Google Sheet: ${err.message}`);
+                }
                 console.log(`[dispatch/config] ✅ Cierre recalculado y guardado`);
             }
         }
@@ -502,6 +508,64 @@ router.get('/dispatch/preview-pdf/:agent', async (req, res) => {
 });
 
 /**
+ * GET /api/dispatch/preview-html/:agent — Devuelve el HTML final para el editor WYSIWYG
+ */
+router.get('/dispatch/preview-html/:agent', async (req, res) => {
+    try {
+        const agentName = decodeURIComponent(req.params.agent);
+        const { year, month } = req.query;
+        if (!year || !month) return res.status(400).json({ error: 'year y month requeridos' });
+
+        const agentData = getAgentData(Number(year), Number(month), agentName);
+        if (!agentData) return res.status(404).json({ error: `No se encontró datos para ${agentName}` });
+
+        const c = await getAgentConfig(Number(year), Number(month), agentName);
+        if (c) {
+            adjustAgentDataWithConfig(agentData, c);
+        }
+
+        // Check if there is already an override
+        let finalHtml = '';
+        const overrideDir = path.join(__dirname, '..', '..', 'data', 'overrides');
+        const overrideFile = path.join(overrideDir, `${year}_${month}_${agentName.replace(/[^a-z0-9]/gi, '_')}.html`);
+        
+        if (fs.existsSync(overrideFile)) {
+            finalHtml = fs.readFileSync(overrideFile, 'utf8');
+        } else {
+            finalHtml = generateClosureHtml(agentData);
+        }
+
+        res.send(finalHtml);
+    } catch (e: any) {
+        res.status(500).json({ error: e.message });
+    }
+});
+
+/**
+ * POST /api/dispatch/override/:agent — Guarda el HTML modificado a mano
+ */
+router.post('/dispatch/override/:agent', async (req, res) => {
+    try {
+        const agentName = decodeURIComponent(req.params.agent);
+        const { year, month, html } = req.body;
+        if (!year || !month || !html) return res.status(400).json({ error: 'Faltan parámetros' });
+
+        const overrideDir = path.join(__dirname, '..', '..', 'data', 'overrides');
+        if (!fs.existsSync(overrideDir)) {
+            fs.mkdirSync(overrideDir, { recursive: true });
+        }
+
+        const overrideFile = path.join(overrideDir, `${year}_${month}_${agentName.replace(/[^a-z0-9]/gi, '_')}.html`);
+        fs.writeFileSync(overrideFile, html, 'utf8');
+
+        res.json({ success: true });
+    } catch (e: any) {
+        res.status(500).json({ error: e.message });
+    }
+});
+
+
+/**
  * POST /api/dispatch/test — Genera PDF, sube a Drive via Apps Script, manda mail de test
  */
 router.post('/dispatch/test', async (req, res) => {
@@ -520,8 +584,16 @@ router.post('/dispatch/test', async (req, res) => {
 
         console.log(`[dispatch/test] Generando PDF de ${agent}...`);
 
+        // Check for override HTML
+        const overrideDir = path.join(__dirname, '..', '..', 'data', 'overrides');
+        const overrideFile = path.join(overrideDir, `${year}_${month}_${agent.replace(/[^a-z0-9]/gi, '_')}.html`);
+        let overrideHtml = undefined;
+        if (fs.existsSync(overrideFile)) {
+            overrideHtml = fs.readFileSync(overrideFile, 'utf8');
+        }
+
         // 1. Generar PDF
-        const pdfBuffer = await generatePdfBuffer(agentData);
+        const pdfBuffer = await generatePdfBuffer(agentData, overrideHtml);
         const pdfFileName = `${agent} - ${mesNombre} ${year}.pdf`;
         
         // 2. Enviar via Apps Script (guarda en Drive + manda mail)
@@ -549,7 +621,7 @@ router.post('/dispatch/test', async (req, res) => {
             await appendSheet(config.HUB_CIERRES_ID, `${HISTORIAL_SHEET}!A:I`, [[
                 timestamp, añoMes, agent, TEST_EMAIL, '', sender || 'test', 'Test', result.driveLink || '', ''
             ]]);
-        } catch { /* no-op */ }
+        } catch (e: any) { console.warn('[dispatch] Error registrando en historial:', e.message); }
 
         // 4. Actualizar estado en config
         try {
@@ -558,7 +630,7 @@ router.post('/dispatch/test', async (req, res) => {
             if (rowIndex > 0) {
                 await writeSheet(config.HUB_CIERRES_ID, `${ENVIO_SHEET}!F${rowIndex + 1}:G${rowIndex + 1}`, [[timestamp, 'Test enviado']]);
             }
-        } catch { /* no-op */ }
+        } catch (e: any) { console.warn('[dispatch] Error actualizando estado:', e.message); }
 
         res.json({ 
             success: result.success, 
@@ -603,8 +675,16 @@ router.post('/dispatch/send', async (req, res) => {
 
         console.log(`[dispatch/send] Enviando cierre a ${agent} (${email})...`);
 
+        // Check for override HTML
+        const overrideDir = path.join(__dirname, '..', '..', 'data', 'overrides');
+        const overrideFile = path.join(overrideDir, `${year}_${month}_${agent.replace(/[^a-z0-9]/gi, '_')}.html`);
+        let overrideHtml = undefined;
+        if (fs.existsSync(overrideFile)) {
+            overrideHtml = fs.readFileSync(overrideFile, 'utf8');
+        }
+
         // 1. Generar PDF
-        const pdfBuffer = await generatePdfBuffer(agentData);
+        const pdfBuffer = await generatePdfBuffer(agentData, overrideHtml);
         const pdfFileName = `${agent} - ${mesNombre} ${year}.pdf`;
 
         // 2. Enviar via Apps Script (guarda en Drive + manda mail)
@@ -630,7 +710,7 @@ router.post('/dispatch/send', async (req, res) => {
             await appendSheet(config.HUB_CIERRES_ID, `${HISTORIAL_SHEET}!A:I`, [[
                 timestamp, añoMes, agent, email, cc, sender || '', estado, result.driveLink || '', result.error || ''
             ]]);
-        } catch { /* no-op */ }
+        } catch (e: any) { console.warn('[dispatch] Error registrando en historial:', e.message); }
 
         // 4. Actualizar estado en config
         try {
@@ -638,7 +718,7 @@ router.post('/dispatch/send', async (req, res) => {
             if (rowIndex > 0) {
                 await writeSheet(config.HUB_CIERRES_ID, `${ENVIO_SHEET}!F${rowIndex + 1}:G${rowIndex + 1}`, [[timestamp, estado]]);
             }
-        } catch { /* no-op */ }
+        } catch (e: any) { console.warn('[dispatch] Error actualizando estado:', e.message); }
 
         console.log(`[dispatch/send] ${estado}: ${agent} → ${email}`);
 

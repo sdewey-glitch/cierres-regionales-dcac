@@ -1,0 +1,22 @@
+{
+  "oficina_pringles": {
+    "id": "oficina_pringles",
+    "nombre": "Oficina Repre (Pringles)",
+    "tieneMinimo": true,
+    "descripcion": "Modelo de representante comercial para Oficina Pringles: cobra comisión variable por escala a partir de 1500 cabezas sobre su resultado topeado, y aplica sueldo mínimo garantizado.",
+    "componenteP": {
+      "activa": true,
+      "umbralCabezas": 1500,
+      "escalaId": "escala_pringles",
+      "base": "resultado_propio"
+    },
+    "componenteR": {
+      "activa": false,
+      "pesoR": 0
+    },
+    "componenteO": {
+      "activa": false,
+      "pesoO": 0
+    }
+  }
+}

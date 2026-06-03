@@ -51,7 +51,7 @@ const ALIAS_MAP: Record<string, string> = {};
 export async function getRoster(): Promise<Map<string, RosterEntry>> {
     if (rosterCache) return rosterCache;
 
-    const MASTER_ROSTER_ID = '1FpgyFCw2hibi3w_jArtohKUxPhvfUpnF9SDDI3YI-aI';
+    const MASTER_ROSTER_ID = config.MASTER_ROSTER_ID;
     // Headers confirmados de 'Asociados Comerciales':
     // 0:Nombre Apellido | 1:Codigo | 2:Provincia | 3:Partido | 4:Oficina | 5:Tipo | 6:Modalidad
     // 7:Escalas | 8:Detalle Escalas | 9:Activo | 10:Link | 11:Tier | 12:Ingreso | 13:Mail | 14:Auto
@@ -143,5 +143,7 @@ export async function normalizeName(rawName: string | null | undefined): Promise
         return match.nombre;
     }
 
-    return null;
+    // Si no está en el roster activo, devolver el nombre raw para preservar
+    // datos históricos (ex-ACs que ya no están pero operaron en meses anteriores)
+    return name;
 }

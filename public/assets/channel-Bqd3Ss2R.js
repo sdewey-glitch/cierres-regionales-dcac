@@ -1,1 +1,0 @@
-import{Mn as e,jn as t}from"./index-MOcBCZHp.js";var n=(n,r)=>e.lang.round(t.parse(n)[r]);export{n as t};

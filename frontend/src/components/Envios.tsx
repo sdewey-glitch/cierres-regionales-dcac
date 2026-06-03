@@ -1,13 +1,12 @@
-import { useState, useEffect, useMemo, useCallback } from 'react';
+import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
   Mail, Send, TestTube, FileDown, Save, Loader2, CheckCircle, 
-  XCircle, Clock, AlertTriangle, ChevronDown, ChevronUp, 
+  XCircle, Clock, AlertTriangle, AlertCircle, ChevronDown, ChevronUp, 
   Search, RefreshCw, Users, FolderOpen, Eye, X, Check,
   MailCheck, MailX
 } from 'lucide-react';
-
-const MONTHS = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
+import { MONTHS } from '../constants';
 
 // ── Tipos ──
 interface EnvioConfig {
@@ -76,6 +75,11 @@ export default function Envios({ API_URL, activeYear, activeMonth, data, onRefre
   const [batchProgress, setBatchProgress] = useState({ current: 0, total: 0 });
   const [confirmModal, setConfirmModal] = useState<'batch' | 'batchTest' | null>(null);
   const [previewAgent, setPreviewAgent] = useState<string | null>(null);
+  
+  // Editor WYSIWYG states
+  const [editingAgent, setEditingAgent] = useState<string | null>(null);
+  const [savingOverride, setSavingOverride] = useState(false);
+  const iframeRef = useRef<HTMLIFrameElement>(null);
 
   const mesNombre = MONTHS[Number(activeMonth) - 1];
   const añoMes = `${activeYear}${activeMonth.padStart(2, '0')}`;
@@ -192,6 +196,57 @@ export default function Envios({ API_URL, activeYear, activeMonth, data, onRefre
       alert('Error de conexión');
     } finally {
       setPreviewAgent(null);
+    }
+  };
+
+  // ── Editar HTML (WYSIWYG) ──
+  const handleEditPdf = async (nombre: string) => {
+    setEditingAgent(nombre);
+    try {
+      const res = await fetch(`${API_URL}/dispatch/preview-html/${encodeURIComponent(nombre)}?year=${activeYear}&month=${activeMonth}`);
+      if (res.ok) {
+        const html = await res.text();
+        if (iframeRef.current) {
+          const doc = iframeRef.current.contentDocument;
+          if (doc) {
+            doc.open();
+            doc.write(html);
+            doc.close();
+            doc.designMode = 'on';
+          }
+        }
+      } else {
+        alert('Error obteniendo HTML para edición');
+        setEditingAgent(null);
+      }
+    } catch (e) {
+      alert('Error de conexión');
+      setEditingAgent(null);
+    }
+  };
+
+  const handleSaveOverride = async () => {
+    if (!editingAgent || !iframeRef.current?.contentDocument) return;
+    setSavingOverride(true);
+    const modifiedHtml = iframeRef.current.contentDocument.documentElement.outerHTML;
+    
+    try {
+      const res = await fetch(`${API_URL}/dispatch/override/${encodeURIComponent(editingAgent)}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ year: activeYear, month: activeMonth, html: modifiedHtml }),
+      });
+      const result = await res.json();
+      if (result.success) {
+        setEditingAgent(null);
+        alert('Edición guardada correctamente. El próximo envío o preview usará esta versión.');
+      } else {
+        alert('Error al guardar edición');
+      }
+    } catch (e) {
+      alert('Error de conexión');
+    } finally {
+      setSavingOverride(false);
     }
   };
 
@@ -545,6 +600,13 @@ export default function Envios({ API_URL, activeYear, activeMonth, data, onRefre
                       <td className="py-2.5 px-4">
                         <div className="flex items-center justify-center gap-1.5">
                           <button
+                            onClick={() => handleEditPdf(agent.nombre)}
+                            className="px-2 py-1 rounded-lg text-[10px] font-bold bg-indigo-50 text-indigo-600 hover:bg-indigo-100 transition-colors flex items-center gap-1"
+                            title="Editar manualmente antes de enviar"
+                          >
+                            Editar
+                          </button>
+                          <button
                             onClick={() => handlePreviewPdf(agent.nombre)}
                             disabled={isPreviewing}
                             className="px-2 py-1 rounded-lg text-[10px] font-bold bg-slate-100 text-slate-600 hover:bg-slate-200 transition-colors disabled:opacity-50 flex items-center gap-1"
@@ -698,6 +760,70 @@ export default function Envios({ API_URL, activeYear, activeMonth, data, onRefre
           </motion.div>
         )}
       </AnimatePresence>
+
+      {/* MODAL EDITOR WYSIWYG */}
+      <AnimatePresence>
+        {editingAgent && (
+          <motion.div
+            initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+            className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 backdrop-blur-sm p-4"
+          >
+            <motion.div
+              initial={{ scale: 0.95, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.95, opacity: 0 }}
+              className="bg-white rounded-2xl shadow-xl w-full max-w-[900px] h-[90vh] flex flex-col overflow-hidden"
+            >
+              <div className="flex items-center justify-between p-4 border-b border-slate-100 bg-slate-50/50">
+                <div>
+                  <h3 className="font-bold text-slate-800 text-lg flex items-center gap-2">
+                    Editor de Cierre
+                    <span className="bg-indigo-100 text-indigo-700 text-xs px-2 py-0.5 rounded-full font-bold">BETA</span>
+                  </h3>
+                  <p className="text-xs text-slate-500 font-medium">Modificando liquidación de {editingAgent}</p>
+                </div>
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={() => setEditingAgent(null)}
+                    className="px-4 py-2 text-sm font-bold text-slate-600 hover:bg-slate-100 rounded-lg transition-colors"
+                  >
+                    Cancelar
+                  </button>
+                  <button
+                    onClick={handleSaveOverride}
+                    disabled={savingOverride}
+                    className="flex items-center gap-2 px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-bold rounded-lg transition-colors shadow-sm disabled:opacity-50"
+                  >
+                    {savingOverride ? <Loader2 size={16} className="animate-spin" /> : <Save size={16} />}
+                    Guardar Cambios
+                  </button>
+                </div>
+              </div>
+              
+              <div className="p-3 bg-amber-50 border-b border-amber-100 flex items-start gap-2">
+                <AlertCircle size={16} className="text-amber-600 mt-0.5 shrink-0" />
+                <p className="text-xs text-amber-800 leading-relaxed font-medium">
+                  <strong>Modo Diseño Activado:</strong> Podés clickear en cualquier texto o número del documento de abajo y modificarlo como si fuera un Word. Estos cambios "pisarán" al documento automático al momento de enviarlo.
+                </p>
+              </div>
+
+              <div className="flex-1 bg-slate-100 overflow-hidden relative p-4">
+                <div className="w-full h-full bg-white shadow-sm ring-1 ring-slate-200 rounded-lg overflow-hidden mx-auto" style={{ maxWidth: '210mm' }}>
+                  <iframe
+                    ref={iframeRef}
+                    className="w-full h-full border-0"
+                    title="Editor WYSIWYG"
+                    onLoad={(e) => {
+                      // Asegurar designMode on en caso de recarga
+                      const doc = (e.target as HTMLIFrameElement).contentDocument;
+                      if (doc) doc.designMode = 'on';
+                    }}
+                  />
+                </div>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
     </div>
   );
 }

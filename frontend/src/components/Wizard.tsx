@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { ArrowRight, CheckCircle, AlertTriangle, Play, RefreshCw, FileSpreadsheet, Check, Download } from 'lucide-react';
+import { ArrowRight, CheckCircle, AlertTriangle, Play, RefreshCw, FileSpreadsheet, Check } from 'lucide-react';
+import { MONTHS } from '../constants';
 
 interface WizardProps {
   API_URL: string;
@@ -17,8 +18,6 @@ export default function Wizard({ API_URL, setActiveTab, activeMonth, setActiveMo
   const [step, setStep] = useState(1);
   const [mendelStatus, setMendelStatus] = useState<string>('Pendiente de revisión');
   const [mendelCount, setMendelCount] = useState<number | null>(null);
-  
-  const MONTHS = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'];
 
   const checkMendel = async () => {
     setMendelStatus('Revisando...');

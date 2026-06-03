@@ -17,6 +17,9 @@ export const config = {
     HUB_CIERRES_ID: process.env.HUB_CIERRES_ID || '',
     HUB_TABLERO_ID: process.env.HUB_TABLERO_ID || '',
     HUB_HISTORIAL_ID: process.env.HUB_HISTORIAL_ID || '',
+    MASTER_ROSTER_ID: process.env.MASTER_ROSTER_ID || '',
+    MENDEL_SPREADSHEET_ID: process.env.MENDEL_SPREADSHEET_ID || '',
+    CIERRES_ROOT_FOLDER_ID: process.env.CIERRES_ROOT_FOLDER_ID || '',
 };
 
 const missing = Object.entries(config).filter(([_, v]) => !v).map(([k]) => k);

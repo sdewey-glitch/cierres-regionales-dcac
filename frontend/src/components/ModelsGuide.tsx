@@ -1,5 +1,5 @@
 import React, { useState, useMemo } from 'react';
-import { BookOpen, TrendingUp, Truck, CreditCard, Users, Scale, ArrowLeft, ChevronRight, Info, Zap, Database, AlertTriangle, Percent, DollarSign, Target, Layers } from 'lucide-react';
+import { BookOpen, TrendingUp, Truck, CreditCard, Users, Scale, ArrowLeft, ChevronRight, Info, Zap, Database, AlertTriangle, Percent, DollarSign, Target, Layers, Download, ExternalLink, FileText } from 'lucide-react';
 
 /* ───────────────────────────────────────────────
    Explorador Interactivo de Modelos de Liquidación
@@ -620,11 +620,40 @@ function ModelContent({ id }: { id: string }) {
 // ─── Componente Principal ───
 interface ModelsGuideProps {
   setActiveTab: (tab: any) => void;
+  API_URL: string;
 }
 
-export default function ModelsGuide({ setActiveTab }: ModelsGuideProps) {
+export default function ModelsGuide({ setActiveTab, API_URL }: ModelsGuideProps) {
   const [activeModel, setActiveModel] = useState<string>(MODELS[0].id);
+  const [activeSubTab, setActiveSubTab] = useState<'descargas' | 'explorador'>('descargas');
   const currentModel = MODELS.find(m => m.id === activeModel)!;
+
+  const baseUrl = API_URL.endsWith('/api') ? API_URL.slice(0, -4) : API_URL;
+
+  const MANUALS = [
+    {
+      id: 'comercial',
+      title: 'Manual Ejecutivo Comercial',
+      desc: 'Guía práctica orientada a asociados comerciales sobre las condiciones de liquidación, comisiones, KMS y movilidad.',
+      file: 'Manual_Ejecutivo_Comercial.pdf',
+      size: '1.4 MB',
+      type: 'PDF',
+      badge: 'Guía de Agente',
+      badgeColor: 'bg-amber-50 text-amber-700 border-amber-200/60',
+      accentColor: 'from-amber-500 to-orange-600',
+    },
+    {
+      id: 'webapp',
+      title: 'Manual de la Aplicación Web',
+      desc: 'Explicación completa de las pantallas, simulador, regresiones OLS, validador de desvíos y ajustes retroactivos.',
+      file: 'Manual_Aplicacion_Web.pdf',
+      size: '500 KB',
+      type: 'PDF',
+      badge: 'Manual de Usuario',
+      badgeColor: 'bg-emerald-50 text-emerald-700 border-emerald-200/60',
+      accentColor: 'from-emerald-500 to-teal-600',
+    },
+  ];
 
   return (
     <div className="max-w-7xl mx-auto pb-16">
@@ -633,59 +662,138 @@ export default function ModelsGuide({ setActiveTab }: ModelsGuideProps) {
         <button onClick={() => setActiveTab('hub')} className="flex items-center gap-2 text-slate-400 hover:text-slate-700 text-sm font-semibold mb-4 transition-colors">
           <ArrowLeft size={16} /> Volver al Hub
         </button>
-        <div className="flex items-center gap-4">
-          <div className="p-3 bg-gradient-to-br from-indigo-500 to-purple-600 text-white rounded-2xl shadow-lg">
-            <BookOpen size={28} />
+        <div className="flex justify-between items-center flex-wrap gap-4">
+          <div className="flex items-center gap-4">
+            <div className="p-3 bg-gradient-to-br from-indigo-500 to-purple-600 text-white rounded-2xl shadow-lg">
+              <BookOpen size={28} />
+            </div>
+            <div>
+              <h1 className="text-3xl font-extrabold text-slate-800">Manuales y Documentación</h1>
+              <p className="text-slate-500 text-sm font-medium mt-0.5">Descargá las guías operativas o explorá las fórmulas del motor interactivamente.</p>
+            </div>
           </div>
-          <div>
-            <h1 className="text-3xl font-extrabold text-slate-800">Explorador de Modelos</h1>
-            <p className="text-slate-500 text-sm font-medium mt-0.5">Entendé cómo funciona cada fórmula y jugá con los números para ver qué pasa.</p>
+
+          {/* Sub-tabs segmentados estilo iOS */}
+          <div className="flex bg-slate-200/60 p-1 rounded-xl border border-slate-200/40 relative z-10 shrink-0">
+            <button
+              onClick={() => setActiveSubTab('descargas')}
+              className={`px-4 py-2 rounded-lg text-xs font-bold transition-all ${
+                activeSubTab === 'descargas'
+                  ? 'bg-white text-slate-900 shadow-[0_2px_8px_rgba(0,0,0,0.06)] font-extrabold'
+                  : 'text-slate-500 hover:text-slate-800'
+              }`}
+            >
+              Manuales y Descargas
+            </button>
+            <button
+              onClick={() => setActiveSubTab('explorador')}
+              className={`px-4 py-2 rounded-lg text-xs font-bold transition-all ${
+                activeSubTab === 'explorador'
+                  ? 'bg-white text-slate-900 shadow-[0_2px_8px_rgba(0,0,0,0.06)] font-extrabold'
+                  : 'text-slate-500 hover:text-slate-800'
+              }`}
+            >
+              Explorador de Fórmulas
+            </button>
           </div>
         </div>
       </div>
 
-      {/* Layout: sidebar + content */}
-      <div className="flex gap-6 flex-col lg:flex-row">
-        {/* Sidebar */}
-        <nav className="lg:w-80 shrink-0">
-          <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden sticky top-4">
-            <div className="p-4 bg-slate-50 border-b border-slate-200">
-              <h3 className="text-xs font-bold text-slate-500 uppercase tracking-wider">Modelos de Liquidación</h3>
-            </div>
-            <div className="divide-y divide-slate-100">
-              {MODELS.map(m => (
-                <button
-                  key={m.id}
-                  onClick={() => setActiveModel(m.id)}
-                  className={`w-full text-left p-4 flex items-start gap-3 transition-all hover:bg-slate-50 ${
-                    activeModel === m.id ? `${m.bgColor} ${m.borderColor} border-l-4` : 'border-l-4 border-transparent'
-                  }`}
-                >
-                  <div className={`mt-0.5 ${activeModel === m.id ? m.color : 'text-slate-400'}`}>{m.icon}</div>
-                  <div>
-                    <span className={`text-sm font-bold block ${activeModel === m.id ? 'text-slate-900' : 'text-slate-700'}`}>{m.title}</span>
-                    <span className="text-[11px] text-slate-400 leading-tight block mt-0.5">{m.shortDesc.substring(0, 70)}...</span>
+      {activeSubTab === 'descargas' ? (
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          {MANUALS.map(manual => (
+            <div
+              key={manual.id}
+              className="bg-white rounded-2xl border border-slate-200/60 hover:border-slate-300 shadow-sm hover:shadow-md transition-all duration-300 overflow-hidden flex flex-col group"
+            >
+              {/* Header de la tarjeta con gradiente */}
+              <div className={`h-2 bg-gradient-to-r ${manual.accentColor}`} />
+              
+              <div className="p-6 flex-grow flex flex-col justify-between gap-4">
+                <div>
+                  <div className="flex justify-between items-start mb-3">
+                    <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider border ${manual.badgeColor}`}>
+                      {manual.badge}
+                    </span>
+                    <span className="text-[10px] text-slate-400 font-bold bg-slate-100 px-2 py-0.5 rounded-md">
+                      {manual.type} • {manual.size}
+                    </span>
                   </div>
-                </button>
-              ))}
-            </div>
-          </div>
-        </nav>
 
-        {/* Main content */}
-        <main className="flex-1 min-w-0">
-          <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-8">
-            <div className="flex items-center gap-3 mb-6 pb-4 border-b border-slate-100">
-              <div className={`p-2.5 rounded-xl ${currentModel.bgColor} ${currentModel.color}`}>{currentModel.icon}</div>
-              <div>
-                <h2 className="text-xl font-extrabold text-slate-800">{currentModel.title}</h2>
-                <p className="text-sm text-slate-500">{currentModel.shortDesc}</p>
+                  <h3 className="text-base font-extrabold text-slate-800 mb-2 group-hover:text-blue-600 transition-colors">
+                    {manual.title}
+                  </h3>
+                  <p className="text-xs text-slate-500 leading-relaxed font-medium">
+                    {manual.desc}
+                  </p>
+                </div>
+
+                <div className="flex gap-2.5 pt-4 border-t border-slate-100">
+                  <a
+                    href={`${baseUrl}/docs/${manual.file}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="flex-1 inline-flex items-center justify-center gap-1.5 px-4 py-2.5 bg-blue-600 hover:bg-blue-700 active:scale-[0.98] text-white rounded-xl text-xs font-bold shadow-sm transition-all text-center"
+                  >
+                    <ExternalLink size={14} /> Ver Documento
+                  </a>
+                  <a
+                    href={`${baseUrl}/docs/${manual.file}`}
+                    download={manual.file}
+                    className="inline-flex items-center justify-center gap-1.5 px-4 py-2.5 bg-slate-100 hover:bg-slate-200 active:scale-[0.98] text-slate-700 rounded-xl text-xs font-bold transition-all"
+                    title="Descargar directamente"
+                  >
+                    <Download size={14} /> Descargar
+                  </a>
+                </div>
               </div>
             </div>
-            <ModelContent id={activeModel} />
-          </div>
-        </main>
-      </div>
+          ))}
+        </div>
+      ) : (
+        /* Layout: sidebar + content */
+        <div className="flex gap-6 flex-col lg:flex-row">
+          {/* Sidebar */}
+          <nav className="lg:w-80 shrink-0">
+            <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden sticky top-4">
+              <div className="p-4 bg-slate-50 border-b border-slate-200">
+                <h3 className="text-xs font-bold text-slate-500 uppercase tracking-wider">Modelos de Liquidación</h3>
+              </div>
+              <div className="divide-y divide-slate-100">
+                {MODELS.map(m => (
+                  <button
+                    key={m.id}
+                    onClick={() => setActiveModel(m.id)}
+                    className={`w-full text-left p-4 flex items-start gap-3 transition-all hover:bg-slate-50 ${
+                      activeModel === m.id ? `${m.bgColor} ${m.borderColor} border-l-4` : 'border-l-4 border-transparent'
+                    }`}
+                  >
+                    <div className={`mt-0.5 ${activeModel === m.id ? m.color : 'text-slate-400'}`}>{m.icon}</div>
+                    <div>
+                      <span className={`text-sm font-bold block ${activeModel === m.id ? 'text-slate-900' : 'text-slate-700'}`}>{m.title}</span>
+                      <span className="text-[11px] text-slate-400 leading-tight block mt-0.5">{m.shortDesc.substring(0, 70)}...</span>
+                    </div>
+                  </button>
+                ))}
+              </div>
+            </div>
+          </nav>
+
+          {/* Main content */}
+          <main className="flex-1 min-w-0">
+            <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-8">
+              <div className="flex items-center gap-3 mb-6 pb-4 border-b border-slate-100">
+                <div className={`p-2.5 rounded-xl ${currentModel.bgColor} ${currentModel.color}`}>{currentModel.icon}</div>
+                <div>
+                  <h2 className="text-xl font-extrabold text-slate-800">{currentModel.title}</h2>
+                  <p className="text-sm text-slate-500">{currentModel.shortDesc}</p>
+                </div>
+              </div>
+              <ModelContent id={activeModel} />
+            </div>
+          </main>
+        </div>
+      )}
     </div>
   );
 }

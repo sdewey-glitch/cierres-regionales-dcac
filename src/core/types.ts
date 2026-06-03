@@ -64,6 +64,7 @@ export interface CommercialResult {
     // Ajustes Retroactivos (Resumidos)
     ajustes: number;
     ajustesManuales?: number;
+    aguinaldo?: number;
     cierreMesM3: number;
     cierreMesM2: number;
     cierreMesM1: number;

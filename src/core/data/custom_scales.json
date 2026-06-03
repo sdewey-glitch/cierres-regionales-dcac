@@ -1,0 +1,23 @@
+{
+  "escala_pringles": {
+    "nombre": "Escala Pringles (1500+ cabezas)",
+    "tramos": [
+      { "cabezas": 1500, "porcentaje": 0.0150 },
+      { "cabezas": 1750, "porcentaje": 0.0175 },
+      { "cabezas": 2000, "porcentaje": 0.0200 },
+      { "cabezas": 2250, "porcentaje": 0.0225 },
+      { "cabezas": 2500, "porcentaje": 0.0250 },
+      { "cabezas": 2750, "porcentaje": 0.0275 },
+      { "cabezas": 3000, "porcentaje": 0.0300 },
+      { "cabezas": 3250, "porcentaje": 0.0325 },
+      { "cabezas": 3500, "porcentaje": 0.0350 },
+      { "cabezas": 3750, "porcentaje": 0.0375 },
+      { "cabezas": 4000, "porcentaje": 0.0400 },
+      { "cabezas": 4250, "porcentaje": 0.0425 },
+      { "cabezas": 4500, "porcentaje": 0.0450 },
+      { "cabezas": 4750, "porcentaje": 0.0475 },
+      { "cabezas": 5000, "porcentaje": 0.0500 },
+      { "cabezas": 5250, "porcentaje": 0.0525 }
+    ]
+  }
+}

@@ -131,7 +131,7 @@ export async function fetchAcAssignmentDates(): Promise<Record<string, string>> 
                 native: { query }
             })
         });
-        if (!res.ok) throw new Error(`Failed to fetch AC assignment dates: \${res.status}`);
+        if (!res.ok) throw new Error(`Failed to fetch AC assignment dates: ${res.status}`);
         const data = await res.json();
         const mapping: Record<string, string> = {};
         if (data.data && data.data.rows) {
@@ -149,18 +149,18 @@ export async function fetchAcAssignmentDates(): Promise<Record<string, string>> 
                 fs.mkdirSync(cacheDir, { recursive: true });
             }
             fs.writeFileSync(cacheFile, JSON.stringify(mapping));
-            console.log(`[metabase] Saved AC assignment dates cache to \${cacheFile}`);
+            console.log(`[metabase] Saved AC assignment dates cache to ${cacheFile}`);
         } catch (e: any) {
-            console.warn(`[metabase] Failed to write AC assignment dates cache: \${e.message}`);
+            console.warn(`[metabase] Failed to write AC assignment dates cache: ${e.message}`);
         }
         return mapping;
     } catch (e: any) {
-        console.warn(`[metabase] Failed to fetch AC assignment dates: \${e.message}. Loading from cache...`);
+        console.warn(`[metabase] Failed to fetch AC assignment dates: ${e.message}. Loading from cache...`);
         if (fs.existsSync(cacheFile)) {
             try {
                 return JSON.parse(fs.readFileSync(cacheFile, 'utf8'));
             } catch (err: any) {
-                console.error(`[metabase] Failed to parse AC assignment dates cache: \${err.message}`);
+                console.error(`[metabase] Failed to parse AC assignment dates cache: ${err.message}`);
             }
         }
         return {};

@@ -2,9 +2,7 @@ import express from 'express';
 import cors from 'cors';
 import * as path from 'path';
 import * as fs from 'fs';
-import multer from 'multer';
 
-const upload = multer({ dest: 'uploads/' });
 
 const app = express();
 app.use(cors());
@@ -38,25 +36,20 @@ app.get('/api/snapshots/:filename', (req, res) => {
 
 import { calculateDynamicMonth, classifyChannel } from './core/engine';
 import { saveMonthSnapshot, loadMonthSnapshot } from './core/snapshot';
-import { fetchPreciosKm, fetchMendelGastos, fetchAjustesManuales } from './core/inputs';
+import { updateDynamicSueldos } from './core/writer';
+import { fetchPreciosKm, fetchMendelGastos, fetchAjustesManuales, cleanSheetsNumber } from './core/inputs';
 import { calculateRetroactiveAdjustments } from './core/engine';
 import { getRoster, invalidateRosterCache, normalizeName } from './core/normalization';
 import { fetchQ95, fetchAcAssignmentDates } from './api/metabase';
 import { readSheet, writeSheet, appendSheet, createSheetIfNotExists, clearSheetRange } from './api/sheets';
 import { config } from './config/env';
 import dispatchRouter from './api/dispatch';
+import configRouter from './routes/config';
+import configModelsRouter from './routes/config_models';
 
 app.use(express.json({ limit: '50mb' }));
 app.use('/api', dispatchRouter);
 
-app.get('/api/debug-sheet', async (req, res) => {
-    try {
-        const { id, range } = req.query;
-        if (!id || !range) return res.status(400).json({ error: 'id y range requeridos' });
-        const data = await readSheet(String(id), String(range));
-        res.json(data);
-    } catch (e: any) { res.status(500).json({ error: e.message }); }
-});
 
 // Migrar ajustes del sheet viejo al nuevo como valores estáticos
 app.post('/api/migrate-ajustes', async (req, res) => {
@@ -290,8 +283,6 @@ app.post('/api/generate', async (req, res) => {
         // === ESCRIBIR BAJADA ESTÁTICA (Q95 cruda de Metabase, 3 meses) ===
         // Al cerrar Abril, guardamos la Q95 cruda de Feb, Mar, Abr → base para retroactivos de Mayo
         try {
-            // Importar fetchQ95 para obtener data cruda
-            const { fetchQ95 } = require('./api/metabase');
             const rawQ95: any[] = await fetchQ95();
             
             // Determinar los 3 meses: M, M-1, M-2
@@ -355,6 +346,11 @@ app.post('/api/generate', async (req, res) => {
                 console.log(`[bajada] Actualizando snapshot dinámico ${pastY}-${pastM}...`);
                 const dynResults = await calculateDynamicMonth(pastY, pastM);
                 saveMonthSnapshot(pastY, pastM, dynResults);
+                try {
+                    await updateDynamicSueldos(pastY, pastM, dynResults);
+                } catch (err: any) {
+                    console.warn(`[bajada] ⚠️ Error escribiendo pastMonth ${pastY}-${pastM} al Google Sheet: ${err.message}`);
+                }
             }
         } catch (sheetErr: any) {
             console.warn(`[bajada] ⚠️ No se pudo escribir bajada estática: ${sheetErr.message}`);
@@ -393,6 +389,11 @@ app.post('/api/generate', async (req, res) => {
         
         // Re-guardar snapshot con ajustes incluidos
         saveMonthSnapshot(Number(year), Number(month), results);
+        try {
+            await updateDynamicSueldos(Number(year), Number(month), results);
+        } catch (err: any) {
+            console.warn(`[generate] ⚠️ Error escribiendo cierre al Google Sheet: ${err.message}`);
+        }
         
         res.json({ 
             success: true, 
@@ -487,6 +488,11 @@ app.post('/api/generate/agent', async (req, res) => {
         
         // 5. Guardar el snapshot consolidado final en el disco
         saveMonthSnapshot(Number(year), Number(month), currentSnapshot);
+        try {
+            await updateDynamicSueldos(Number(year), Number(month), currentSnapshot);
+        } catch (err: any) {
+            console.warn(`[generate/agent] ⚠️ Error escribiendo cierre del agente al Google Sheet: ${err.message}`);
+        }
         
         res.json({
             success: true,
@@ -544,7 +550,7 @@ app.get('/api/cuentas', (req, res) => {
     }
 });
 
-const MENDEL_FILE = path.join(__dirname, 'core/data/mendel.json');
+
 
 app.get('/api/mendel', async (req, res) => {
     try {
@@ -590,7 +596,7 @@ app.get('/api/ajustes-manuales', async (req, res) => {
                     añoMes: String(row[2] || ''),
                     comercial,
                     motivo: String(row[4] || '').trim(),
-                    monto: Number(row[5]) || 0
+                    monto: cleanSheetsNumber(row[5])
                 });
             }
         });
@@ -994,7 +1000,7 @@ app.get('/api/validate', async (req, res) => {
 
         // ── Roster: leer 'Asociados Comerciales' completo para saber tipo + activo + codigo ──
         if (!cachedFullRoster || (now - lastRosterFetch > 1000 * 60 * 60)) {
-            const MASTER_ROSTER_ID = '1FpgyFCw2hibi3w_jArtohKUxPhvfUpnF9SDDI3YI-aI';
+            const MASTER_ROSTER_ID = config.MASTER_ROSTER_ID;
             let rosterRaw: any[] | null = null;
             try {
                 rosterRaw = await readSheet(MASTER_ROSTER_ID, "'Asociados Comerciales'!A2:AC");
@@ -1258,14 +1264,26 @@ import { getCierreLinks } from './api/drive';
 app.get('/api/historico/:agente', async (req, res) => {
     try {
         const agentName = decodeURIComponent(req.params.agente);
-        
-        // Get V3 data (all months for this agent)
-        // Reuse cached V3 data from the v3-salaries endpoint
+        const roster = await getRoster();
+
+        const normalizeNameSync = (rawName: string | null | undefined) => {
+            if (!rawName) return null;
+            let name = rawName.trim();
+            if (!name) return null;
+            const match = roster.get(name.toLowerCase());
+            const AC_TIPOS = ['Regional', 'City Manager', 'Corporate', 'Representante', 'Oficina'];
+            if (match && AC_TIPOS.includes(match.tipo)) {
+                return match.nombre;
+            }
+            return null;
+        };
+
+        // 1. Get V3 data (all months for this agent)
         const now = Date.now();
         if (!cachedV3Data || (now - lastV3Fetch > 1000 * 60 * 60)) {
             const data = await readSheet(config.TARGET_SPREADSHEET_ID, "'BDSUELDO_REAL'!A2:Z");
             cachedV3Data = data.map(r => ({
-                anioMes: r[3],
+                anioMes: Number(r[3]),
                 asociadoComercial: r[4],
                 tipo: r[9],
                 sueldo: Number(r[13]) || 0,
@@ -1279,38 +1297,21 @@ app.get('/api/historico/:agente', async (req, res) => {
             }));
             lastV3Fetch = now;
         }
-        
-        // Filter for this agent
-        const agentData = cachedV3Data.filter((r: any) => 
+
+        const agentV3Data = cachedV3Data.filter((r: any) => 
             r.asociadoComercial && r.asociadoComercial.toLowerCase() === agentName.toLowerCase()
         );
-        
-        // Get Drive links
-        let driveLinks = new Map<string, string>();
-        try {
-            driveLinks = await getCierreLinks();
-        } catch (e: any) {
-            console.warn('[historico] No se pudieron obtener links de Drive:', e.message);
-        }
-        
-        // Also check local snapshots for months not in V3
-        const snapshotDir = path.join(__dirname, 'core/snapshots');
-        const snapshotFiles = fs.existsSync(snapshotDir) ? fs.readdirSync(snapshotDir).filter(f => f.startsWith('cierre_')) : [];
-        
-        // Build combined result
+
+        // Map to store combined history entries
+        const historyMap = new Map<number, any>();
         const MONTHS_ES = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
-        
-        const history = agentData.map((r: any) => {
-            const am = Number(r.anioMes);
+
+        // Add V3 entries
+        for (const r of agentV3Data) {
+            const am = r.anioMes;
             const year = Math.floor(am / 100);
             const month = am % 100;
-            const linkKey = `${agentName.toLowerCase()}_${am}`;
-            const driveLink = driveLinks.get(linkKey) || null;
-            // Check if we have a local snapshot too
-            const snapFile = `cierre_${year}_${String(month).padStart(2,'0')}.json`;
-            const hasSnapshot = snapshotFiles.includes(snapFile);
-            
-            return {
+            historyMap.set(am, {
                 anioMes: am,
                 year,
                 month,
@@ -1323,12 +1324,158 @@ app.get('/api/historico/:agente', async (req, res) => {
                 sueldo: r.sueldo,
                 cierreReal: r.cierreReal,
                 minimo: r.minimo,
-                driveLink,
-                hasSnapshot,
-            };
-        });
-        
-        // Sort descending by anioMes
+                bonificacionOculta: 0,
+                driveLink: null,
+                hasSnapshot: false,
+            });
+        }
+
+        // 2. Read V4 data (from local snapshots)
+        const snapshotDir = path.join(__dirname, 'core/snapshots');
+        const snapshotFiles = fs.existsSync(snapshotDir) ? fs.readdirSync(snapshotDir).filter(f => f.startsWith('cierre_') && f.endsWith('.json')) : [];
+
+        for (const file of snapshotFiles) {
+            try {
+                const parts = file.replace('.json', '').split('_');
+                const year = parseInt(parts[1], 10);
+                const month = parseInt(parts[2], 10);
+                const am = year * 100 + month;
+
+                const filePath = path.join(snapshotDir, file);
+                const snapshotData: any[] = JSON.parse(fs.readFileSync(filePath, 'utf8'));
+                const agentSnap = snapshotData.find((s: any) => s.asociadoComercial && s.asociadoComercial.toLowerCase() === agentName.toLowerCase());
+
+                if (agentSnap) {
+                    historyMap.set(am, {
+                        anioMes: am,
+                        year,
+                        month,
+                        monthName: MONTHS_ES[month - 1] || '',
+                        tropas: agentSnap.tropasGeneral || 0,
+                        cabezas: agentSnap.cabezasGeneral || 0,
+                        resultado: agentSnap.resultado_final_ajustado || 0,
+                        escala: agentSnap.escalaGen || 0,
+                        compP: agentSnap.componenteP || 0,
+                        sueldo: agentSnap.sueldoBruto || 0,
+                        cierreReal: agentSnap.cierreReal || 0,
+                        minimo: agentSnap.minimo || 0,
+                        bonificacionOculta: 0,
+                        driveLink: null,
+                        hasSnapshot: true,
+                    });
+                }
+            } catch (snapErr: any) {
+                console.warn(`[historico] Error parsing snapshot ${file}:`, snapErr.message);
+            }
+        }
+
+        // 3. Load Drive links
+        let driveLinks = new Map<string, string>();
+        try {
+            driveLinks = await getCierreLinks();
+            for (const [am, entry] of historyMap.entries()) {
+                const linkKey = `${agentName.toLowerCase()}_${am}`;
+                if (driveLinks.has(linkKey)) {
+                    entry.driveLink = driveLinks.get(linkKey);
+                }
+            }
+        } catch (e: any) {
+            console.warn('[historico] No se pudieron obtener links de Drive:', e.message);
+        }
+
+        // 4. Load Metabase Q95 operations and aggregate cabezas & bonificación oculta
+        try {
+            const rawOps = await fetchQ95();
+            
+            // Temporary map for Metabase aggregates
+            const metabaseAggregates = new Map<number, { cabezas: number, bonif: number, tropas: number }>();
+
+            const cleanName = (n: string) => (n || '').toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9]/gi, '').trim();
+            const targetAgentClean = cleanName(agentName);
+
+            for (const op of rawOps) {
+                if (!op.fecha_operacion) continue;
+                
+                // State filters
+                const estado = String(op.ESTADO || '').toUpperCase();
+                const estadoTrop = String(op.Estado_Trop || '').toUpperCase();
+                const invalidStates = ['PUBLICADO', 'NO CONCRETADAS', 'OFRECIMIENTOS', 'BAJA', 'REVISAR', 'PUBLICADAS', 'DADAS DE BAJA', 'PUBLICADO OCULTO'];
+                if (invalidStates.includes(estado) || invalidStates.includes(estadoTrop)) continue;
+
+                // Resolve commercial names
+                const acIdVend = op.asociado_comercial_id_vend || op.AC_Vend || '';
+                const acSocVend = op.asociado_comercial_soc_vend || '';
+                const repreVend = op.RepreVendedor || op.repre_vendedor || '';
+                const vendRaw = acIdVend || acSocVend || repreVend || op.operador_nombre || '';
+
+                const acIdComp = op.asociado_comercial_id_comp || op.AC_Comp || '';
+                const acSocComp = op.asociado_comercial_soc_comp || '';
+                const repreComp = op.RepreComprador || op.repre_comprador || '';
+                const compRaw = acIdComp || acSocComp || repreComp || op.operador_nombre || '';
+
+                const acVendClean = cleanName(normalizeNameSync(String(vendRaw)) || '');
+                const acCompClean = cleanName(normalizeNameSync(String(compRaw)) || '');
+
+                const isSeller = acVendClean === targetAgentClean;
+                const isBuyer = acCompClean === targetAgentClean;
+
+                if (isSeller || isBuyer) {
+                    const opYear = parseInt(op.fecha_operacion.substring(0, 4), 10);
+                    const opMonth = parseInt(op.fecha_operacion.substring(5, 7), 10);
+                    const am = opYear * 100 + opMonth;
+
+                    if (!metabaseAggregates.has(am)) {
+                        metabaseAggregates.set(am, { cabezas: 0, bonif: 0, tropas: 0 });
+                    }
+                    const agg = metabaseAggregates.get(am)!;
+                    
+                    agg.tropas += 1;
+                    agg.cabezas += Number(op.Cabezas || op.cantidad) || 0;
+                    
+                    if (isSeller) {
+                        agg.bonif += Number(op.bonificacion_vendedor) || 0;
+                    }
+                    if (isBuyer) {
+                        agg.bonif += Number(op.bonificacion_comprador) || 0;
+                    }
+                }
+            }
+
+            // Merge Metabase aggregates into historyMap
+            for (const [am, agg] of metabaseAggregates.entries()) {
+                if (historyMap.has(am)) {
+                    const entry = historyMap.get(am);
+                    entry.cabezas = agg.cabezas;
+                    entry.bonificacionOculta = Math.round(agg.bonif);
+                    entry.tropas = agg.tropas;
+                } else {
+                    const year = Math.floor(am / 100);
+                    const month = am % 100;
+                    historyMap.set(am, {
+                        anioMes: am,
+                        year,
+                        month,
+                        monthName: MONTHS_ES[month - 1] || '',
+                        tropas: agg.tropas,
+                        cabezas: agg.cabezas,
+                        resultado: 0,
+                        escala: 0,
+                        compP: 0,
+                        sueldo: 0,
+                        cierreReal: 0,
+                        minimo: 0,
+                        bonificacionOculta: Math.round(agg.bonif),
+                        driveLink: driveLinks.get(`${agentName.toLowerCase()}_${am}`) || null,
+                        hasSnapshot: false,
+                    });
+                }
+            }
+
+        } catch (mbErr: any) {
+            console.error('[historico] Error aggregating Metabase data:', mbErr.message);
+        }
+
+        const history = Array.from(historyMap.values());
         history.sort((a: any, b: any) => b.anioMes - a.anioMes);
         
         res.json({ agente: agentName, history });
@@ -1612,14 +1759,12 @@ app.get('/api/metricas-red', async (req, res) => {
             }
 
             // Calcular ratios por canal
-            console.log(`[CCC DEBUG] ${monthKey} | unique concretadas: ${unique.size} | allOps CCC: ${allUniqueForCCC.size}`);
             canalKeys.forEach(ck => {
                 const cData = canales[ck];
                 cData.reps = canalReps[ck].size;
                 // CCC = cabezas venta concretadas / cabezas venta totales (conc + no conc)
                 cData.ccc = cccTotalVenta[ck] > 0 ? (canalCabzVenta[ck] / cccTotalVenta[ck]) : 0;
                 cData.bonifPct = cData.importe > 0 ? (cData.bonificaciones / cData.importe) : 0;
-                console.log(`  ${ck}: concretVenta=${canalCabzVenta[ck]} / totalVenta=${cccTotalVenta[ck]} = ${(cData.ccc*100).toFixed(1)}%`);
             });
 
             const snap = snapshotCosts.get(monthKey) || { costoRed: 0, agentes: 0, acDetail: [] };
@@ -1667,6 +1812,193 @@ app.get('/api/metricas-red', async (req, res) => {
         res.status(500).json({ error: e.message });
     }
 });
+
+// Endpoint para obtener las métricas de PLM (Share y Resultados regionales por UN)
+app.get('/api/metricas-plm', async (req, res) => {
+    try {
+        const data = await fetchQ95();
+        const UN_LIST = ['Faena', 'Invernada', 'Invernada Neo', 'Cria', 'MAG'];
+
+        // Estructura: year_month -> UN -> metrics
+        const results: Record<string, Record<string, {
+            totalCabezas: number;
+            regionalCabezas: number;
+            resultadoFinal: number;
+            importeRegional: number;
+            importeTotal: number;
+        }>> = {};
+
+        const normalizeUn = (unRaw: string): string => {
+            const un = unRaw.toLowerCase().trim();
+            if (un.includes('faena')) return 'Faena';
+            if (un === 'invernada neo') return 'Invernada Neo';
+            if (un.includes('invernada')) return 'Invernada';
+            if (un.includes('cria') || un.includes('cría')) return 'Cria';
+            if (un.includes('mag')) return 'MAG';
+            return 'Otros';
+        };
+
+        for (const row of data) {
+            const estado = String(row.ESTADO || row.estado || '').trim().toUpperCase();
+            if (estado !== 'CONCRETADA') {
+                continue;
+            }
+
+            let period = String(row.Fecha_op || '').trim();
+            if (!period && row.fecha_operacion) {
+                const dateStr = String(row.fecha_operacion);
+                if (dateStr.includes('-')) {
+                    period = dateStr.substring(0, 4) + dateStr.substring(5, 7);
+                }
+            }
+            if (!period) continue;
+
+            const mappedUn = normalizeUn(String(row.UN || row.un || ''));
+            if (!UN_LIST.includes(mappedUn)) continue;
+
+            if (!results[period]) {
+                results[period] = {};
+                for (const un of UN_LIST) {
+                    results[period][un] = {
+                        totalCabezas: 0,
+                        regionalCabezas: 0,
+                        resultadoFinal: 0,
+                        importeRegional: 0,
+                        importeTotal: 0
+                    };
+                }
+            }
+
+            const cabezas = Number(row.Cabezas || row.cantidad) || 0;
+            const canalVenta = String(row.Canal_Venta || row.canal_venta || '').trim().toUpperCase();
+            const importeVendedor = Number(row.importe_vendedor || 0);
+            const resultado = Number(row.resultado_final || row.resultado_final_ajustado || 0);
+            const isRegionalVenta = canalVenta === 'REGIONAL';
+
+            const unData = results[period][mappedUn];
+            
+            unData.totalCabezas += cabezas;
+            unData.importeTotal += importeVendedor;
+            
+            if (isRegionalVenta) {
+                unData.regionalCabezas += cabezas;
+                unData.importeRegional += importeVendedor;
+                unData.resultadoFinal += resultado;
+            }
+        }
+
+        const monthsData: any[] = [];
+        const MONTHS_ES = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
+
+        for (const [period, unMap] of Object.entries(results)) {
+            const year = parseInt(period.substring(0, 4));
+            const month = parseInt(period.substring(4, 6));
+            if (isNaN(year) || isNaN(month)) continue;
+
+            monthsData.push({
+                year,
+                month,
+                monthName: MONTHS_ES[month - 1] || '',
+                periodId: period,
+                unData: unMap
+            });
+        }
+
+        monthsData.sort((a, b) => parseInt(b.periodId) - parseInt(a.periodId));
+
+        res.json({
+            unList: UN_LIST,
+            months: monthsData
+        });
+    } catch (e: any) {
+        console.error('[metricas-plm] Error:', e.message);
+        res.status(500).json({ error: e.message });
+    }
+});
+
+// ── Costo de mínimos garantizados en toda la red ──
+app.get('/api/minimos-red', (req, res) => {
+    try {
+        if (!fs.existsSync(SNAPSHOTS_DIR)) {
+            return res.json({ months: [] });
+        }
+
+        const MONTHS_ES = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
+        const files = fs.readdirSync(SNAPSHOTS_DIR).filter(f => f.startsWith('cierre_') && f.endsWith('.json'));
+
+        const months: any[] = [];
+
+        for (const file of files) {
+            try {
+                const parts = file.replace('.json', '').split('_');
+                const year = parseInt(parts[1], 10);
+                const month = parseInt(parts[2], 10);
+
+                const filePath = path.join(SNAPSHOTS_DIR, file);
+                const agents: any[] = JSON.parse(fs.readFileSync(filePath, 'utf8'));
+
+                // Filtrar agentes (excluir tipo Oficina)
+                const agentesRed = agents.filter(a => a.tipo !== 'Oficina');
+
+                // Agentes que cayeron al mínimo: variable_personal === 0, modalidad no es 'Sin minimo' ni 'Fijo'
+                const enMinimo = agentesRed.filter(a =>
+                    a.variable_personal === 0 &&
+                    a.modalidad !== 'Sin minimo' &&
+                    a.modalidad !== 'Fijo'
+                );
+
+                const agentesEnMinimo = enMinimo.length;
+                const totalAgentes = agentesRed.length;
+
+                const subsidioTotal = enMinimo.reduce((sum, a) => {
+                    return sum + Math.max(0, (a.minimo || 0) - (a.componenteP || 0));
+                }, 0);
+
+                const sueldoBrutoTotal = agentesRed.reduce((sum, a) => sum + (a.sueldoBruto || 0), 0);
+
+                const pctEnMinimo = totalAgentes > 0 ? Math.round((agentesEnMinimo / totalAgentes) * 1000) / 1000 : 0;
+
+                const detalle = enMinimo.map(a => ({
+                    nombre: a.asociadoComercial,
+                    codigo: a.codigo,
+                    provincia: a.provincia,
+                    oficina: a.oficina,
+                    categoria: a.categoria,
+                    modalidad: a.modalidad,
+                    minimo: a.minimo || 0,
+                    componenteP: a.componenteP || 0,
+                    subsidio: Math.max(0, (a.minimo || 0) - (a.componenteP || 0)),
+                    cierreReal: a.cierreReal || 0
+                }));
+
+                months.push({
+                    year,
+                    month,
+                    monthName: MONTHS_ES[month - 1] || '',
+                    agentesEnMinimo,
+                    totalAgentes,
+                    subsidioTotal: Math.round(subsidioTotal),
+                    sueldoBrutoTotal: Math.round(sueldoBrutoTotal),
+                    pctEnMinimo,
+                    detalle
+                });
+            } catch (fileErr: any) {
+                console.warn(`[minimos-red] Error procesando ${file}:`, fileErr.message);
+            }
+        }
+
+        // Ordenar descendente por año+mes
+        months.sort((a, b) => (b.year * 100 + b.month) - (a.year * 100 + a.month));
+
+        res.json({ months });
+    } catch (e: any) {
+        console.error('[minimos-red] Error:', e.message);
+        res.status(500).json({ error: e.message });
+    }
+});
+
+app.use('/api/config', configRouter);
+app.use('/api/config-models', configModelsRouter);
 
 const PORT = 4000;
 app.listen(PORT, async () => {

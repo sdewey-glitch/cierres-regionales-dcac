@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Target, Users, Map, FileText, CheckCircle, Activity, ChevronRight, Calculator, RefreshCw, Layers, ArrowLeft, Search, BarChart3, BookOpen, LayoutDashboard, Database, PlayCircle, ExternalLink, ArrowRight, Copy, Check, Share2, Heart, PieChart } from 'lucide-react';
+import { Target, Users, Map, FileText, CheckCircle, Activity, ChevronRight, Calculator, RefreshCw, Layers, ArrowLeft, BarChart3, BookOpen, LayoutDashboard, Database, PlayCircle, ExternalLink, ArrowRight, Copy, Check, Share2, Heart, PieChart } from 'lucide-react';
 
 export default function Estrategia({ setActiveTab }: { setActiveTab?: any }) {
   const [activeStep, setActiveStep] = useState(0);

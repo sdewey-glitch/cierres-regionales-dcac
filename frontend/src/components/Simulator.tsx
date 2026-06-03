@@ -1,5 +1,5 @@
 import { useState, useMemo, useCallback, useEffect, useRef } from 'react';
-import { Settings2, Plus, X, BarChart3, Scale, TrendingUp, Users, Download, Loader2, RefreshCw, Printer } from 'lucide-react';
+import { Settings2, Plus, X, Scale, TrendingUp, Users, Download, Loader2, RefreshCw, Printer } from 'lucide-react';
 
 // Tailwind safelist — ensures dynamic `bg-${color}-*` classes are generated:
 // bg-indigo-50 text-indigo-800 text-indigo-600 text-indigo-700
@@ -251,7 +251,7 @@ export default function Simulator({ activeMonth, activeYear }: { activeMonth: st
             setPoolImp(dpcTotal);
             setPoolRend(m.TOTAL.rend || 2.5);
             usedMarket = true;
-            console.log('Loaded REAL market metrics from Metabase:', m);
+
           }
         }
       } catch (mErr) {
@@ -396,13 +396,7 @@ export default function Simulator({ activeMonth, activeYear }: { activeMonth: st
             const tajada = poolCab > 0 ? Math.min(1, cabPers / poolCab) : 0;
             const escO = getScale(poolDirCab, 'oficina');
             const resOfi = poolDirCab * poolImp * poolRend / 100;
-            const unData = [
-              { name: 'Faena', color: 'text-blue-600', cabV: cabFaV, cabC: cabFaC, imp: impFa, r: rFa, res: resFa },
-              { name: 'MAG', color: 'text-emerald-600', cabV: cabMaV, cabC: cabMaC, imp: impMa, r: rMa, res: resMa },
-              { name: 'Invernada', color: 'text-red-600', cabV: cabInvV, cabC: cabInvC, imp: impInv, r: rInv, res: resInv },
-              { name: 'Inv. NEO', color: 'text-orange-600', cabV: 0, cabC: 0, imp: 0, r: 0, res: 0 },
-              { name: 'Cría', color: 'text-amber-600', cabV: cabCrV, cabC: cabCrC, imp: impCr, r: rCr, res: resCr },
-            ];
+
             return (<>
           <div className="pr-3">
             <div className="text-xs font-bold text-blue-600 uppercase tracking-wider mb-1.5">Comp. Personal</div>

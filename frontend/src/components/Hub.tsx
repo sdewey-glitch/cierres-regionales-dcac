@@ -1,11 +1,11 @@
-import React, { useState, useEffect } from 'react';
-import { Map as MapIcon, ArrowLeft, Database, ExternalLink, BarChart3, Calculator, FileText, RefreshCw, BookOpen, Layers, TrendingUp, Users, ChevronRight, Activity, Target, X, CheckCircle, AlertCircle, Package, Mail, ChevronDown, ChevronUp } from 'lucide-react';
+import React, { useState, useEffect, useRef } from 'react';
+import { Map as MapIcon, ArrowLeft, Database, ExternalLink, BarChart3, Calculator, FileText, RefreshCw, BookOpen, Layers, TrendingUp, Users, ChevronRight, Activity, Target, X, CheckCircle, AlertCircle, Package, Mail, ChevronDown, ChevronUp, Shield, Settings, PieChart } from 'lucide-react';
 import MermaidChart from './MermaidChart';
 import { diagramaCierres } from './mermaidConstants';
 import SortableTable from './SortableTable';
 import RedRegional from './RedRegional';
+import Ajustes from './Ajustes';
 import {
-  ResponsiveContainer,
   ComposedChart,
   Bar,
   Line,
@@ -22,6 +22,50 @@ interface HubProps {
   activeMonth: string;
 }
 
+// Chart component that measures its own width — fixes ResponsiveContainer bug inside modals
+function ChartContainer({ chartData }: { chartData: { name: string; cabezas: number; bonif: number }[] }) {
+  const containerRef = useRef<HTMLDivElement>(null);
+  const [width, setWidth] = useState(0);
+
+  useEffect(() => {
+    const el = containerRef.current;
+    if (!el) return;
+    const ro = new ResizeObserver(entries => {
+      for (const entry of entries) {
+        setWidth(entry.contentRect.width);
+      }
+    });
+    ro.observe(el);
+    // Initial measurement
+    setWidth(el.getBoundingClientRect().width);
+    return () => ro.disconnect();
+  }, []);
+
+  return (
+    <div ref={containerRef} style={{ width: '100%', height: 220 }}>
+      {width > 0 && (
+        <ComposedChart data={chartData} width={width} height={220} margin={{ top: 10, right: 50, left: 10, bottom: 5 }}>
+          <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" vertical={false} />
+          <XAxis dataKey="name" tickLine={false} axisLine={false} tick={{ fill: '#94a3b8', fontSize: 10, fontWeight: 600 }} />
+          <YAxis yAxisId="left" tickLine={false} axisLine={false} tick={{ fill: '#3b82f6', fontSize: 10, fontWeight: 600 }} width={50} />
+          <YAxis yAxisId="right" orientation="right" tickLine={false} axisLine={false} tick={{ fill: '#10b981', fontSize: 10, fontWeight: 600 }} width={60} tickFormatter={(v: number) => `$${(v/1000).toFixed(0)}k`} />
+          <Tooltip
+            contentStyle={{ background: '#ffffff', border: '1px solid #e2e8f0', borderRadius: '12px', boxShadow: '0 10px 15px -3px rgba(0,0,0,0.05)' }}
+            labelStyle={{ fontWeight: 'bold', color: '#1e293b', fontSize: '11px' }}
+            itemStyle={{ fontSize: '11px', fontWeight: '600' }}
+            formatter={(value: any, name: string) => {
+              if (name === 'Cabezas') return [Number(value).toLocaleString('es-AR'), 'Cabezas'];
+              return [new Intl.NumberFormat('es-AR', { style: 'currency', currency: 'ARS', maximumFractionDigits: 0 }).format(Number(value)), 'Bonif. Oculta'];
+            }}
+          />
+          <Bar yAxisId="left" dataKey="cabezas" name="Cabezas" fill="#3b82f6" radius={[4, 4, 0, 0]} barSize={20} />
+          <Bar yAxisId="right" dataKey="bonif" name="Bonif. Oculta" fill="#10b981" radius={[4, 4, 0, 0]} barSize={20} />
+        </ComposedChart>
+      )}
+    </div>
+  );
+}
+
 export default function Hub({ API_URL, setActiveTab, activeYear, activeMonth }: HubProps) {
   const [data, setData] = useState({
     roster: [] as any[],
@@ -30,15 +74,126 @@ export default function Hub({ API_URL, setActiveTab, activeYear, activeMonth }: 
     prices: {} as any
   });
   const [cierreData, setCierreData] = useState<any[]>([]);
-  const [activeView, setActiveView] = useState<'cards' | 'data_sources' | 'red'>('cards');
-  const [kpiModal, setKpiModal] = useState<{ title: string; items: any[]; columns: any[]; type?: 'grouped'; cardId?: string } | null>(null);
+  const [activeView, setActiveView] = useState<'cards' | 'data_sources' | 'red' | 'ajustes'>('cards');
+  const [kpiModal, setKpiModal] = useState<{ title: string; items: any[]; columns: any[]; type?: 'grouped' | 'menu_armado' | 'menu_revision' | 'gastos_detail' | 'sociedad_detail'; cardId?: string } | null>(null);
   const [historicoModal, setHistoricoModal] = useState<{ agente: string; history: any[] } | null>(null);
   const [loadingCardId, setLoadingCardId] = useState<string | null>(null);
   const [historicoLoading, setHistoricoLoading] = useState(false);
-  const [redModal, setRedModal] = useState<{ months: any[]; yearTotals: Record<string, any> } | null>(null);
+  const [redModal, setRedModal] = useState<{ months: any[]; yearTotals: Record<string, any>; initialSubTab?: string } | null>(null);
   const [selectedRedMonth, setSelectedRedMonth] = useState<any | null>(null);
   const [matrixCategory, setMatrixCategory] = useState<string>('OVERALL');
   const [dobleClickView, setDobleClickView] = useState<'diagram' | 'grid'>('diagram');
+  const [gastosSearch, setGastosSearch] = useState<string>('');
+  const [gastosPeriodOverride, setGastosPeriodOverride] = useState<string | null>(null);
+  const [minimosData, setMinimosData] = useState<{ months: any[] }>({ months: [] });
+
+  // ─── Fetch functions for Revision ───
+  const fetchSociedad = async () => {
+    setLoadingCardId('revision');
+    try {
+      const res = await fetch(`${API_URL}/revision/sociedad-sin-legajo?year=${activeYear}&month=${activeMonth}`);
+      if (res.ok) {
+        const data = await res.json();
+        setKpiModal({
+          title: 'Negocios por Sociedad (Sin Legajo en Tropa)',
+          items: data,
+          cardId: 'revision',
+          type: 'sociedad_detail' as any,
+          columns: [
+            { key: 'lote', label: 'ID Lote' },
+            { key: 'fecha', label: 'Fecha' },
+            { key: 'sociedad_vendedora', label: 'Soc. Vendedora' },
+            { key: 'sociedad_compradora', label: 'Soc. Compradora' },
+            { key: 'cantidad', label: 'Cabezas', render: (v: number) => (v || 0).toLocaleString('es-AR'), align: 'center' },
+            { key: 'categoria', label: 'Categoría' },
+            { 
+              key: 'ac_negocio_venta', 
+              label: 'Venta (Negocio vs Sociedad)', 
+              render: (val: any, row: any) => (
+                <div className="space-y-1 text-[11px]">
+                  <div className="flex items-center gap-1">
+                    <span className="text-[8px] px-1 bg-slate-100 rounded text-slate-500 font-bold uppercase">Negocio:</span>
+                    <span className="font-semibold text-slate-800">{row.ac_negocio_venta}</span>
+                  </div>
+                  <div className="flex items-center gap-1">
+                    <span className="text-[8px] px-1 bg-violet-50 rounded text-violet-600 font-bold uppercase">Soc. Raw:</span>
+                    <span className="font-semibold text-slate-600">{row.ac_sociedad_venta_raw}</span>
+                  </div>
+                  <div className="flex items-center gap-1">
+                    <span className="text-[8px] px-1 bg-indigo-50 rounded text-indigo-600 font-bold uppercase">Soc. OK:</span>
+                    <span className="font-semibold text-indigo-700">{row.ac_sociedad_venta_resuelta}</span>
+                  </div>
+                  {row.reasignar_venta && (
+                    <div className="mt-1">
+                      {row.reasignar_venta_valido ? (
+                        <span className="inline-flex items-center gap-1 text-[8px] px-1.5 py-0.5 bg-emerald-50 text-emerald-700 border border-emerald-100 font-bold rounded">
+                          ✓ Válido Reasignar ({row.ac_vendedor_tipo})
+                        </span>
+                      ) : (
+                        <span className="inline-flex items-center gap-1 text-[8px] px-1.5 py-0.5 bg-amber-50 text-amber-700 border border-amber-100 font-bold rounded" title={row.reasignar_venta_motivo}>
+                          ⚠ No Reasignar ({row.ac_vendedor_tipo === 'Corporate' ? 'Corporativo' : 'Inactivo'})
+                        </span>
+                      )}
+                    </div>
+                  )}
+                </div>
+              ) 
+            },
+            { 
+              key: 'ac_negocio_compra', 
+              label: 'Compra (Negocio vs Sociedad)', 
+              render: (val: any, row: any) => (
+                <div className="space-y-1 text-[11px]">
+                  <div className="flex items-center gap-1">
+                    <span className="text-[8px] px-1 bg-slate-100 rounded text-slate-500 font-bold uppercase">Negocio:</span>
+                    <span className="font-semibold text-slate-800">{row.ac_negocio_compra}</span>
+                  </div>
+                  <div className="flex items-center gap-1">
+                    <span className="text-[8px] px-1 bg-violet-50 rounded text-violet-600 font-bold uppercase">Soc. Raw:</span>
+                    <span className="font-semibold text-slate-600">{row.ac_sociedad_compra_raw}</span>
+                  </div>
+                  <div className="flex items-center gap-1">
+                    <span className="text-[8px] px-1 bg-indigo-50 rounded text-indigo-600 font-bold uppercase">Soc. OK:</span>
+                    <span className="font-semibold text-indigo-700">{row.ac_sociedad_compra_resuelta}</span>
+                  </div>
+                  {row.reasignar_compra && (
+                    <div className="mt-1">
+                      {row.reasignar_compra_valido ? (
+                        <span className="inline-flex items-center gap-1 text-[8px] px-1.5 py-0.5 bg-emerald-50 text-emerald-700 border border-emerald-100 font-bold rounded">
+                          ✓ Válido Reasignar ({row.ac_comprador_tipo})
+                        </span>
+                      ) : (
+                        <span className="inline-flex items-center gap-1 text-[8px] px-1.5 py-0.5 bg-amber-50 text-amber-700 border border-amber-100 font-bold rounded" title={row.reasignar_compra_motivo}>
+                          ⚠ No Reasignar ({row.ac_comprador_tipo === 'Corporate' ? 'Corporativo' : 'Inactivo'})
+                        </span>
+                      )}
+                    </div>
+                  )}
+                </div>
+              ) 
+            },
+          ]
+        });
+      }
+    } catch (e) { console.error(e); } finally { setLoadingCardId(null); }
+  };
+
+  const fetchConcretadas = async () => {
+    setLoadingCardId('revision');
+    try {
+      const res = await fetch(`${API_URL}/revision/concretadas-sin-cierre?year=${activeYear}&month=${activeMonth}`);
+      if (res.ok) {
+        const data = await res.json();
+        setKpiModal({
+          title: 'Tropas Concretadas Fuera de Cierre',
+          type: 'grouped' as any,
+          items: data,
+          columns: [],
+          cardId: 'revision'
+        });
+      }
+    } catch (e) { console.error(e); } finally { setLoadingCardId(null); }
+  };
 
   useEffect(() => {
     const fetchAll = async () => {
@@ -74,6 +229,12 @@ export default function Hub({ API_URL, setActiveTab, activeYear, activeMonth }: 
               setCierreData(await snapRes.json());
             }
           }
+        }
+
+        // Fetch minimos-red
+        const minimosRes = await fetch(`${API_URL}/minimos-red`).catch(() => null);
+        if (minimosRes && minimosRes.ok) {
+          setMinimosData(await minimosRes.json());
         }
       } catch (e) {
         console.error(e);
@@ -200,13 +361,43 @@ const AcGroupAccordion: React.FC<{ acName: string; list: any[] }> = ({ acName, l
     ]
   });
 
+  // ---- Mendel computed metrics for current period ----
+  const currentPeriodo = `${activeYear}${String(parseInt(activeMonth)).padStart(2, '0')}`;
+  const prevMonth = parseInt(activeMonth) === 1 ? 12 : parseInt(activeMonth) - 1;
+  const prevYear = parseInt(activeMonth) === 1 ? parseInt(activeYear) - 1 : parseInt(activeYear);
+  const prevPeriodo = `${prevYear}${String(prevMonth).padStart(2, '0')}`;
+  const mendelCurrentMonth = data.mendel.filter((m: any) => String(m.periodo) === currentPeriodo);
+  const mendelPrevMonth = data.mendel.filter((m: any) => String(m.periodo) === prevPeriodo);
+  const mendelDisplay = mendelCurrentMonth.length > 0 ? mendelCurrentMonth : mendelPrevMonth;
+  const mendelDisplayPeriodo = mendelCurrentMonth.length > 0 ? currentPeriodo : prevPeriodo;
+  const mendelTotal = mendelDisplay.reduce((s: number, m: any) => s + (Number(m.importe) || 0), 0);
+  const mendelByCategory = mendelDisplay.reduce((acc: Record<string, { total: number; count: number; usuarios: Set<string> }>, m: any) => {
+    const cat = m.categoria || 'Sin Categoría';
+    if (!acc[cat]) acc[cat] = { total: 0, count: 0, usuarios: new Set() };
+    acc[cat].total += (Number(m.importe) || 0);
+    acc[cat].count += 1;
+    acc[cat].usuarios.add(m.usuario || 'Sin Nombre');
+    return acc;
+  }, {} as Record<string, { total: number; count: number; usuarios: Set<string> }>);
+  const mendelCategoryItems = Object.entries(mendelByCategory)
+    .sort((a, b) => b[1].total - a[1].total)
+    .map(([cat, info]) => ({
+      categoria: cat,
+      total: info.total,
+      transacciones: info.count,
+      comerciales: info.usuarios.size,
+      promedio: info.count > 0 ? Math.round(info.total / info.count) : 0,
+    }));
+
   const openMendel = () => setKpiModal({
-    title: 'Gastos Mendel',
-    items: data.mendel.map((m: any) => ({ comercial: m.comercial || m.nombre, monto: m.monto || m.total, concepto: m.concepto || m.categoria || '-' })),
+    title: `Gastos Mendel — ${mendelDisplayPeriodo.substring(4)}/${mendelDisplayPeriodo.substring(0,4)}`,
+    items: mendelCategoryItems,
     columns: [
-      { key: 'comercial', label: 'Comercial' },
-      { key: 'concepto', label: 'Concepto' },
-      { key: 'monto', label: 'Monto' },
+      { key: 'categoria', label: 'Categoría' },
+      { key: 'total', label: 'Total' },
+      { key: 'transacciones', label: 'Txns' },
+      { key: 'comerciales', label: 'Comerciales' },
+      { key: 'promedio', label: 'Promedio' },
     ]
   });
 
@@ -261,6 +452,14 @@ const AcGroupAccordion: React.FC<{ acName: string; list: any[] }> = ({ acName, l
       { key: 'categoria', label: 'Categoría' },
       { key: 'modelo', label: 'Modelo' },
     ]
+  });
+
+  const openMinimos = () => setKpiModal({
+    title: 'Análisis de Mínimos Garantizados',
+    items: [],
+    columns: [],
+    cardId: 'minimos',
+    type: 'grouped' as any
   });
 
   const openTajada = () => {
@@ -569,18 +768,24 @@ const AcGroupAccordion: React.FC<{ acName: string; list: any[] }> = ({ acName, l
   // ─── CARDS PRINCIPAL (HUB DASHBOARD) ───────────────────────────────
   const cards = [
     {
-      id: 'kpis',
-      title: 'KPIs',
-      desc: 'Indicadores clave de la red comercial: tropas, cabezas, resultado y rendimiento por AC.',
-      icon: TrendingUp,
-      color: 'from-blue-500 to-cyan-500',
-      badge: `${activeRoster.length} agentes`,
+      id: 'armado_cierres',
+      title: 'Armado Cierres',
+      desc: 'Gestión y procesamiento mensual: variables del período, simulador de comisiones, liquidación de cierres y envíos de PDFs.',
+      icon: Calculator,
+      color: 'from-blue-500 to-indigo-600',
+      badge: 'PROCESO',
       badgeColor: 'bg-blue-500/10 text-blue-600 border-blue-500/15',
-      action: () => setActiveTab('variables'),
+      action: () => setKpiModal({
+        title: 'Armado de Cierres \u2014 Selección de Herramienta',
+        items: [],
+        columns: [],
+        cardId: 'armado_cierres',
+        type: 'menu_armado' as any
+      }),
     },
     {
       id: 'red',
-      title: 'Métricas Red Regional',
+      title: 'P&L Red Regional',
       desc: 'Cabezas, tropas e importe reales de la red, sin duplicar operaciones con dos comerciales.',
       icon: TrendingUp,
       color: 'from-teal-500 to-cyan-600',
@@ -594,7 +799,6 @@ const AcGroupAccordion: React.FC<{ acName: string; list: any[] }> = ({ acName, l
           if (res.ok) {
             const data = await res.json();
             setRedModal(data);
-            // Auto-seleccionar el mes que coincide con el filtro principal
             const targetYear = parseInt(activeYear);
             const targetMonth = parseInt(activeMonth);
             const match = (data.months || []).find((m: any) => m.year === targetYear && m.month === targetMonth);
@@ -604,180 +808,32 @@ const AcGroupAccordion: React.FC<{ acName: string; list: any[] }> = ({ acName, l
       },
     },
     {
-      id: 'simulador',
-      title: 'Simulador',
-      desc: 'Simulá escenarios de cierre en vivo: modificá escalas, cabezas y resultados para proyectar comisiones.',
-      icon: Calculator,
-      color: 'from-amber-500 to-orange-500',
-      badge: 'INTERACTIVO',
-      badgeColor: 'bg-amber-500/10 text-amber-600 border-amber-500/15',
-      action: () => setActiveTab('simulador'),
-    },
-    {
-      id: 'cierres',
-      title: 'Cierres',
-      desc: 'Liquidación de comisiones: componentes P, R y O, mínimo garantizado y cierre real.',
-      icon: FileText,
-      color: 'from-violet-500 to-purple-600',
-      badge: 'LIQUIDACIÓN',
-      badgeColor: 'bg-violet-500/10 text-violet-600 border-violet-500/15',
-      action: () => setActiveTab('cierre'),
-    },
-    {
-      id: 'revision',
-      title: 'Revisión vs GSheets',
-      desc: 'Validador cruzado: compará los datos calculados por el motor contra la planilla oficial en Google Sheets.',
-      icon: RefreshCw,
-      color: 'from-purple-500 to-pink-600',
-      badge: 'VALIDADOR',
-      badgeColor: 'bg-rose-500/10 text-rose-600 border-rose-500/15',
-      action: () => setActiveTab('comparador'),
-    },
-    {
-      id: 'revision-sociedad',
-      title: 'Sociedad Sin Legajo',
-      desc: 'Lotes donde el AC se resolvió por Sociedad pero la celda AC_Vend o AC_Comp en la tropa está vacía.',
-      icon: Users,
-      color: 'from-amber-500 to-orange-600',
-      badge: 'REVISAR AC',
-      badgeColor: 'bg-amber-500/10 text-amber-600 border-amber-500/15',
-      action: async () => {
-        setLoadingCardId('revision-sociedad');
-        try {
-          const res = await fetch(`${API_URL}/revision/sociedad-sin-legajo?year=${activeYear}&month=${activeMonth}`);
-          if (res.ok) {
-            const data = await res.json();
-            setKpiModal({
-              title: 'Negocios por Sociedad (Sin Legajo en Tropa)',
-              items: data,
-              cardId: 'revision-sociedad',
-              columns: [
-                { key: 'lote', label: 'ID Lote' },
-                { key: 'fecha', label: 'Fecha' },
-                { key: 'sociedad_vendedora', label: 'Soc. Vendedora' },
-                { key: 'sociedad_compradora', label: 'Soc. Compradora' },
-                { key: 'cantidad', label: 'Cabezas', render: (v: number) => (v || 0).toLocaleString('es-AR'), align: 'center' },
-                { key: 'categoria', label: 'Categoría' },
-                { 
-                  key: 'ac_negocio_venta', 
-                  label: 'Venta (Negocio vs Sociedad)', 
-                  render: (val: any, row: any) => (
-                    <div className="space-y-1">
-                      <div className="flex items-center gap-1">
-                        <span className="text-[8px] px-1 bg-slate-100 rounded text-slate-500 font-bold uppercase">Negocio:</span>
-                        <span className="font-semibold text-slate-800">{row.ac_negocio_venta}</span>
-                      </div>
-                      <div className="flex items-center gap-1">
-                        <span className="text-[8px] px-1 bg-violet-50 rounded text-violet-600 font-bold uppercase">Soc. Raw:</span>
-                        <span className="font-semibold text-slate-600">{row.ac_sociedad_venta_raw}</span>
-                      </div>
-                      <div className="flex items-center gap-1">
-                        <span className="text-[8px] px-1 bg-indigo-50 rounded text-indigo-600 font-bold uppercase">Soc. OK:</span>
-                        <span className="font-semibold text-indigo-700">{row.ac_sociedad_venta_resuelta}</span>
-                      </div>
-                      {row.reasignar_venta && (
-                        <div className="mt-1">
-                          {row.reasignar_venta_valido ? (
-                            <span className="inline-flex items-center gap-1 text-[8px] px-1.5 py-0.5 bg-emerald-50 text-emerald-700 border border-emerald-100 font-bold rounded">
-                              ✓ Válido Reasignar ({row.ac_vendedor_tipo})
-                            </span>
-                          ) : (
-                            <span className="inline-flex items-center gap-1 text-[8px] px-1.5 py-0.5 bg-amber-50 text-amber-700 border border-amber-100 font-bold rounded" title={row.reasignar_venta_motivo}>
-                              ⚠ No Reasignar ({row.ac_vendedor_tipo === 'Corporate' ? 'Corporativo' : 'Inactivo'})
-                            </span>
-                          )}
-                        </div>
-                      )}
-                    </div>
-                  ) 
-                },
-                { 
-                  key: 'ac_negocio_compra', 
-                  label: 'Compra (Negocio vs Sociedad)', 
-                  render: (val: any, row: any) => (
-                    <div className="space-y-1">
-                      <div className="flex items-center gap-1">
-                        <span className="text-[8px] px-1 bg-slate-100 rounded text-slate-500 font-bold uppercase">Negocio:</span>
-                        <span className="font-semibold text-slate-800">{row.ac_negocio_compra}</span>
-                      </div>
-                      <div className="flex items-center gap-1">
-                        <span className="text-[8px] px-1 bg-violet-50 rounded text-violet-600 font-bold uppercase">Soc. Raw:</span>
-                        <span className="font-semibold text-slate-600">{row.ac_sociedad_compra_raw}</span>
-                      </div>
-                      <div className="flex items-center gap-1">
-                        <span className="text-[8px] px-1 bg-indigo-50 rounded text-indigo-600 font-bold uppercase">Soc. OK:</span>
-                        <span className="font-semibold text-indigo-700">{row.ac_sociedad_compra_resuelta}</span>
-                      </div>
-                      {row.reasignar_compra && (
-                        <div className="mt-1">
-                          {row.reasignar_compra_valido ? (
-                            <span className="inline-flex items-center gap-1 text-[8px] px-1.5 py-0.5 bg-emerald-50 text-emerald-700 border border-emerald-100 font-bold rounded">
-                              ✓ Válido Reasignar ({row.ac_comprador_tipo})
-                            </span>
-                          ) : (
-                            <span className="inline-flex items-center gap-1 text-[8px] px-1.5 py-0.5 bg-amber-50 text-amber-700 border border-amber-100 font-bold rounded" title={row.reasignar_compra_motivo}>
-                              ⚠ No Reasignar ({row.ac_comprador_tipo === 'Corporate' ? 'Corporativo' : 'Inactivo'})
-                            </span>
-                          )}
-                        </div>
-                      )}
-                    </div>
-                  ) 
-                },
-              ]
-            });
-          }
-        } catch (e) { console.error(e); } finally { setLoadingCardId(null); }
-      },
-    },
-    {
-      id: 'concretadas-sin-cierre',
-      title: 'Concretadas Sin Cierre',
-      desc: 'Tropas marcadas como Concretadas pero que están en estados no contemplados para el pago de comisiones.',
-      icon: AlertCircle,
-      color: 'from-rose-500 to-red-600',
-      badge: 'ESTADO ALERTA',
-      badgeColor: 'bg-rose-500/10 text-rose-600 border-rose-500/15',
-      action: async () => {
-        setLoadingCardId('concretadas-sin-cierre');
-        try {
-          const res = await fetch(`${API_URL}/revision/concretadas-sin-cierre?year=${activeYear}&month=${activeMonth}`);
-          if (res.ok) {
-            const data = await res.json();
-            setKpiModal({
-              title: 'Tropas Concretadas Fuera de Cierre',
-              type: 'grouped',
-              items: data,
-              columns: [],
-              cardId: 'concretadas-sin-cierre'
-            });
-          }
-        } catch (e) { console.error(e); } finally { setLoadingCardId(null); }
-      },
-    },
-    {
-      id: 'reportes',
-      title: 'Reportes',
-      desc: 'Consolidado general de la red: resumen por oficina, provincia y tipo de modelo.',
-      icon: BarChart3,
-      color: 'from-emerald-500 to-green-600',
-      badge: 'CONSOLIDADO',
+      id: 'plm',
+      title: 'Métricas PLM',
+      desc: 'Matriz de Share Regional, rendimientos por cabeza y evolución del mix de venta por Unidad de Negocio.',
+      icon: PieChart,
+      color: 'from-emerald-500 to-teal-600',
+      badge: 'SHARE',
       badgeColor: 'bg-emerald-500/10 text-emerald-600 border-emerald-500/15',
-      action: () => setActiveTab('resumen'),
-    },
-    {
-      id: 'envios',
-      title: 'Envíos de Cierres',
-      desc: 'Generá PDFs, guardá en Drive y enviá por mail a cada comercial de la red.',
-      icon: Mail,
-      color: 'from-blue-600 to-indigo-600',
-      badge: 'MAILING',
-      badgeColor: 'bg-blue-500/10 text-blue-600 border-blue-500/15',
-      action: () => setActiveTab('envios'),
+      action: async () => {
+        setLoadingCardId('plm');
+        try {
+          setActiveView('red');
+          const res = await fetch(`${API_URL}/metricas-red?year=${activeYear}&month=${activeMonth}`);
+          if (res.ok) {
+            const data = await res.json();
+            setRedModal({ ...data, initialSubTab: 'plm' });
+            const targetYear = parseInt(activeYear);
+            const targetMonth = parseInt(activeMonth);
+            const match = (data.months || []).find((m: any) => m.year === targetYear && m.month === targetMonth);
+            setSelectedRedMonth(match || (data.months && data.months[0]) || null);
+          }
+        } catch (e) { console.error(e); } finally { setLoadingCardId(null); }
+      },
     },
     {
       id: 'historico',
-      title: 'Histórico Comercial',
+      title: 'Historial Comerciales',
       desc: 'Consultá el historial de cierres de cada comercial con link directo al PDF enviado en Google Drive.',
       icon: Layers,
       color: 'from-indigo-500 to-purple-600',
@@ -786,24 +842,84 @@ const AcGroupAccordion: React.FC<{ acName: string; list: any[] }> = ({ acName, l
       action: () => setHistoricoModal({ agente: '', history: [] }),
     },
     {
-      id: 'mapa',
-      title: 'Mapa de Conexiones y Flujo General',
-      desc: 'Diagrama visual del pipeline de cierres con glosario de variables del motor.',
-      icon: Database,
-      color: 'from-sky-500 to-blue-600',
-      badge: 'MAPA GENERAL',
-      badgeColor: 'bg-sky-500/10 text-sky-600 border-sky-500/15',
-      action: () => setActiveView('data_sources'),
+      id: 'ajustes',
+      title: 'Ajustes Retroactivos',
+      desc: 'Auditoría de lotes caídos, nuevos o modificados de períodos anteriores que impactan en el cierre actual.',
+      icon: RefreshCw,
+      color: 'from-amber-500 to-orange-600',
+      badge: 'RETROACTIVOS',
+      badgeColor: 'bg-amber-500/10 text-amber-600 border-amber-500/15',
+      action: () => setActiveView('ajustes'),
     },
     {
       id: 'manual',
-      title: 'Manual Cierres',
-      desc: 'Guía completa de modelos de liquidación: Simple, Completo, Híbrido y reglas de negocio.',
+      title: 'Manuales',
+      desc: 'Accedé y descargá las guías operativas, manuales ejecutivos y documentación técnica del sistema.',
       icon: BookOpen,
       color: 'from-slate-600 to-slate-800',
       badge: 'DOCUMENTACIÓN',
       badgeColor: 'bg-slate-500/10 text-slate-600 border-slate-500/15',
-      action: () => window.open('/docs/Manual_Ejecutivo_Comercial.pdf', '_blank'),
+      action: () => {
+        setActiveTab('manuales');
+      },
+    },
+    {
+      id: 'revision',
+      title: 'Revisión',
+      desc: 'Consistencia de liquidaciones: validador contra Google Sheets, legajos de sociedades y control de tropas concretadas.',
+      icon: RefreshCw,
+      color: 'from-purple-500 to-pink-600',
+      badge: 'VALIDADOR',
+      badgeColor: 'bg-rose-500/10 text-rose-600 border-rose-500/15',
+      action: () => setKpiModal({
+        title: 'Consistencia y Revisión de Datos',
+        items: [],
+        columns: [],
+        cardId: 'revision',
+        type: 'menu_revision' as any
+      }),
+    },
+    {
+      id: 'gastos',
+      title: 'Gastos Mendel',
+      desc: 'Consulta, auditoría y análisis de gastos transaccionales de la flota comercial de Mendel.',
+      icon: Activity,
+      color: 'from-amber-500 to-orange-600',
+      badge: 'MENDEL',
+      badgeColor: 'bg-amber-500/10 text-amber-600 border-amber-500/15',
+      action: () => setKpiModal({
+        title: 'Auditoría de Gastos Mendel',
+        items: [],
+        columns: [],
+        cardId: 'gastos',
+        type: 'gastos_detail' as any
+      }),
+    },
+    {
+      id: 'minimos',
+      title: 'Análisis Mínimos',
+      desc: 'Costo del mínimo garantizado: subsidio por agente, evolución mensual y porcentaje de la red en mínimo.',
+      icon: Shield,
+      color: 'from-rose-500 to-red-600',
+      badge: 'COSTOS',
+      badgeColor: 'bg-rose-500/10 text-rose-600 border-rose-500/15',
+      action: () => setKpiModal({
+        title: 'Análisis de Mínimos Garantizados',
+        items: [],
+        columns: [],
+        cardId: 'minimos',
+        type: 'grouped' as any
+      }),
+    },
+    {
+      id: 'roster_card',
+      title: 'Roster Comercial',
+      desc: 'Alta, baja y modificación de los datos del roster: categorías, oficinas, modalidades, beneficios y reglas por agente.',
+      icon: Users,
+      color: 'from-cyan-500 to-blue-600',
+      badge: 'EQUIPO',
+      badgeColor: 'bg-cyan-500/10 text-cyan-600 border-cyan-500/15',
+      action: () => { setKpiModal(null); setActiveTab('roster'); },
     },
   ];
 
@@ -847,29 +963,43 @@ const AcGroupAccordion: React.FC<{ acName: string; list: any[] }> = ({ acName, l
             {!historicoLoading && historicoModal.agente && historicoModal.history.length === 0 && (
               <div className="text-center py-12 text-slate-400">Sin datos históricos para este comercial.</div>
             )}
-            {!historicoLoading && historicoModal.history.length > 0 && (
-              <SortableTable
-                data={historicoModal.history}
-                columns={[
-                  { key: 'monthName', label: 'Mes' },
-                  { key: 'year', label: 'Año' },
-                  { key: 'tropas', label: 'Tropas' },
-                  { key: 'cabezas', label: 'Cabezas' },
-                  { key: 'compP', label: 'Comp. P' },
-                  { key: 'resultado', label: 'Resultado' },
-                  { key: 'sueldo', label: 'Sueldo' },
-                  { key: 'cierreReal', label: 'Cierre Real' },
-                  { key: 'minimo', label: 'Mínimo' },
-                ]}
-                currencyKeys={['compP', 'resultado', 'sueldo', 'cierreReal', 'minimo']}
-                rawNumberKeys={['year', 'tropas', 'cabezas']}
-                renderActions={(row: any) => row.driveLink ? (
-                  <a href={row.driveLink} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 px-2.5 py-1 bg-indigo-50 text-indigo-700 rounded-lg text-xs font-bold hover:bg-indigo-100 transition-colors" title="Abrir PDF en Drive">
-                    <ExternalLink size={12} /> PDF
-                  </a>
-                ) : <span className="text-slate-300 text-xs">—</span>}
-              />
-            )}
+            {!historicoLoading && historicoModal.history.length > 0 && (() => {
+              const chartData = [...historicoModal.history].reverse().map(h => ({
+                name: `${h.monthName.substring(0,3)} ${String(h.year).substring(2)}`,
+                cabezas: h.cabezas || 0,
+                bonif: h.bonificacionOculta || 0,
+              }));
+              return (
+                <>
+                  <div className="mb-6 bg-slate-50 border border-slate-200/60 rounded-2xl p-4">
+                    <p className="text-xs font-extrabold text-slate-500 uppercase tracking-wider mb-3">📈 Evolución de Cabezas y Bonificación Oculta</p>
+                    <ChartContainer chartData={chartData} />
+                  </div>
+                  <SortableTable
+                    data={historicoModal.history}
+                    columns={[
+                      { key: 'monthName', label: 'Mes' },
+                      { key: 'year', label: 'Año' },
+                      { key: 'tropas', label: 'Tropas' },
+                      { key: 'cabezas', label: 'Cabezas' },
+                      { key: 'bonificacionOculta', label: 'Bonif. Oculta' },
+                      { key: 'compP', label: 'Comp. P' },
+                      { key: 'resultado', label: 'Resultado' },
+                      { key: 'sueldo', label: 'Sueldo' },
+                      { key: 'cierreReal', label: 'Cierre Real' },
+                      { key: 'minimo', label: 'Mínimo' },
+                    ]}
+                    currencyKeys={['compP', 'resultado', 'sueldo', 'cierreReal', 'minimo', 'bonificacionOculta']}
+                    rawNumberKeys={['year', 'tropas', 'cabezas']}
+                    renderActions={(row: any) => row.driveLink ? (
+                      <a href={row.driveLink} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-indigo-50 text-indigo-700 rounded-lg text-xs font-bold hover:bg-indigo-100 transition-colors" title="Abrir PDF en Drive">
+                        <ExternalLink size={12} /> PDF
+                      </a>
+                    ) : <span className="text-slate-300 text-xs">—</span>}
+                  />
+                </>
+              );
+            })()}
           </div>
         </div>
       </div>
@@ -921,27 +1051,36 @@ const AcGroupAccordion: React.FC<{ acName: string; list: any[] }> = ({ acName, l
       </div>
 
       {/* KPI Rápidos - Clickeables — siempre 1 fila en desktop */}
-      <div className="grid grid-cols-3 lg:grid-cols-4 xl:grid-cols-7 gap-2 lg:gap-3 mb-8">
+      <div className="grid grid-cols-3 lg:grid-cols-6 gap-2 lg:gap-3 mb-8">
         {[
-          { label: 'Agentes Activos', value: activeRoster.length, icon: Users, color: 'text-blue-600 bg-blue-50', onClick: openAgentes },
-          { label: 'Oficinas', value: oficinas.length, icon: Target, color: 'text-violet-600 bg-violet-50', onClick: openOficinas },
+          { label: 'Agentes Activos', value: activeRoster.length, icon: Users, color: 'text-blue-600 bg-blue-50', onClick: openAgentes, subtitle: `${oficinas.length} oficinas` },
           { label: 'Cuentas', value: data.cuentas.length, icon: Database, color: 'text-emerald-600 bg-emerald-50', onClick: openCuentas },
-          { label: 'Mendel', value: data.mendel.length, icon: Activity, color: 'text-amber-600 bg-amber-50', onClick: openMendel },
+          { label: 'Mendel', value: mendelTotal > 0 ? fmt.format(mendelTotal) : (data.mendel.length > 0 ? 'Sin mes' : '0'), icon: Activity, color: 'text-amber-600 bg-amber-50', onClick: openMendel, subtitle: mendelDisplay.length > 0 ? `${mendelDisplay.length} gastos · ${mendelDisplayPeriodo.substring(4)}/${mendelDisplayPeriodo.substring(0,4)}` : 'Mendel' },
           { label: cierreData.length > 0
-              ? `Cerrados ${cerrados.length}/${activeRoster.length}`
+              ? (sinCerrar.length === 0 ? 'Todos cerrados' : `${sinCerrar.length} sin cerrar`)
               : 'Sin Snapshot',
-            value: cierreData.length > 0 ? sinCerrar.length : '-',
+            value: cierreData.length > 0 ? `${cerrados.length}/${activeRoster.length}` : '--',
             icon: cierreData.length > 0 && sinCerrar.length === 0 ? CheckCircle : AlertCircle,
             color: cierreData.length > 0
               ? (sinCerrar.length === 0 ? 'text-green-600 bg-green-50' : 'text-rose-600 bg-rose-50')
               : 'text-slate-400 bg-slate-50',
             onClick: cierreData.length > 0 ? (sinCerrar.length > 0 ? openSinCerrar : openCerrados) : undefined,
             subtitle: cierreData.length > 0
-              ? (sinCerrar.length === 0 ? 'Todos cerrados' : 'Sin Cerrar')
+              ? `Retro: ${fmt.format(cierreData.reduce((s: number, d: any) => s + (d.ajustes || 0), 0))}`
               : 'Calculá primero'
           },
           { label: 'Tajada', value: 'Ver Tabla', icon: Package, color: 'text-teal-600 bg-teal-50', onClick: openTajada, subtitle: 'Soc. operadas' },
-          { label: 'Ajustes Retro', value: cierreData.length > 0 ? fmt.format(cierreData.reduce((s: number, d: any) => s + (d.ajustes || 0), 0)) : '--', icon: TrendingUp, color: 'text-orange-600 bg-orange-50', onClick: openAjustes, subtitle: 'Retroactivos' },
+          (() => {
+            const currentMinMonth = minimosData.months.find((m: any) => m.year === parseInt(activeYear) && m.month === parseInt(activeMonth));
+            return {
+              label: 'Mínimos',
+              value: currentMinMonth ? `${currentMinMonth.agentesEnMinimo}/${currentMinMonth.totalAgentes}` : '--',
+              icon: Shield,
+              color: currentMinMonth && currentMinMonth.pctEnMinimo > 0.4 ? 'text-rose-600 bg-rose-50' : 'text-sky-600 bg-sky-50',
+              subtitle: currentMinMonth ? `Subsidio ${fmt.format(currentMinMonth.subsidioTotal)}` : 'Sin datos',
+              onClick: openMinimos,
+            };
+          })(),
         ].map(kpi => (
           <div
             key={kpi.label}
@@ -982,7 +1121,7 @@ const AcGroupAccordion: React.FC<{ acName: string; list: any[] }> = ({ acName, l
       )}
 
       {/* Grid de Tarjetas */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3.5">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3.5">
         {cards.map(card => {
           const isActive = kpiModal && kpiModal.cardId === card.id;
           return (
@@ -1027,11 +1166,29 @@ const AcGroupAccordion: React.FC<{ acName: string; list: any[] }> = ({ acName, l
               </div>
 
               {isActive && (
-                <div className="col-span-1 sm:col-span-2 lg:col-span-4 bg-white rounded-2xl border border-slate-200 shadow-lg p-5 my-3">
+                <div className="col-span-1 sm:col-span-2 lg:col-span-3 bg-white rounded-2xl border border-slate-200 shadow-lg p-5 my-3">
                   <div className="flex items-center justify-between pb-4 mb-4 border-b border-slate-100">
-                    <div>
-                      <h3 className="text-base font-extrabold text-slate-800">{kpiModal.title}</h3>
-                      <p className="text-xs text-slate-400 font-bold">{kpiModal.items.length} registros</p>
+                    <div className="flex items-center gap-3">
+                      {(kpiModal.type === 'sociedad_detail' || kpiModal.type === 'grouped') && kpiModal.cardId === 'revision' && (
+                        <button
+                          onClick={() => setKpiModal({
+                            title: 'Consistencia y Revisión de Datos',
+                            items: [],
+                            columns: [],
+                            cardId: 'revision',
+                            type: 'menu_revision' as any
+                          })}
+                          className="flex items-center gap-1.5 px-2.5 py-1 text-xs font-bold text-slate-500 hover:text-slate-800 bg-slate-100 hover:bg-slate-200 rounded-lg transition-colors border border-slate-200"
+                        >
+                          <ArrowLeft size={12} /> Volver
+                        </button>
+                      )}
+                      <div>
+                        <h3 className="text-base font-extrabold text-slate-800">{kpiModal.title}</h3>
+                        {kpiModal.type !== 'menu_armado' && kpiModal.type !== 'menu_revision' && kpiModal.type !== 'gastos_detail' && (
+                          <p className="text-xs text-slate-400 font-bold">{kpiModal.items.length} registros</p>
+                        )}
+                      </div>
                     </div>
                     <button 
                       onClick={() => setKpiModal(null)} 
@@ -1050,7 +1207,229 @@ const AcGroupAccordion: React.FC<{ acName: string; list: any[] }> = ({ acName, l
                     </div>
                   )}
                   <div className="overflow-x-auto">
-                    {kpiModal.type === 'grouped' ? (
+                    {kpiModal.type === 'menu_armado' ? (
+                      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4 p-2">
+                        {[
+                          { label: 'Variables del Período', desc: 'Consultar y configurar variables de liquidación y roster.', tab: 'variables', icon: Layers, color: 'text-blue-500 bg-blue-50 hover:bg-blue-100/60' },
+                          { label: 'Simulador de Escenarios', desc: 'Simulador interactivo para proyectar sueldos y comisiones.', tab: 'simulador', icon: Calculator, color: 'text-amber-500 bg-amber-50 hover:bg-amber-100/60' },
+                          { label: 'Liquidación de Cierre', desc: 'Ver componentes P, R y O, sueldo bruto y cierre final.', tab: 'cierre', icon: FileText, color: 'text-violet-500 bg-violet-50 hover:bg-violet-100/60' },
+                          { label: 'Envíos de Cierres', desc: 'Generar PDF de liquidación y enviar por email a comerciales.', tab: 'envios', icon: Mail, color: 'text-indigo-500 bg-indigo-50 hover:bg-indigo-100/60' },
+                          { label: 'Configuración', desc: 'Mínimos, escalas, tajada y variables del motor de cierres.', tab: 'config', icon: Settings, color: 'text-slate-500 bg-slate-50 hover:bg-slate-100/60' },
+                        ].map(opt => {
+                          const IconComp = opt.icon;
+                          return (
+                            <button
+                              key={opt.tab}
+                              onClick={() => { setKpiModal(null); setActiveTab(opt.tab as any); }}
+                              className="flex flex-col items-start text-left p-4 rounded-xl border border-slate-200/80 hover:border-slate-300 hover:shadow-md transition-all bg-white group active:scale-[0.98] w-full"
+                            >
+                              <div className={`p-2.5 rounded-xl ${opt.color} mb-3 group-hover:scale-105 transition-transform duration-300`}>
+                                <IconComp size={16} />
+                              </div>
+                              <h4 className="font-extrabold text-xs text-slate-800 uppercase tracking-wider mb-1">{opt.label}</h4>
+                              <p className="text-[10px] text-slate-400 font-medium leading-relaxed">{opt.desc}</p>
+                            </button>
+                          );
+                        })}
+                      </div>
+                    ) : kpiModal.type === 'menu_revision' ? (
+                      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 p-2">
+                        {[
+                          { label: 'Validador vs GSheets', desc: 'Comparar el cierre del motor contra Google Sheets.', action: () => { setKpiModal(null); setActiveTab('comparador'); }, icon: RefreshCw, color: 'text-purple-500 bg-purple-50 hover:bg-purple-100/60' },
+                          { label: 'Sociedad Sin Legajo', desc: 'Auditar lotes con AC resuelto por Sociedad pero vacíos en Tropa.', action: fetchSociedad, icon: Users, color: 'text-amber-500 bg-amber-50 hover:bg-amber-100/60' },
+                          { label: 'Concretadas Sin Cierre', desc: 'Identificar tropas concretadas no contempladas para comisión.', action: fetchConcretadas, icon: AlertCircle, color: 'text-rose-500 bg-rose-50 hover:bg-rose-100/60' },
+                        ].map(opt => {
+                          const IconComp = opt.icon;
+                          return (
+                            <button
+                              key={opt.label}
+                              onClick={opt.action}
+                              className="flex flex-col items-start text-left p-4 rounded-xl border border-slate-200/80 hover:border-slate-300 hover:shadow-md transition-all bg-white group active:scale-[0.98] w-full"
+                            >
+                              <div className={`p-2.5 rounded-xl ${opt.color} mb-3 group-hover:scale-105 transition-transform duration-300`}>
+                                <IconComp size={16} />
+                              </div>
+                              <h4 className="font-extrabold text-xs text-slate-800 uppercase tracking-wider mb-1">{opt.label}</h4>
+                              <p className="text-[10px] text-slate-400 font-medium leading-relaxed">{opt.desc}</p>
+                            </button>
+                          );
+                        })}
+                      </div>
+                    ) : kpiModal.type === 'gastos_detail' ? (
+                      (() => {
+                        // M-1: El motor aplica gastos Mendel del mes anterior
+                        let prevM = parseInt(activeMonth, 10) - 1;
+                        let prevY = parseInt(activeYear, 10);
+                        if (prevM === 0) { prevM = 12; prevY -= 1; }
+                        const prevPeriod = `${prevY}${String(prevM).padStart(2, '0')}`;
+                        const curPeriod = `${activeYear}${activeMonth.padStart(2, '0')}`;
+                        const gastosPeriod = gastosPeriodOverride || prevPeriod;
+                        const targetPeriod = gastosPeriod;
+                        const filteredMendel = data.mendel.filter((m: any) => {
+                          const p = String(m.periodo || m.periodo_normalizado || '').trim();
+                          return p === targetPeriod;
+                        });
+
+                        const searchedMendel = filteredMendel.filter((m: any) => {
+                          const name = String(m.comercial || m.nombre || m.usuario || '').toLowerCase();
+                          return name.includes(gastosSearch.toLowerCase());
+                        });
+
+                        const totalGastos = searchedMendel.reduce((sum, item) => sum + (Number(item.monto || item.total || item.importe) || 0), 0);
+                        const topComercial = searchedMendel.reduce((acc: any, item: any) => {
+                          const name = item.comercial || item.nombre || item.usuario || 'Sin Nombre';
+                          const amt = Number(item.monto || item.total || item.importe) || 0;
+                          acc[name] = (acc[name] || 0) + amt;
+                          return acc;
+                        }, {});
+                        const topAgente = Object.entries(topComercial).sort((a: any, b: any) => b[1] - a[1])[0] || ['--', 0];
+
+                        const MONTHS_NAMES = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
+                        const prevMonthName = MONTHS_NAMES[prevM - 1] || '';
+                        const curMonthName = MONTHS_NAMES[parseInt(activeMonth, 10) - 1] || '';
+
+                        return (
+                          <div className="space-y-4">
+                            {/* Period toggle */}
+                            <div className="flex items-center gap-2 mb-1">
+                              <span className="text-[9px] font-black text-slate-400 uppercase tracking-wider">Período:</span>
+                              <button
+                                onClick={() => setGastosPeriodOverride(prevPeriod)}
+                                className={`px-3 py-1 rounded-lg text-[10px] font-black uppercase tracking-wider border transition-all ${gastosPeriod === prevPeriod ? 'bg-amber-500 text-white border-amber-500 shadow-sm' : 'bg-white text-slate-500 border-slate-200 hover:border-amber-300'}`}
+                              >
+                                {prevMonthName} {prevY} (M-1)
+                              </button>
+                              <button
+                                onClick={() => setGastosPeriodOverride(curPeriod)}
+                                className={`px-3 py-1 rounded-lg text-[10px] font-black uppercase tracking-wider border transition-all ${gastosPeriod === curPeriod ? 'bg-amber-500 text-white border-amber-500 shadow-sm' : 'bg-white text-slate-500 border-slate-200 hover:border-amber-300'}`}
+                              >
+                                {curMonthName} {activeYear}
+                              </button>
+                              <span className="ml-auto text-[9px] font-bold text-slate-400">{data.mendel.length} registros totales cargados</span>
+                            </div>
+                            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                              <div className="bg-slate-50 border border-slate-200/60 rounded-xl p-3">
+                                <p className="text-[9px] font-black text-slate-400 uppercase tracking-wider mb-0.5">Total Período ({targetPeriod})</p>
+                                <p className="text-lg font-black text-slate-800">{fmt.format(totalGastos)}</p>
+                              </div>
+                              <div className="bg-slate-50 border border-slate-200/60 rounded-xl p-3">
+                                <p className="text-[9px] font-black text-slate-400 uppercase tracking-wider mb-0.5">Transacciones</p>
+                                <p className="text-lg font-black text-slate-800">{searchedMendel.length}</p>
+                              </div>
+                              <div className="bg-slate-50 border border-slate-200/60 rounded-xl p-3">
+                                <p className="text-[9px] font-black text-slate-400 uppercase tracking-wider mb-0.5">Mayor Gasto Comercial</p>
+                                <p className="text-sm font-black text-slate-800 truncate" title={topAgente[0] as string}>
+                                  {topAgente[0]} <span className="text-[10px] text-amber-600 font-extrabold">({fmt.format(topAgente[1] as number)})</span>
+                                </p>
+                              </div>
+                            </div>
+                            
+                            <div className="flex items-center gap-2">
+                              <input
+                                type="text"
+                                placeholder="Buscar por comercial..."
+                                value={gastosSearch}
+                                onChange={e => setGastosSearch(e.target.value)}
+                                className="w-full bg-slate-50 border border-slate-200 text-slate-700 rounded-lg px-3 py-1.5 text-xs focus:outline-none focus:border-slate-300 focus:bg-white transition-colors"
+                              />
+                              {gastosSearch && (
+                                <button onClick={() => setGastosSearch('')} className="px-2 py-1.5 text-xs text-slate-500 hover:text-slate-800 font-bold bg-slate-100 rounded-lg">Limpiar</button>
+                              )}
+                            </div>
+
+                            {searchedMendel.length === 0 ? (
+                              <div className="text-center py-8 text-slate-400 font-semibold text-xs">No se encontraron gastos para el comercial o periodo seleccionado.</div>
+                            ) : (
+                              <SortableTable
+                                columns={[
+                                  { key: 'comercial', label: 'Comercial', render: (v: any, row: any) => row.comercial || row.nombre || row.usuario || 'Sin Nombre' },
+                                  { key: 'concepto', label: 'Concepto / Categoría', render: (v: any, row: any) => row.concepto || row.categoria || 'Gastos varios' },
+                                  { key: 'monto', label: 'Monto', align: 'right', render: (v: any, row: any) => fmt.format(Number(row.monto || row.total || row.importe) || 0) },
+                                ]}
+                                data={searchedMendel}
+                                fmt={fmt}
+                              />
+                            )}
+                          </div>
+                        );
+                      })()
+                    ) : kpiModal.type === 'grouped' && kpiModal.cardId === 'minimos' ? (
+                      (() => {
+                        const MONTHS_ES_SHORT = ['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'];
+                        const sortedMonths = [...minimosData.months].sort((a, b) => (a.year * 100 + a.month) - (b.year * 100 + b.month));
+                        const chartData = sortedMonths.map(m => ({
+                          name: `${MONTHS_ES_SHORT[m.month - 1]} ${String(m.year).slice(2)}`,
+                          subsidio: Math.round(m.subsidioTotal),
+                          agentesEnMin: m.agentesEnMinimo,
+                          totalAgentes: m.totalAgentes,
+                          pct: Math.round(m.pctEnMinimo * 100),
+                          year: m.year,
+                          month: m.month,
+                        }));
+                        const currentMonth = minimosData.months.find((m: any) => m.year === parseInt(activeYear) && m.month === parseInt(activeMonth)) || minimosData.months[0];
+                        const detalle = currentMonth?.detalle || [];
+                        return (
+                          <div className="space-y-6">
+                            {/* Resumen KPIs del mes */}
+                            {currentMonth && (
+                              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                                <div className="bg-rose-50/60 rounded-xl p-3 border border-rose-200/50">
+                                  <p className="text-[10px] font-bold text-rose-500 uppercase tracking-wider">Subsidio Total</p>
+                                  <p className="text-lg font-black text-rose-700">{fmt.format(currentMonth.subsidioTotal)}</p>
+                                </div>
+                                <div className="bg-sky-50/60 rounded-xl p-3 border border-sky-200/50">
+                                  <p className="text-[10px] font-bold text-sky-500 uppercase tracking-wider">Agentes en Mínimo</p>
+                                  <p className="text-lg font-black text-sky-700">{currentMonth.agentesEnMinimo} <span className="text-xs font-bold text-sky-400">/ {currentMonth.totalAgentes}</span></p>
+                                </div>
+                                <div className="bg-amber-50/60 rounded-xl p-3 border border-amber-200/50">
+                                  <p className="text-[10px] font-bold text-amber-500 uppercase tracking-wider">% en Mínimo</p>
+                                  <p className="text-lg font-black text-amber-700">{Math.round(currentMonth.pctEnMinimo * 100)}%</p>
+                                </div>
+                                <div className="bg-slate-50/60 rounded-xl p-3 border border-slate-200/50">
+                                  <p className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Sueldo Bruto Red</p>
+                                  <p className="text-lg font-black text-slate-700">{fmt.format(currentMonth.sueldoBrutoTotal)}</p>
+                                </div>
+                              </div>
+                            )}
+                            {/* Gráfico de evolución mensual */}
+                            {chartData.length > 1 && (
+                              <div>
+                                <h4 className="text-xs font-extrabold text-slate-700 uppercase tracking-wider mb-3">📊 Evolución Mensual del Subsidio por Mínimos</h4>
+                                <ChartContainer chartData={chartData.map(d => ({ name: d.name, cabezas: d.subsidio, bonif: d.agentesEnMin * 100000 }))} />
+                                <div className="flex gap-4 mt-2 justify-center">
+                                  <span className="text-[10px] font-bold text-blue-500">■ Subsidio ($)</span>
+                                  <span className="text-[10px] font-bold text-emerald-500">■ Agentes en mín. (×100k)</span>
+                                </div>
+                              </div>
+                            )}
+                            {/* Tabla detalle por agente */}
+                            {detalle.length > 0 && (
+                              <div>
+                                <h4 className="text-xs font-extrabold text-slate-700 uppercase tracking-wider mb-3">
+                                  👤 Detalle por Agente — {currentMonth?.monthName} {currentMonth?.year}
+                                </h4>
+                                <SortableTable
+                                  columns={[
+                                    { key: 'nombre', label: 'Comercial' },
+                                    { key: 'provincia', label: 'Provincia' },
+                                    { key: 'categoria', label: 'Cat.' },
+                                    { key: 'modalidad', label: 'Modalidad' },
+                                    { key: 'componenteP', label: 'Generado', align: 'right', render: (v: any) => fmt.format(v) },
+                                    { key: 'minimo', label: 'Mínimo', align: 'right', render: (v: any) => fmt.format(v) },
+                                    { key: 'subsidio', label: 'Subsidio', align: 'right', render: (v: any) => <span className="text-rose-600 font-black">{fmt.format(v)}</span> },
+                                  ]}
+                                  data={detalle.sort((a: any, b: any) => b.subsidio - a.subsidio)}
+                                  fmt={fmt}
+                                />
+                              </div>
+                            )}
+                            {detalle.length === 0 && (
+                              <p className="text-center text-sm text-slate-400 py-8">No hay datos de mínimos para el mes seleccionado.</p>
+                            )}
+                          </div>
+                        );
+                      })()
+                    ) : kpiModal.type === 'grouped' ? (
                       <div className="space-y-3">
                         {(() => {
                           const grouped: Record<string, any[]> = {};

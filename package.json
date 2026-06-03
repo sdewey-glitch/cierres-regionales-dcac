@@ -2,7 +2,7 @@
   "name": "cierre_regionales",
   "version": "1.0.0",
   "description": "",
-  "main": "analyze_spreadsheet.js",
+  "main": "src/server.ts",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
     "dev": "ts-node src/server.ts"
@@ -12,7 +12,6 @@
   "license": "ISC",
   "type": "commonjs",
   "dependencies": {
-    "@types/nodemailer": "^8.0.0",
     "cors": "^2.8.6",
     "dotenv": "^17.4.2",
     "express": "^5.2.1",
@@ -24,6 +23,7 @@
   },
   "devDependencies": {
     "@types/cors": "^2.8.19",
+    "@types/nodemailer": "^8.0.0",
     "@types/express": "^5.0.6",
     "@types/multer": "^2.1.0",
     "@types/node": "^25.6.0",

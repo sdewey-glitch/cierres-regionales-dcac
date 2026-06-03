@@ -3,6 +3,7 @@ import { getRoster, normalizeName } from './normalization';
 import { interpolateLogScale, getMinimumForCategory, getExactScale } from './calculator';
 import { fetchGastos, fetchAjustesManuales, fetchKms, fetchPreciosKm, fetchAmortDcac, fetchMendelGastos, fetchVehicleMap, fetchTajada } from './inputs';
 import { fetchHistoricalSalaries } from './historical';
+import { getModelByModalidad, resolveScalePct } from './models';
 import * as fs from 'fs';
 import * as path from 'path';
 
@@ -19,39 +20,41 @@ export function classifyChannel(
 
     const acEntry = ac ? roster.get(ac) : null;
     const repEntry = rep ? roster.get(rep) : null;
-
-    // REGIONAL: Si tiene REG (Asociado Comercial de tipo Regional)
-    const tieneREG = ac && (acEntry ? acEntry.tipo === 'Regional' || acEntry.tipo === 'City Manager' : true);
-    if (tieneREG) {
-        return 'Regional';
+    
+    // 1. Validar por tipo en Roster (prioridad 1)
+    const entryToUse = acEntry || repEntry;
+    
+    if (entryToUse && entryToUse.tipo) {
+        const tipo = entryToUse.tipo.toLowerCase();
+        if (tipo === 'regional' || tipo === 'city manager') return 'Regional';
+        if (tipo === 'representante') return 'Representante';
+        if (tipo === 'corporate' || tipo === 'oficina' || tipo === 'operario de carga') return 'Directo';
+        if (tipo === 'comisionista') return 'Comisionista';
+    }
+    
+    // 2. Si no está en Roster o no tiene tipo, utilizar el canal que viene de la base de datos (Q95)
+    if (dbChannel) {
+        const db = dbChannel.trim().toLowerCase();
+        if (db.includes('regional')) return 'Regional';
+        if (db.includes('representante')) return 'Representante';
+        if (db.includes('comisionista')) return 'Comisionista';
+        if (db.includes('directo')) return 'Directo';
     }
 
-    // REPRESENTANTE
+    // 3. Fallbacks heredados
     const tieneREP = rep && rep !== 'directo' && rep !== 'directa' && !rep.includes('pedro genta') && !rep.includes('bernado');
     if (tieneREP) {
-        // R4 o ER representados por "Rio 4to" / "Entre Rios"
         const isR4 = rep.includes('rio 4to') || rep.includes('rio cuarto') || (repEntry && repEntry.oficina?.toLowerCase().includes('rio 4to'));
         const isER = rep.includes('entre rios') || (repEntry && repEntry.oficina?.toLowerCase().includes('entre rios'));
-        
-        if (isR4 || isER) {
-            // Si el REP es R4 o ER y no tiene REG -> DIRECTO
-            return 'Directo';
-        } else {
-            // Si tiene REP pero NO tiene REG y es distinto a R4 y ER -> REPRE
-            if (dbChannel && dbChannel.toLowerCase() === 'comisionista') {
-                return 'Comisionista';
-            }
-            return 'Representante';
-        }
+        if (isR4 || isER) return 'Directo';
+        return 'Representante';
     }
 
-    // Si no tiene REP ni REG -> DIRECTO
     return 'Directo';
 }
 
 let q95Cache: any[] | null = null;
 
-export function setQ95Cache(data: any[]) { q95Cache = data; }
 
 export async function calculateDynamicMonth(year: number, month: number): Promise<CommercialResult[]> {
     if (!q95Cache) q95Cache = await fetchQ95();
@@ -593,83 +596,108 @@ export async function calculateDynamicMonth(year: number, month: number): Promis
         // 2. Componente Personal (Componente_P)
         const isOperario = res.tipo.toLowerCase().includes('operario');
         const isFijo = res.modalidad.toLowerCase() === 'fijo' && !isOperario;
-        let pctPersonal = 0;
-        if (isOperario || isFijo) {
-            pctPersonal = 0.10; // Operarios y Fijo: 10% fijo
-        } else if (res.escalasTexto === 'Oficina') {
-            pctPersonal = await getExactScale(res.cabezasGeneral, 'escalaPersonal', year, month);
-        } else {
-            pctPersonal = await getExactScale(res.cabezasGeneral, 'escalaAC', year, month);
-        }
-        
         const isAcuña = res.asociadoComercial.toLowerCase() === 'agustin acuna' || res.asociadoComercial.toLowerCase() === 'agustín acuña';
         const isFrutos = res.asociadoComercial.toLowerCase() === 'lucila frutos';
+        let pctPersonal = 0;
+        
+        const configModel = getModelByModalidad(res.modalidad);
+        const isCustomModel = !['completa', 'simple', 'hibrida', 'sin minimo', 'operario', 'fijo'].includes(configModel.id);
 
-        if (isAcuña) {
-            let totalAcuna = 0;
-            for (const det of res.operacionesDetalle) {
-                // Chequear si hay un % específico
-                let isEspecial = false;
-                const isVenta = det.resultado_topeado_venta > 0;
-                const isCompra = det.resultado_topeado_compra > 0;
-                
-                const cuentaMatch = cuentasAcuna.find(c => 
-                    (isVenta && c.razon_social && c.razon_social.toLowerCase() === det.sociedad_vendedora?.toLowerCase()) ||
-                    (isCompra && c.razon_social && c.razon_social.toLowerCase() === det.sociedad_compradora?.toLowerCase()) ||
-                    (isVenta && c.ac_metabase && det.vendedor_ac?.toLowerCase().includes(c.ac_metabase.toLowerCase())) ||
-                    (isCompra && c.ac_metabase && det.comprador_ac?.toLowerCase().includes(c.ac_metabase.toLowerCase()))
-                );
-
-                const pct = cuentaMatch && cuentaMatch.porcentaje ? (cuentaMatch.porcentaje / 100) : 0.3;
-                
-                det.escala_aplicada = pct;
-                det.ganancia_personal_venta = det.resultado_topeado_venta * pct;
-                det.ganancia_personal_compra = det.resultado_topeado_compra * pct;
-                totalAcuna += (det.ganancia_personal_venta + det.ganancia_personal_compra);
-            }
-            res.escalaGen = 0.3; // Referencia general
-            res.componenteP = totalAcuna;
-
-        } else if (isFrutos) {
-            res.escalaGen = 0;
-            let totalP = 0;
-            for (const det of res.operacionesDetalle) {
-                const isVenta = det.resultado_topeado_venta > 0;
-                const isCompra = det.resultado_topeado_compra > 0;
-                
-                let pctVenta = 0.04; // GC por defecto
-                let pctCompra = 0.02; // GC por defecto
-
-                const cuentaMatchVenta = cuentasFrutos.find(c => (c.razon_social && c.razon_social.toLowerCase() === det.sociedad_vendedora?.toLowerCase()) || (c.ac_metabase && det.vendedor_ac?.toLowerCase().includes(c.ac_metabase.toLowerCase())));
-                const cuentaMatchCompra = cuentasFrutos.find(c => (c.razon_social && c.razon_social.toLowerCase() === det.sociedad_compradora?.toLowerCase()) || (c.ac_metabase && det.comprador_ac?.toLowerCase().includes(c.ac_metabase.toLowerCase())));
-
-                if (cuentaMatchVenta) {
-                    if (cuentaMatchVenta.tipo_cuenta === 'Mermas') {
-                        if (det.tipo.toLowerCase().includes('invernada')) pctVenta = 0.15;
-                        else if (det.tipo.toLowerCase().includes('faena')) pctVenta = 0.20;
-                    } else if (cuentaMatchVenta.tipo_cuenta === 'Activacion CI') {
-                        pctVenta = 0.10; // Si aplica a venta? Normalmente es compra, pero por las dudas
-                    }
+        if (isCustomModel) {
+            // Evaluación del Componente Personal en el Modelo Custom
+            if (configModel.componenteP?.activa) {
+                const umbral = configModel.componenteP.umbralCabezas || 0;
+                if (res.cabezasGeneral >= umbral) {
+                    pctPersonal = await resolveScalePct(res.cabezasGeneral, configModel.componenteP.escalaId || 'escalaAC', year, month);
+                } else {
+                    pctPersonal = 0;
                 }
-
-                if (cuentaMatchCompra) {
-                    if (cuentaMatchCompra.tipo_cuenta === 'Activacion CI') pctCompra = 0.10;
-                    else if (cuentaMatchCompra.tipo_cuenta === 'Mermas') pctCompra = 0.15; // fallback
-                }
-
-                det.ganancia_personal_venta = isVenta ? (det.resultado_topeado_venta * pctVenta) : 0;
-                det.ganancia_personal_compra = isCompra ? (det.resultado_topeado_compra * pctCompra) : 0;
-                det.escala_aplicada = 0;
-                totalP += (det.ganancia_personal_venta + det.ganancia_personal_compra);
+            } else {
+                pctPersonal = 0;
             }
-            res.componenteP = totalP;
-        } else {
+            
             res.escalaGen = pctPersonal;
             res.componenteP = res.resultado_final_ajustado * pctPersonal;
             for (const det of res.operacionesDetalle) {
                 det.escala_aplicada = res.escalaGen;
                 det.ganancia_personal_venta = det.resultado_topeado_venta * res.escalaGen;
                 det.ganancia_personal_compra = det.resultado_topeado_compra * res.escalaGen;
+            }
+        } else {
+            // Lógica tradicional de compatibilidad para modelos estáticos
+            if (isOperario || isFijo) {
+                pctPersonal = 0.10; // Operarios y Fijo: 10% fijo
+            } else if (res.escalasTexto === 'Oficina') {
+                pctPersonal = await getExactScale(res.cabezasGeneral, 'escalaPersonal', year, month);
+            } else {
+                pctPersonal = await getExactScale(res.cabezasGeneral, 'escalaAC', year, month);
+            }
+            
+            if (isAcuña) {
+                let totalAcuna = 0;
+                for (const det of res.operacionesDetalle) {
+                    let isEspecial = false;
+                    const isVenta = det.resultado_topeado_venta > 0;
+                    const isCompra = det.resultado_topeado_compra > 0;
+                    
+                    const cuentaMatch = cuentasAcuna.find(c => 
+                        (isVenta && c.razon_social && c.razon_social.toLowerCase() === det.sociedad_vendedora?.toLowerCase()) ||
+                        (isCompra && c.razon_social && c.razon_social.toLowerCase() === det.sociedad_compradora?.toLowerCase()) ||
+                        (isVenta && c.ac_metabase && det.vendedor_ac?.toLowerCase().includes(c.ac_metabase.toLowerCase())) ||
+                        (isCompra && c.ac_metabase && det.comprador_ac?.toLowerCase().includes(c.ac_metabase.toLowerCase()))
+                    );
+
+                    const pct = cuentaMatch && cuentaMatch.porcentaje ? (cuentaMatch.porcentaje / 100) : 0.3;
+                    
+                    det.escala_aplicada = pct;
+                    det.ganancia_personal_venta = det.resultado_topeado_venta * pct;
+                    det.ganancia_personal_compra = det.resultado_topeado_compra * pct;
+                    totalAcuna += (det.ganancia_personal_venta + det.ganancia_personal_compra);
+                }
+                res.escalaGen = 0.3; // Referencia general
+                res.componenteP = totalAcuna;
+
+            } else if (isFrutos) {
+                res.escalaGen = 0;
+                let totalP = 0;
+                for (const det of res.operacionesDetalle) {
+                    const isVenta = det.resultado_topeado_venta > 0;
+                    const isCompra = det.resultado_topeado_compra > 0;
+                    
+                    let pctVenta = 0.04; // GC por defecto
+                    let pctCompra = 0.02; // GC por defecto
+
+                    const cuentaMatchVenta = cuentasFrutos.find(c => (c.razon_social && c.razon_social.toLowerCase() === det.sociedad_vendedora?.toLowerCase()) || (c.ac_metabase && det.vendedor_ac?.toLowerCase().includes(c.ac_metabase.toLowerCase())));
+                    const cuentaMatchCompra = cuentasFrutos.find(c => (c.razon_social && c.razon_social.toLowerCase() === det.sociedad_compradora?.toLowerCase()) || (c.ac_metabase && det.comprador_ac?.toLowerCase().includes(c.ac_metabase.toLowerCase())));
+
+                    if (cuentaMatchVenta) {
+                        if (cuentaMatchVenta.tipo_cuenta === 'Mermas') {
+                            if (det.tipo.toLowerCase().includes('invernada')) pctVenta = 0.15;
+                            else if (det.tipo.toLowerCase().includes('faena')) pctVenta = 0.20;
+                        } else if (cuentaMatchVenta.tipo_cuenta === 'Activacion CI') {
+                            pctVenta = 0.10;
+                        }
+                    }
+
+                    if (cuentaMatchCompra) {
+                        if (cuentaMatchCompra.tipo_cuenta === 'Activacion CI') pctCompra = 0.10;
+                        else if (cuentaMatchCompra.tipo_cuenta === 'Mermas') pctCompra = 0.15;
+                    }
+
+                    det.ganancia_personal_venta = isVenta ? (det.resultado_topeado_venta * pctVenta) : 0;
+                    det.ganancia_personal_compra = isCompra ? (det.resultado_topeado_compra * pctCompra) : 0;
+                    det.escala_aplicada = 0;
+                    totalP += (det.ganancia_personal_venta + det.ganancia_personal_compra);
+                }
+                res.componenteP = totalP;
+            } else {
+                res.escalaGen = pctPersonal;
+                res.componenteP = res.resultado_final_ajustado * pctPersonal;
+                for (const det of res.operacionesDetalle) {
+                    det.escala_aplicada = res.escalaGen;
+                    det.ganancia_personal_venta = det.resultado_topeado_venta * res.escalaGen;
+                    det.ganancia_personal_compra = det.resultado_topeado_compra * res.escalaGen;
+                }
             }
         }
 
@@ -734,6 +762,17 @@ export async function calculateDynamicMonth(year: number, month: number): Promis
             // Pseudo-agentes de oficina: sin componentes propios
             res.componenteR = 0;
             res.componenteO = 0;
+        } else if (isCustomModel) {
+            // Evaluación del modelo custom paramétrico
+            res.componenteR = configModel.componenteR.activa 
+                ? (res.tajadaRegion * res.bolsaRegion * res.resultadoReg * (configModel.componenteR.pesoR ?? 1.0)) 
+                : 0;
+                
+            if (configModel.componenteO.activa && isOficinaElegible) {
+                res.componenteO = res.opOficina * res.escalaOficina * res.resultadoOfi * (configModel.componenteO.pesoO ?? 1.0);
+            } else {
+                res.componenteO = 0;
+            }
         } else if (isFrutos || isAcuña) {
             // Modelo Frutos/Acuña: solo Personal (especial), 0 Regional, 0 Oficina
             res.componenteR = 0; 
@@ -776,7 +815,7 @@ export async function calculateDynamicMonth(year: number, month: number): Promis
         // Regla de Negocio Crítica: El fijo/mínimo absorbe a la componente personal.
         // Si no supera el mínimo, pierde las componentes Regional y Oficina (salvo excepciones).
         const isDavidMenghi = res.asociadoComercial.toLowerCase() === 'david menghi';
-        const hasNoMinimum = res.modalidad.includes('Sin minimo');
+        const hasNoMinimum = isCustomModel ? !configModel.tieneMinimo : res.modalidad.includes('Sin minimo');
 
         if (hasNoMinimum) {
             res.fijo = 0;
@@ -911,9 +950,41 @@ export async function calculateDynamicMonth(year: number, month: number): Promis
             ajusteEspecial = res.componenteP * -0.20;
         }
         
-        // Regla de Mínimo Garantizado Absoluto: El total de componentes más ajustes no puede ser menor al mínimo asegurado
+        // Regla de Mínimo Garantizado Absoluto
         const totalComponentes = res.componenteP + res.componenteR + res.componenteO;
-        const sueldoFinal = Math.max(res.minimo, totalComponentes + res.ajustes);
+
+        // Aguinaldo (SAC) para Junio y Diciembre
+        let aguinaldo = 0;
+        if (month === 6 || month === 12) {
+            const isExcluded = ['manu pons', 'alan garcia', 'milagros lizazo'].some(n => res.asociadoComercial.toLowerCase().includes(n));
+            if (!isExcluded) {
+                const minimosSemestre = [res.minimo]; // El mínimo garantizado de este mes actual
+                const snapDir = path.join(__dirname, 'snapshots');
+                for (let i = 1; i <= 5; i++) {
+                    let pMonth = month - i;
+                    let pYear = year;
+                    if (pMonth <= 0) {
+                        pMonth += 12;
+                        pYear -= 1;
+                    }
+                    const snapPath = path.join(snapDir, `cierre_${pYear}_${String(pMonth).padStart(2, '0')}.json`);
+                    if (fs.existsSync(snapPath)) {
+                        try {
+                            const snapData = JSON.parse(fs.readFileSync(snapPath, 'utf8'));
+                            const agentPast = snapData.find((a: any) => a.asociadoComercial === res.asociadoComercial);
+                            if (agentPast && agentPast.minimo) {
+                                minimosSemestre.push(agentPast.minimo);
+                            }
+                        } catch (e) {}
+                    }
+                }
+                const maxMinimo = Math.max(...minimosSemestre);
+                aguinaldo = Math.round(maxMinimo * 0.5);
+            }
+        }
+        res.aguinaldo = aguinaldo;
+
+        const sueldoFinal = Math.max(res.minimo, totalComponentes + res.ajustes) + aguinaldo;
         
         res.cierreReal = sueldoFinal + reintegroNeto - res.amortizacioneDcac + ajusteEspecial;
     }
@@ -935,12 +1006,6 @@ export function saveSnapshot(year: number, month: number, results: CommercialRes
 
 export async function calculateRetroactiveAdjustments(year: number, month: number): Promise<RetroactiveAdjustment[]> {
     const adjustments: RetroactiveAdjustment[] = [];
-    const historicalSalaries = await fetchHistoricalSalaries();
-    const historicalMap = new Map<string, number>();
-    for (const h of historicalSalaries) {
-        const key = `${h.comercial.toLowerCase()}_${h.año}${String(h.mes).padStart(2, '0')}`;
-        historicalMap.set(key, h.componenteP);
-    }
     const dir = path.join(__dirname, 'snapshots');
 
     // Revisar 3 meses anteriores (M-1, M-2, M-3)
@@ -1054,17 +1119,10 @@ export async function calculateRetroactiveAdjustments(year: number, month: numbe
                 }
             }
 
-            // Si hay diferencias en el Componente P oficial cobrado en BDSUELDO_REAL, o hay cambios en los lotes
-            const histKey = `${dynRes.asociadoComercial.toLowerCase()}_${pastYear}${String(pastMonth).padStart(2, '0')}`;
-            const histCompP = historicalMap.get(histKey);
-            
             let ajusteComponenteP = 0;
             let hasDifference = false;
             
-            if (histCompP !== undefined) {
-                ajusteComponenteP = dynRes.componenteP - histCompP;
-                hasDifference = Math.abs(ajusteComponenteP) > 1;
-            } else if (loteChanges.length > 0) {
+            if (loteChanges.length > 0) {
                 const deltaResultado = dynRes.resultado_final_ajustado - frozen.resultado_final_ajustado;
                 const escalaCongelada = frozen.escalaGen;
                 ajusteComponenteP = escalaCongelada * deltaResultado;

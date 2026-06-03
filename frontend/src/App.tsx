@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ArrowLeft, Search, Download, Calculator, FileText, CheckCircle, UploadCloud, TrendingUp, BarChart3, Users, Save, ShieldAlert, LayoutDashboard, Database, UserCheck, Check, Edit2, Loader2, PlayCircle, RefreshCw, AlertTriangle, Layers, Plus, Edit, X, ChevronDown, ChevronUp, ChevronsUpDown, Play, BookOpen, Mail } from 'lucide-react';
+import { ArrowLeft, Search, Download, Calculator, FileText, CheckCircle, UploadCloud, TrendingUp, BarChart3, Users, Save, ShieldAlert, LayoutDashboard, Database, UserCheck, Check, Edit2, Loader2, PlayCircle, RefreshCw, AlertTriangle, Layers, Plus, Edit, X, ChevronDown, ChevronUp, ChevronsUpDown, Play, BookOpen, Mail, Settings } from 'lucide-react';
 // @ts-ignore
 import '@fontsource/lato';
 import Simulator from './components/Simulator';
@@ -10,10 +10,10 @@ import ModelsGuide from './components/ModelsGuide';
 import Comparator from './components/Comparator';
 import VariablesHub from './components/VariablesHub';
 import Envios from './components/Envios';
+import ConfigPanel from './components/ConfigPanel';
+import { MONTHS } from './constants';
 
-const API_URL = 'http://localhost:4000/api';
-
-const MONTHS = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:4000/api';
 
 const getUnBadgeClass = (tipo: string) => {
   const t = (tipo || '').toUpperCase().trim();
@@ -47,7 +47,7 @@ function App() {
   const isSimulador = searchParams.get('simulador') === 'true';
   const isRestricted = !!sharedAgent || isReadonly || isSimulador;
 
-  const [activeTab, setActiveTab] = useState<'cierre' | 'simulador' | 'resumen' | 'roster' | 'cuentas' | 'hub' | 'comparador' | 'wizard' | 'modelos' | 'variables' | 'envios'>((isReadonly || isSimulador) ? 'simulador' : 'hub');
+  const [activeTab, setActiveTab] = useState<'cierre' | 'simulador' | 'resumen' | 'roster' | 'cuentas' | 'hub' | 'comparador' | 'wizard' | 'manuales' | 'variables' | 'envios' | 'config'>((isReadonly || isSimulador) ? 'simulador' : 'hub');
 
   useEffect(() => {
     // Inject print styles
@@ -80,6 +80,7 @@ function App() {
   const [sortConfig, setSortConfig] = useState<{key: string, direction: 'asc'|'desc'} | null>(null);
   const [showFullGrid, setShowFullGrid] = useState(false);
   const [modalTab, setModalTab] = useState<'personales' | 'zonificacion' | 'operativa' | 'reglas'>('personales');
+  const [availableModels, setAvailableModels] = useState<any[]>([]);
   
   // Cuentas Especiales State
   const [cuentasEspeciales, setCuentasEspeciales] = useState<any[]>([]);
@@ -89,6 +90,7 @@ function App() {
   const [activeYear, setActiveYear] = useState(sharedYear || new Date().getFullYear().toString());
   const [activeMonth, setActiveMonth] = useState(sharedMonth || (new Date().getMonth() + 1).toString());
   const [isGenerating, setIsGenerating] = useState(false);
+  const [isGeneratingPdf, setIsGeneratingPdf] = useState(false);
 
   // Resumen General table sort state
   const [resumenSortKey, setResumenSortKey] = useState<string | null>(null);
@@ -118,6 +120,14 @@ function App() {
     fetch(`${API_URL}/cuentas`)
       .then(res => res.json())
       .then(data => setCuentasEspeciales(data))
+      .catch(console.error);
+    fetch(`${API_URL}/config-models/models`)
+      .then(res => res.json())
+      .then(data => {
+        if (data.success) {
+          setAvailableModels(data.models || []);
+        }
+      })
       .catch(console.error);
   }, []);
 
@@ -387,11 +397,10 @@ function App() {
     { id: 'resumen', label: 'Consolidado', icon: BarChart3 },
     { id: 'variables', label: 'Variables', icon: Layers },
     { id: 'comparador', label: 'Validador', icon: RefreshCw },
-    { id: 'roster', label: 'Roster', icon: Users },
     { id: 'cuentas', label: 'Cuentas', icon: Database },
     { id: 'simulador', label: 'Simulador', icon: Calculator },
-    { id: 'modelos', label: 'Modelos', icon: BookOpen },
-    { id: 'envios', label: 'Envíos', icon: Mail }
+    { id: 'manuales', label: 'Manuales', icon: BookOpen },
+    { id: 'envios', label: 'Envíos', icon: Mail },
   ] as const;
 
   return (
@@ -519,8 +528,9 @@ function App() {
         {activeTab === 'comparador' && <Comparator API_URL={API_URL} activeData={activeData} activeMonth={activeMonth} activeYear={activeYear} selectedAgent={selectedAgent} />}
         {activeTab === 'hub' && <Hub API_URL={API_URL} setActiveTab={setActiveTab} activeYear={activeYear} activeMonth={activeMonth} />}
         {activeTab === 'variables' && <VariablesHub API_URL={API_URL} activeYear={activeYear} activeMonth={activeMonth} data={data} onRefresh={refreshSnapshotData} />}
-        {activeTab === 'modelos' && <ModelsGuide setActiveTab={setActiveTab} />}
+        {activeTab === 'manuales' && <ModelsGuide setActiveTab={setActiveTab} API_URL={API_URL} />}
         {activeTab === 'envios' && <Envios API_URL={API_URL} activeYear={activeYear} activeMonth={activeMonth} data={data} onRefresh={refreshSnapshotData} />}
+        {activeTab === 'config' && <ConfigPanel API_URL={API_URL} activeYear={activeYear} activeMonth={activeMonth} />}
 
         {activeTab === 'roster' && (
           <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="bg-white rounded-xl shadow-xl border border-gray-200 overflow-hidden w-full mt-2 relative transition-all duration-300 hover:shadow-2xl hover:-translate-y-1">
@@ -978,10 +988,36 @@ function App() {
 
                     <div className="ml-auto flex items-center w-full justify-end">
                       <button 
-                        onClick={() => window.print()}
-                        className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-gray-900 text-white text-xs font-bold hover:bg-black transition-colors shadow-sm"
+                        onClick={async () => {
+                          if (isGeneratingPdf) return;
+                          setIsGeneratingPdf(true);
+                          try {
+                            const res = await fetch(`${API_URL}/dispatch/preview-pdf/${encodeURIComponent(selectedAgent)}?year=${activeYear}&month=${activeMonth}`);
+                            if (res.ok) {
+                              const blob = await res.blob();
+                              const url = URL.createObjectURL(blob);
+                              window.open(url, '_blank');
+                            } else {
+                              alert('Error generando PDF');
+                            }
+                          } catch (e) {
+                            alert('Error de conexión');
+                          } finally {
+                            setIsGeneratingPdf(false);
+                          }
+                        }}
+                        disabled={isGeneratingPdf}
+                        className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-gray-900 text-white text-xs font-bold hover:bg-black transition-colors shadow-sm disabled:opacity-50"
                       >
-                        <Download size={14} /> Imprimir / PDF
+                        {isGeneratingPdf ? (
+                          <>
+                            <Loader2 className="animate-spin" size={14} /> Generando PDF...
+                          </>
+                        ) : (
+                          <>
+                            <Download size={14} /> Imprimir / PDF
+                          </>
+                        )}
                       </button>
                     </div>
                   </div>
@@ -1324,6 +1360,27 @@ function App() {
                     </table>
                   </div>
 
+                  {/* PDF Preview Embed */}
+                  <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden w-full mt-6 transition-all duration-300 hover:shadow-xl print-hide-lotes">
+                    <div className="bg-gray-100 px-6 py-3 border-b border-gray-200 flex justify-between items-center">
+                      <h3 className="text-sm font-black uppercase tracking-wider text-gray-800 flex items-center gap-2">
+                        <FileText size={16} className="text-blue-500" />
+                        Vista Previa del PDF de Envío (Liquidación de Cierres)
+                      </h3>
+                      <span className="text-[10px] text-gray-500 font-bold hidden sm:inline">
+                        Este es el documento final adjunto que se envía por correo electrónico.
+                      </span>
+                    </div>
+                    <div className="p-4 bg-slate-100 flex justify-center items-center" style={{ minHeight: '600px' }}>
+                      <iframe 
+                        src={`${API_URL}/dispatch/preview-pdf/${encodeURIComponent(selectedAgent)}?year=${activeYear}&month=${activeMonth}`} 
+                        className="w-full rounded-lg border border-gray-300 shadow-md"
+                        style={{ height: '800px', border: 'none' }}
+                        title={`PDF Preview - ${selectedAgent}`}
+                      />
+                    </div>
+                  </div>
+
                 </motion.div>
               )}
             </AnimatePresence>
@@ -1450,12 +1507,9 @@ function App() {
                       <div className="space-y-1">
                         <label className="text-xs font-bold text-gray-500 uppercase">Modalidad (Contrato)</label>
                         <datalist id="modalidad-list">
-                          <option value="Simple" />
-                          <option value="Híbrido" />
-                          <option value="Completa" />
-                          <option value="Sin mínimo" />
-                          <option value="Fijo" />
-                          <option value="Part-time" />
+                          {availableModels.map(m => (
+                            <option key={m.id} value={m.nombre} />
+                          ))}
                         </datalist>
                         <input list="modalidad-list" type="text" value={editingAgent?.modalidad || ''} onChange={e => setEditingAgent({...editingAgent, modalidad: e.target.value})} className="w-full bg-gray-50 border border-gray-200 rounded-lg px-3 py-2 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="Selecciona o escribe una nueva" />
                       </div>

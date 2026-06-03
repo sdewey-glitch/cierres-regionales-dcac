@@ -5,6 +5,7 @@ import {
   ArrowLeft, Search, ChevronDown, ChevronUp, ChevronsUpDown, ArrowRight, Loader2,
   Package, AlertCircle, X, Activity, Plus, Edit, Trash2
 } from 'lucide-react';
+import { MONTHS, fmt } from '../constants';
 
 /* ─────────────────── Types ─────────────────── */
 
@@ -58,21 +59,11 @@ type CardKey =
 
 /* ─────────────────── Constants ─────────────────── */
 
-const MONTHS = [
-  'Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio',
-  'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre',
-];
-
 const SHORT_MONTHS = [
   'Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun',
   'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic',
 ];
 
-const fmt = new Intl.NumberFormat('es-AR', {
-  style: 'currency',
-  currency: 'ARS',
-  maximumFractionDigits: 0,
-});
 
 const pct = (v: number) => (v * 100).toFixed(1) + '%';
 

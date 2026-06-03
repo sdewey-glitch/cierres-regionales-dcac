@@ -1,4 +1,3 @@
-import { google } from 'googleapis';
 import { listDriveFolders, listDriveFiles, downloadDriveFile } from '../api/drive';
 import { readSheet, writeSheet, appendSheet, clearSheetRange, createSheetIfNotExists } from '../api/sheets';
 import { config } from '../config/env';
@@ -7,7 +6,7 @@ import * as path from 'path';
 
 const pdf = require('pdf-parse');
 
-const CIERRES_ROOT_FOLDER = '1ryE13Qo7C_DAknwFTZq9QWKUhkUOu4Oh';
+const CIERRES_ROOT_FOLDER = config.CIERRES_ROOT_FOLDER_ID;
 const MONTH_MAP: Record<string, number> = {
     'enero': 1, 'febrero': 2, 'marzo': 3, 'abril': 4,
     'mayo': 5, 'junio': 6, 'julio': 7, 'agosto': 8,
