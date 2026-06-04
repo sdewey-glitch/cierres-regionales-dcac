@@ -112,36 +112,19 @@ function adjustAgentDataWithConfig(agentData: CommercialResult, c: any) {
     agentData.cierreReal = sueldoFinal + reintegroNeto - (agentData.amortizacioneDcac || 0) + ajusteEspecial;
 }
 
-/** Genera PDF buffer para un agente */
-async function generatePdfBuffer(agentData: CommercialResult, overrideHtml?: string): Promise<Buffer> {
+/** Genera PDF buffer para un agente (solo local — en Vercel lo genera el Apps Script) */
+async function generatePdfBuffer(agentData: CommercialResult, overrideHtml?: string): Promise<Buffer | null> {
+    if (IS_VERCEL) return null; // Vercel no tiene Chrome; el PDF lo genera el Apps Script vía Drive
     const html = overrideHtml || generateClosureHtml(agentData);
-    let browser: any;
-
-    if (IS_VERCEL) {
-        // En Vercel (serverless) no hay Chrome instalado → usamos @sparticuz/chromium
-        const chromium = await import('@sparticuz/chromium');
-        const puppeteerCore = await import('puppeteer-core');
-        browser = await puppeteerCore.default.launch({
-            args: chromium.default.args,
-            defaultViewport: chromium.default.defaultViewport,
-            executablePath: await chromium.default.executablePath(),
-            headless: true,
-        });
-    } else {
-        // Local: puppeteer normal con Chrome instalado
-        const puppeteer = await import('puppeteer');
-        browser = await puppeteer.default.launch({ headless: true, args: ['--no-sandbox', '--disable-setuid-sandbox'] });
-    }
-
+    const puppeteer = await import('puppeteer');
+    const browser = await puppeteer.default.launch({ headless: true, args: ['--no-sandbox', '--disable-setuid-sandbox'] });
     const page = await browser.newPage();
     await page.setContent(html, { waitUntil: 'load', timeout: 15000 });
-    
     const pdfBuffer = await page.pdf({
         format: 'A4',
         printBackground: true,
         margin: { top: '15mm', right: '12mm', bottom: '15mm', left: '12mm' },
     });
-    
     await browser.close();
     return Buffer.from(pdfBuffer);
 }
@@ -150,13 +133,15 @@ async function generatePdfBuffer(agentData: CommercialResult, overrideHtml?: str
 /** 
  * Envía mail + guarda PDF en Drive via Apps Script web app
  * El Apps Script corre como el usuario → tiene cuota de Drive
+ * En Vercel: manda htmlContent para que Apps Script genere el PDF vía DriveApp
  */
 async function sendViaAppsScript(params: {
     to: string;
     cc?: string;
     subject: string;
     body: string;
-    pdfBuffer?: Buffer;
+    pdfBuffer?: Buffer | null;
+    htmlContent?: string;
     pdfFileName?: string;
     year: string;
     month: string;
@@ -179,9 +164,13 @@ async function sendViaAppsScript(params: {
             testEmail: params.testEmail || TEST_EMAIL,
         };
 
-        // Adjuntar PDF como base64
+        // Adjuntar PDF como base64 (local) o HTML para que Apps Script genere el PDF (Vercel)
         if (params.pdfBuffer) {
             payload.pdfBase64 = params.pdfBuffer.toString('base64');
+            payload.pdfFileName = params.pdfFileName || 'cierre.pdf';
+        } else if (params.htmlContent) {
+            // Vercel: Apps Script convierte HTML → PDF usando DriveApp
+            payload.htmlContent = params.htmlContent;
             payload.pdfFileName = params.pdfFileName || 'cierre.pdf';
         }
 
@@ -629,8 +618,9 @@ router.post('/dispatch/test', async (req, res) => {
             overrideHtml = fs.readFileSync(overrideFile, 'utf8');
         }
 
-        // 1. Generar PDF
+        // 1. Generar PDF (local) o preparar HTML (Vercel)
         const pdfBuffer = await generatePdfBuffer(agentData, overrideHtml);
+        const htmlContent = IS_VERCEL ? (overrideHtml || generateClosureHtml(agentData)) : undefined;
         const pdfFileName = `${agent} - ${mesNombre} ${year}.pdf`;
         
         // 2. Enviar via Apps Script (guarda en Drive + manda mail)
@@ -641,7 +631,8 @@ router.post('/dispatch/test', async (req, res) => {
             to: TEST_EMAIL,
             subject: `🧪 [TEST] Cierre de ${mesNombre} ${year} - ${agent}`,
             body,
-            pdfBuffer,
+            pdfBuffer: pdfBuffer ?? undefined,
+            htmlContent,
             pdfFileName,
             year: String(year),
             month: String(month),
@@ -719,8 +710,9 @@ router.post('/dispatch/send', async (req, res) => {
             overrideHtml = fs.readFileSync(overrideFile, 'utf8');
         }
 
-        // 1. Generar PDF
+        // 1. Generar PDF (local) o preparar HTML (Vercel)
         const pdfBuffer = await generatePdfBuffer(agentData, overrideHtml);
+        const htmlContent = IS_VERCEL ? (overrideHtml || generateClosureHtml(agentData)) : undefined;
         const pdfFileName = `${agent} - ${mesNombre} ${year}.pdf`;
 
         // 2. Enviar via Apps Script (guarda en Drive + manda mail)
@@ -732,7 +724,8 @@ router.post('/dispatch/send', async (req, res) => {
             cc,
             subject: `Cierre de ${mesNombre} ${year} - ${agent}`,
             body,
-            pdfBuffer,
+            pdfBuffer: pdfBuffer ?? undefined,
+            htmlContent,
             pdfFileName,
             year: String(year),
             month: String(month),
