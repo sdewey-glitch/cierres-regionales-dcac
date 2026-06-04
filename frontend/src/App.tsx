@@ -1078,10 +1078,10 @@ function App() {
                             doc.designMode = "on";
                             doc.body.style.cursor = "text";
                             const style = doc.createElement("style");
-                            style.textContent = \`
+                            style.textContent = `
                               *:hover { outline: 1px dashed rgba(59, 130, 246, 0.5); }
                               *:focus { outline: 2px solid #3b82f6 !important; background: rgba(59, 130, 246, 0.05); }
-                            \`;
+                            `;
                             doc.head.appendChild(style);
                           }
                         }}
