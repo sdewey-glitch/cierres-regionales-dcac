@@ -121,16 +121,31 @@ function adjustAgentDataWithConfig(agentData: CommercialResult, c: any) {
 }
 
 async function generatePdfBuffer(agentData: CommercialResult, overrideHtml?: string): Promise<Buffer | null> {
-    if (IS_VERCEL) return null; // Vercel no usa puppeteer, lo hace Apps Script
-    
     const html = overrideHtml || generateClosureHtml(agentData);
     let browser: any;
 
     try {
         const dynamicImport = new Function('specifier', 'return import(specifier)');
-        const puppeteerModule = await dynamicImport('puppeteer');
-        const puppeteer = puppeteerModule.default || puppeteerModule;
-        browser = await puppeteer.launch({ headless: true, args: ['--no-sandbox', '--disable-setuid-sandbox'] });
+        if (IS_VERCEL) {
+            console.log("[generatePdfBuffer] Ejecutando en Vercel. Cargando @sparticuz/chromium y puppeteer-core...");
+            const chromiumModule = await dynamicImport('@sparticuz/chromium');
+            const puppeteerCoreModule = await dynamicImport('puppeteer-core');
+            const chromium = chromiumModule.default || chromiumModule;
+            const puppeteer = puppeteerCoreModule.default || puppeteerCoreModule;
+            
+            // Configurar path de ejecutables si no están listos
+            browser = await puppeteer.launch({
+                args: chromium.args,
+                defaultViewport: chromium.defaultViewport,
+                executablePath: await chromium.executablePath(),
+                headless: chromium.headless,
+            });
+        } else {
+            console.log("[generatePdfBuffer] Ejecutando localmente. Cargando puppeteer estándar...");
+            const puppeteerModule = await dynamicImport('puppeteer');
+            const puppeteer = puppeteerModule.default || puppeteerModule;
+            browser = await puppeteer.launch({ headless: true, args: ['--no-sandbox', '--disable-setuid-sandbox'] });
+        }
 
         const page = await browser.newPage();
         await page.setContent(html, { waitUntil: 'load', timeout: 15000 });
@@ -141,8 +156,8 @@ async function generatePdfBuffer(agentData: CommercialResult, overrideHtml?: str
         });
         await browser.close();
         return Buffer.from(pdfBuffer);
-    } catch (e) {
-        console.warn('Puppeteer no está disponible:', e);
+    } catch (e: any) {
+        console.warn('Puppeteer/Chromium no está disponible:', e.message);
         if (browser) await browser.close().catch(() => {});
         return null;
     }

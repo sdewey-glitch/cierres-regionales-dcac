@@ -14,3 +14,5 @@ user_raw_request.txt
 recovered_user_request.txt
 spreadsheet_data.json
 .vercel
+scratch/
+.env*.local
