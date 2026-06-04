@@ -11,10 +11,15 @@ router.get('/snapshots', async (req, res) => {
     try {
         await createSheetIfNotExists(config.TARGET_SPREADSHEET_ID, 'Sys_Snapshots');
         const rows = await readSheet(config.TARGET_SPREADSHEET_ID, 'Sys_Snapshots!A:B');
-        // skip header if any, or just filter valid periods
-        const files = rows
-            .filter(r => r[0] && r[0].match(/^\d{4}_\d{2}$/))
-            .map(r => `cierre_${r[0]}.json`);
+        
+        // Filtrar períodos válidos únicos (evita duplicidad por chunks)
+        const uniquePeriods = Array.from(new Set(
+            rows
+                .filter(r => r[0] && r[0].match(/^\d{4}_\d{2}$/))
+                .map(r => r[0])
+        ));
+        
+        const files = uniquePeriods.map(p => `cierre_${p}.json`);
         res.json(files);
     } catch (e: any) {
         console.error('Error fetching snapshots', e);
@@ -26,24 +31,22 @@ router.get('/snapshots', async (req, res) => {
 router.get('/snapshots/:filename', async (req, res) => {
     try {
         const filename = req.params.filename; // e.g. cierre_2026_04.json
-        const match = filename.match(/^cierre_(\d{4}_\d{2})\.json$/);
+        const match = filename.match(/^cierre_(\d{4})_(\d{2})\.json$/);
         if (!match) {
             return res.status(400).json({ error: "Archivo invalido" });
         }
-        const periodo = match[1];
+        const year = parseInt(match[1], 10);
+        const month = parseInt(match[2], 10);
 
-        await createSheetIfNotExists(config.TARGET_SPREADSHEET_ID, 'Sys_Snapshots');
-        const rows = await readSheet(config.TARGET_SPREADSHEET_ID, 'Sys_Snapshots!A:B');
-        const row = rows.find(r => r[0] === periodo);
-        
-        if (!row || !row[1]) {
+        const data = await loadMonthSnapshot(year, month);
+        if (!data) {
             return res.status(404).json({ error: "Archivo no encontrado" });
         }
 
-        res.json(JSON.parse(row[1]));
-    } catch(e) {
+        res.json(data);
+    } catch(e: any) {
         console.error('Error leyendo JSON de sheet', e);
-        res.status(500).json({ error: "Error leyendo JSON" });
+        res.status(500).json({ error: e.message });
     }
 });
 
