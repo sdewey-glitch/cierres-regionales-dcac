@@ -712,55 +712,76 @@ export async function calculateDynamicMonth(year: number, month: number): Promis
             } else if (isFrutos) {
                 res.escalaGen = 0;
                 let totalP = 0;
+                let gcTotal = 0, mermasTotal = 0, cisTotal = 0;
+
+                // Helper: parsear "01 / 11 / 24" → Date
+                const parseFechaIncorp = (f: string): Date | null => {
+                    if (!f) return null;
+                    const parts = f.replace(/\s/g, '').split('/');
+                    if (parts.length !== 3) return null;
+                    const d = parseInt(parts[0]), m = parseInt(parts[1]) - 1;
+                    let y = parseInt(parts[2]);
+                    if (y < 100) y += 2000;
+                    return new Date(y, m, d);
+                };
+
+                // Helper: ¿la cuenta está vigente? (8 meses desde fecha_incorporacion)
+                const MESES_VIGENCIA = 8;
+                const fechaOperRef = new Date(year, month - 1, 15); // mitad del mes de cierre
+                const cuentaVigente = (cuenta: any): boolean => {
+                    if (!cuenta || !cuenta.fecha_incorporacion) return true; // sin fecha = vigente por defecto
+                    const fechaAlta = parseFechaIncorp(cuenta.fecha_incorporacion);
+                    if (!fechaAlta) return true;
+                    const diffMs = fechaOperRef.getTime() - fechaAlta.getTime();
+                    const diffMeses = diffMs / (1000 * 60 * 60 * 24 * 30.44);
+                    return diffMeses <= MESES_VIGENCIA;
+                };
+
                 for (const det of res.operacionesDetalle) {
                     const isVenta = det.resultado_topeado_venta > 0;
                     const isCompra = det.resultado_topeado_compra > 0;
-                    
-                    let pctVenta = 0.04; // GC por defecto
-                    let pctCompra = 0.02; // GC por defecto
+
+                    // Defaults: Grandes Cuentas
+                    let pctVenta = 0.04;
+                    let pctCompra = 0.02;
+                    let catVenta = 'Operaciones Grandes';
+                    let catCompra = 'Operaciones Grandes';
 
                     const cuentaMatchVenta = cuentasFrutos.find(c => (c.razon_social && c.razon_social.toLowerCase() === det.sociedad_vendedora?.toLowerCase()) || (c.ac_metabase && det.vendedor_ac?.toLowerCase().includes(c.ac_metabase.toLowerCase())));
                     const cuentaMatchCompra = cuentasFrutos.find(c => (c.razon_social && c.razon_social.toLowerCase() === det.sociedad_compradora?.toLowerCase()) || (c.ac_metabase && det.comprador_ac?.toLowerCase().includes(c.ac_metabase.toLowerCase())));
 
-                    if (cuentaMatchVenta) {
-                        if (cuentaMatchVenta.tipo_cuenta === 'Mermas') {
-                            if (det.tipo.toLowerCase().includes('invernada')) pctVenta = 0.15;
-                            else if (det.tipo.toLowerCase().includes('faena')) pctVenta = 0.20;
-                        } else if (cuentaMatchVenta.tipo_cuenta === 'Activacion CI') {
-                            pctVenta = 0.10;
-                        }
+                    // ── VENTA: Solo Mermas aplica (si está vigente) ──
+                    if (cuentaMatchVenta && cuentaMatchVenta.tipo_cuenta === 'Mermas' && cuentaVigente(cuentaMatchVenta)) {
+                        if (det.tipo.toLowerCase().includes('faena')) pctVenta = 0.20;
+                        else pctVenta = 0.15; // Invernada y otros
+                        catVenta = 'Mermas';
                     }
+                    // Si es Activacion CI en venta → NO aplica, queda GC 4%
+                    // Si es Merma pero venció → queda GC 4%
 
-                    if (cuentaMatchCompra) {
-                        if (cuentaMatchCompra.tipo_cuenta === 'Activacion CI') pctCompra = 0.10;
-                        else if (cuentaMatchCompra.tipo_cuenta === 'Mermas') pctCompra = 0.15;
+                    // ── COMPRA: Solo Activacion CI aplica (si está vigente) ──
+                    if (cuentaMatchCompra && cuentaMatchCompra.tipo_cuenta === 'Activacion CI' && cuentaVigente(cuentaMatchCompra)) {
+                        pctCompra = 0.10;
+                        catCompra = 'Activacion CI';
                     }
+                    // Si es Mermas en compra → NO aplica, queda GC 2%
+                    // Si es CIS pero venció → queda GC 2%
 
                     det.ganancia_personal_venta = isVenta ? (det.resultado_topeado_venta * pctVenta) : 0;
                     det.ganancia_personal_compra = isCompra ? (det.resultado_topeado_compra * pctCompra) : 0;
                     det.escala_aplicada = isVenta ? pctVenta : (isCompra ? pctCompra : 0);
-                    det.categoria_venta = cuentaMatchVenta ? cuentaMatchVenta.tipo_cuenta : 'Operaciones Grandes';
-                    det.categoria_compra = cuentaMatchCompra ? cuentaMatchCompra.tipo_cuenta : 'Operaciones Grandes';
+                    det.categoria_venta = catVenta;
+                    det.categoria_compra = catCompra;
                     totalP += (det.ganancia_personal_venta + det.ganancia_personal_compra);
+
+                    // Acumular subtotales por categoría
+                    if (catVenta === 'Mermas') mermasTotal += det.ganancia_personal_venta;
+                    else gcTotal += det.ganancia_personal_venta;
+
+                    if (catCompra === 'Activacion CI') cisTotal += det.ganancia_personal_compra;
+                    else gcTotal += det.ganancia_personal_compra;
                 }
                 res.componenteP = totalP;
-
-                // Calcular subtotales por tipo de cuenta para el desglose del PDF
-                let gcTotal = 0, mermasTotal = 0, cisTotal = 0;
-                for (const det of res.operacionesDetalle) {
-                    const catV = (det.categoria_venta || 'Operaciones Grandes').toLowerCase();
-                    const catC = (det.categoria_compra || 'Operaciones Grandes').toLowerCase();
-                    const gV = det.ganancia_personal_venta || 0;
-                    const gC = det.ganancia_personal_compra || 0;
-
-                    if (catV.includes('merma')) mermasTotal += gV;
-                    else if (catV.includes('activacion')) cisTotal += gV;
-                    else gcTotal += gV;
-
-                    if (catC.includes('merma')) mermasTotal += gC;
-                    else if (catC.includes('activacion')) cisTotal += gC;
-                    else gcTotal += gC;
-                }
                 res.grandesCuentas = gcTotal;
                 res.mermas = mermasTotal;
                 res.activacionCIS = cisTotal;
