@@ -120,20 +120,14 @@ function adjustAgentDataWithConfig(agentData: CommercialResult, c: any) {
     agentData.cierreReal = sueldoFinal + reintegroNeto - (agentData.amortizacioneDcac || 0) + ajusteEspecial;
 }
 
-/** Genera PDF buffer para un agente */
 async function generatePdfBuffer(agentData: CommercialResult, overrideHtml?: string): Promise<Buffer | null> {
-    if (IS_VERCEL) {
-        // En Vercel (serverless), delegamos la generación de PDF completamente a Apps Script para evitar el límite de tamaño de la función
-        return null;
-    }
+    if (IS_VERCEL) return null; // Vercel no usa puppeteer, lo hace Apps Script
+    
+    const html = overrideHtml || generateClosureHtml(agentData);
+    let browser: any;
 
     try {
-        const html = overrideHtml || generateClosureHtml(agentData);
-        let browser: any;
-
         const dynamicImport = new Function('specifier', 'return import(specifier)');
-
-        // Local: puppeteer normal con Chrome instalado
         const puppeteerModule = await dynamicImport('puppeteer');
         const puppeteer = puppeteerModule.default || puppeteerModule;
         browser = await puppeteer.launch({ headless: true, args: ['--no-sandbox', '--disable-setuid-sandbox'] });
@@ -147,8 +141,9 @@ async function generatePdfBuffer(agentData: CommercialResult, overrideHtml?: str
         });
         await browser.close();
         return Buffer.from(pdfBuffer);
-    } catch (err: any) {
-        console.error('[generatePdfBuffer] Error local al generar PDF con Puppeteer:', err.message);
+    } catch (e) {
+        console.warn('Puppeteer no está disponible:', e);
+        if (browser) await browser.close().catch(() => {});
         return null;
     }
 }
