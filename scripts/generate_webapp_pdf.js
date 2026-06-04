@@ -69,10 +69,11 @@ li { margin-bottom: 4pt; }
   <div class="subtitle" style="font-weight:700;color:#2b6cb0;margin-top:0;">deCampoacampo</div>
   <div class="line"></div>
   <h1>Manual de la Aplicación Web</h1>
-  <div class="subtitle">Cierres Regionales — Operatoria y Control de Gestión</div>
+  <div class="subtitle">Cierres Regionales — Auditoría Técnica Completa</div>
   <div class="meta">
-    <p><strong>Versión 1.0</strong> — Junio 2026</p>
-    <p><strong>Audiencia:</strong> Control de Gestión · Operaciones · Administración</p>
+    <p><strong>Versión 2.0</strong> — Junio 2026</p>
+    <p><strong>Audiencia:</strong> Control de Gestión · Operaciones · Desarrollo · Administración</p>
+    <p><strong>Contenido:</strong> 52 endpoints · 22 fórmulas · 14 componentes · Glosario técnico completo</p>
     <p><strong>Clasificación:</strong> Confidencial — Uso Interno</p>
   </div>
 </div>
