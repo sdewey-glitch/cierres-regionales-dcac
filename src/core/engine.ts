@@ -754,11 +754,11 @@ export async function calculateDynamicMonth(year: number, month: number): Promis
                     const gC = det.ganancia_personal_compra || 0;
 
                     if (catV.includes('merma')) mermasTotal += gV;
-                    else if (catV.includes('activacion') || catV.includes('ci')) cisTotal += gV;
+                    else if (catV.includes('activacion')) cisTotal += gV;
                     else gcTotal += gV;
 
                     if (catC.includes('merma')) mermasTotal += gC;
-                    else if (catC.includes('activacion') || catC.includes('ci')) cisTotal += gC;
+                    else if (catC.includes('activacion')) cisTotal += gC;
                     else gcTotal += gC;
                 }
                 res.grandesCuentas = gcTotal;
