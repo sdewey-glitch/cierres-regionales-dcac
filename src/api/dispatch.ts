@@ -122,41 +122,31 @@ function adjustAgentDataWithConfig(agentData: CommercialResult, c: any) {
 
 /** Genera PDF buffer para un agente */
 async function generatePdfBuffer(agentData: CommercialResult, overrideHtml?: string): Promise<Buffer | null> {
+    if (IS_VERCEL) return null; // Vercel no usa puppeteer, lo hace Apps Script
+    
     const html = overrideHtml || generateClosureHtml(agentData);
     let browser: any;
 
-    const dynamicImport = new Function('specifier', 'return import(specifier)');
-
-    if (IS_VERCEL) {
-        // En Vercel (serverless) no hay Chrome instalado → usamos @sparticuz/chromium y puppeteer-core
-        const chromiumModule = await dynamicImport('@sparticuz/chromium');
-        const puppeteerCoreModule = await dynamicImport('puppeteer-core');
-        
-        const chromium = chromiumModule.default || chromiumModule;
-        const puppeteerCore = puppeteerCoreModule.default || puppeteerCoreModule;
-
-        browser = await puppeteerCore.launch({
-            args: chromium.args,
-            defaultViewport: chromium.defaultViewport,
-            executablePath: await chromium.executablePath(),
-            headless: true,
-        });
-    } else {
-        // Local: puppeteer normal con Chrome instalado
+    try {
+        const dynamicImport = new Function('specifier', 'return import(specifier)');
         const puppeteerModule = await dynamicImport('puppeteer');
         const puppeteer = puppeteerModule.default || puppeteerModule;
         browser = await puppeteer.launch({ headless: true, args: ['--no-sandbox', '--disable-setuid-sandbox'] });
-    }
 
-    const page = await browser.newPage();
-    await page.setContent(html, { waitUntil: 'load', timeout: 15000 });
-    const pdfBuffer = await page.pdf({
-        format: 'A4',
-        printBackground: true,
-        margin: { top: '15mm', right: '12mm', bottom: '15mm', left: '12mm' },
-    });
-    await browser.close();
-    return Buffer.from(pdfBuffer);
+        const page = await browser.newPage();
+        await page.setContent(html, { waitUntil: 'load', timeout: 15000 });
+        const pdfBuffer = await page.pdf({
+            format: 'A4',
+            printBackground: true,
+            margin: { top: '15mm', right: '12mm', bottom: '15mm', left: '12mm' },
+        });
+        await browser.close();
+        return Buffer.from(pdfBuffer);
+    } catch (e) {
+        console.warn('Puppeteer no está disponible:', e);
+        if (browser) await browser.close().catch(() => {});
+        return null;
+    }
 }
 
 
