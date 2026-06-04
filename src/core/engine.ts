@@ -653,8 +653,10 @@ export async function calculateDynamicMonth(year: number, month: number): Promis
         const isFrutos = res.asociadoComercial.toLowerCase() === 'lucila frutos' || res.modalidad.toLowerCase().includes('kam') || res.modalidad.toLowerCase().includes('frutos');
         let pctPersonal = 0;
         
-        const configModel = await getModelByModalidad(res.modalidad);
-        const isCustomModel = !['completa', 'simple', 'hibrida', 'sin minimo', 'operario', 'fijo'].includes(configModel.id) && !isFrutos && !isAcuña;
+        const stdModalidades = ['completa', 'simple', 'hibrida', 'sin minimo', 'operario', 'fijo', 'kam', 'por cuenta', 'part time', ''];
+        const isStdOrSpecial = isFrutos || isAcuña || stdModalidades.includes(res.modalidad.toLowerCase());
+        const configModel = isStdOrSpecial ? { id: res.modalidad.toLowerCase() } as any : await getModelByModalidad(res.modalidad);
+        const isCustomModel = !isStdOrSpecial && !['completa', 'simple', 'hibrida', 'sin minimo', 'operario', 'fijo'].includes(configModel.id);
 
         if (isCustomModel) {
             // Evaluación del Componente Personal en el Modelo Custom
