@@ -12,7 +12,7 @@ import { updateDynamicSueldos } from '../core/writer';
 const router = express.Router();
 
 // ── Config ──
-const IS_VERCEL = !!process.env.VERCEL && process.env.VERCEL_ENV !== 'development';
+const IS_VERCEL = !!process.env.VERCEL;
 
 // Force Vercel dependency tracing to bundle ESM-only packages and their sub-dependencies
 if (false) {
@@ -122,41 +122,35 @@ function adjustAgentDataWithConfig(agentData: CommercialResult, c: any) {
 
 /** Genera PDF buffer para un agente */
 async function generatePdfBuffer(agentData: CommercialResult, overrideHtml?: string): Promise<Buffer | null> {
-    const html = overrideHtml || generateClosureHtml(agentData);
-    let browser: any;
-
-    const dynamicImport = new Function('specifier', 'return import(specifier)');
-
     if (IS_VERCEL) {
-        // En Vercel (serverless) no hay Chrome instalado → usamos @sparticuz/chromium y puppeteer-core
-        const chromiumModule = await dynamicImport('@sparticuz/chromium');
-        const puppeteerCoreModule = await dynamicImport('puppeteer-core');
-        
-        const chromium = chromiumModule.default || chromiumModule;
-        const puppeteerCore = puppeteerCoreModule.default || puppeteerCoreModule;
+        // En Vercel (serverless), delegamos la generación de PDF completamente a Apps Script para evitar el límite de tamaño de la función
+        return null;
+    }
 
-        browser = await puppeteerCore.launch({
-            args: chromium.args,
-            defaultViewport: chromium.defaultViewport,
-            executablePath: await chromium.executablePath(),
-            headless: true,
-        });
-    } else {
+    try {
+        const html = overrideHtml || generateClosureHtml(agentData);
+        let browser: any;
+
+        const dynamicImport = new Function('specifier', 'return import(specifier)');
+
         // Local: puppeteer normal con Chrome instalado
         const puppeteerModule = await dynamicImport('puppeteer');
         const puppeteer = puppeteerModule.default || puppeteerModule;
         browser = await puppeteer.launch({ headless: true, args: ['--no-sandbox', '--disable-setuid-sandbox'] });
-    }
 
-    const page = await browser.newPage();
-    await page.setContent(html, { waitUntil: 'load', timeout: 15000 });
-    const pdfBuffer = await page.pdf({
-        format: 'A4',
-        printBackground: true,
-        margin: { top: '15mm', right: '12mm', bottom: '15mm', left: '12mm' },
-    });
-    await browser.close();
-    return Buffer.from(pdfBuffer);
+        const page = await browser.newPage();
+        await page.setContent(html, { waitUntil: 'load', timeout: 15000 });
+        const pdfBuffer = await page.pdf({
+            format: 'A4',
+            printBackground: true,
+            margin: { top: '15mm', right: '12mm', bottom: '15mm', left: '12mm' },
+        });
+        await browser.close();
+        return Buffer.from(pdfBuffer);
+    } catch (err: any) {
+        console.error('[generatePdfBuffer] Error local al generar PDF con Puppeteer:', err.message);
+        return null;
+    }
 }
 
 
@@ -544,7 +538,10 @@ router.get('/dispatch/preview-pdf/:agent', async (req, res) => {
                 body: JSON.stringify({
                     action: 'preview',
                     htmlContent: html,
-                    pdfFileName: `${agentName} - Cierre.pdf`
+                    pdfFileName: `${agentName} - Cierre.pdf`,
+                    to: 'dummy@decampoacampo.com',
+                    subject: 'Preview PDF',
+                    body: 'Preview PDF'
                 })
             });
             const result = await response.json() as any;
@@ -643,7 +640,9 @@ router.get('/dispatch/preview-html/:agent', async (req, res) => {
 router.post('/dispatch/override/:agent', async (req, res) => {
     try {
         const agentName = decodeURIComponent(req.params.agent);
-        const { year, month, html } = req.body;
+        const year = req.body.year || req.query.year;
+        const month = req.body.month || req.query.month;
+        const html = req.body.html;
         if (!year || !month || !html) return res.status(400).json({ error: 'Faltan parámetros' });
 
         if (!fs.existsSync(OVERRIDE_DIR)) {

@@ -90,7 +90,10 @@ export async function calculateDynamicMonth(year: number, month: number): Promis
 
     // Cargar Cuentas Especiales
     let cuentasEspeciales: any[] = [];
-    const cuentasFile = path.join(__dirname, 'data/cuentas.json');
+    const IS_VERCEL = !!process.env.VERCEL;
+    const cuentasFile = IS_VERCEL && fs.existsSync('/tmp/cuentas.json')
+        ? '/tmp/cuentas.json'
+        : path.join(__dirname, 'data/cuentas.json');
     if (fs.existsSync(cuentasFile)) {
         try {
             cuentasEspeciales = JSON.parse(fs.readFileSync(cuentasFile, 'utf8'));
@@ -649,7 +652,7 @@ export async function calculateDynamicMonth(year: number, month: number): Promis
 
         // 2. Componente Personal (Componente_P)
         const isOperario = res.tipo.toLowerCase().includes('operario');
-        const isFijo = res.modalidad.toLowerCase() === 'fijo' && !isOperario;
+        const isFijo = res.modalidad.toLowerCase() === 'fijo';
         const isAcuña = res.asociadoComercial.toLowerCase() === 'agustin acuna' || res.asociadoComercial.toLowerCase() === 'agustín acuña';
         const isFrutos = res.asociadoComercial.toLowerCase() === 'lucila frutos' || res.modalidad.toLowerCase().includes('kam') || res.modalidad.toLowerCase().includes('frutos');
         let pctPersonal = 0;
@@ -897,6 +900,10 @@ export async function calculateDynamicMonth(year: number, month: number): Promis
             // Modelo Frutos/Acuña: solo Personal (especial), 0 Regional, 0 Oficina
             res.componenteR = 0; 
             res.componenteO = 0;
+        } else if (isFijo) {
+            // Modelo Fijo (Lizaso, De Aduriz, Alejo Broggi): SOLO Personal, 0 Regional, 0 Oficina
+            res.componenteR = 0;
+            res.componenteO = 0;
         } else if (isOperario) {
             // Modelo Operario: 10% Regional de su PROPIA ganancia, 0 Oficina
             res.componenteR = res.bolsaRegion * res.resultado_final_ajustado;
@@ -911,10 +918,6 @@ export async function calculateDynamicMonth(year: number, month: number): Promis
             res.componenteO = 0;
         } else if (isSimple) {
             // Modelo Simple: SOLO Personal, 0 Regional, 0 Oficina
-            res.componenteR = 0;
-            res.componenteO = 0;
-        } else if (res.modalidad.toLowerCase() === 'fijo') {
-            // Modelo Fijo (Lizaso, De Aduriz): SOLO Personal, 0 Regional, 0 Oficina
             res.componenteR = 0;
             res.componenteO = 0;
         } else {
