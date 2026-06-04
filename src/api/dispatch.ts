@@ -490,7 +490,32 @@ router.get('/dispatch/preview-pdf/:agent', async (req, res) => {
             adjustAgentDataWithConfig(agentData, c);
         }
 
-        const pdfBuffer = await generatePdfBuffer(agentData);
+        let pdfBuffer = await generatePdfBuffer(agentData);
+        
+        if (!pdfBuffer && IS_VERCEL) {
+            console.log(`[dispatch/preview] Generando PDF en Vercel vía Apps Script para ${agentName}...`);
+            const html = generateClosureHtml(agentData);
+            const response = await fetch(APPS_SCRIPT_URL, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    action: 'preview',
+                    htmlContent: html,
+                    pdfFileName: `${agentName} - Cierre.pdf`
+                })
+            });
+            const result = await response.json() as any;
+            if (result.success && result.pdfBase64) {
+                pdfBuffer = Buffer.from(result.pdfBase64, 'base64');
+            } else {
+                throw new Error(result.error || 'Error al generar vista previa del PDF en Apps Script');
+            }
+        }
+
+        if (!pdfBuffer) {
+            return res.status(500).json({ error: 'No se pudo generar el PDF' });
+        }
+
         const mesNombre = MONTHS[Number(month) - 1];
         const fileName = `${agentName} - ${mesNombre} ${year}.pdf`;
 
