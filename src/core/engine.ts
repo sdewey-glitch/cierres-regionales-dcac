@@ -608,7 +608,7 @@ export async function calculateDynamicMonth(year: number, month: number): Promis
         const isOperario = res.tipo.toLowerCase().includes('operario');
         const isFijo = res.modalidad.toLowerCase() === 'fijo' && !isOperario;
         const isAcuña = res.asociadoComercial.toLowerCase() === 'agustin acuna' || res.asociadoComercial.toLowerCase() === 'agustín acuña';
-        const isFrutos = res.asociadoComercial.toLowerCase() === 'lucila frutos';
+        const isFrutos = res.asociadoComercial.toLowerCase() === 'lucila frutos' || res.modalidad.toLowerCase().includes('kam') || res.modalidad.toLowerCase().includes('frutos');
         let pctPersonal = 0;
         
         const configModel = getModelByModalidad(res.modalidad);
@@ -697,7 +697,7 @@ export async function calculateDynamicMonth(year: number, month: number): Promis
 
                     det.ganancia_personal_venta = isVenta ? (det.resultado_topeado_venta * pctVenta) : 0;
                     det.ganancia_personal_compra = isCompra ? (det.resultado_topeado_compra * pctCompra) : 0;
-                    det.escala_aplicada = 0;
+                    det.escala_aplicada = isVenta ? pctVenta : (isCompra ? pctCompra : 0);
                     totalP += (det.ganancia_personal_venta + det.ganancia_personal_compra);
                 }
                 res.componenteP = totalP;

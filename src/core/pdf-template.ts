@@ -83,6 +83,10 @@ export function generateClosureHtml(data: CommercialResult): string {
     const totalVarV = operaciones.reduce((s, o) => s + (o.ganancia_personal_venta || 0), 0);
     const totalVarC = operaciones.reduce((s, o) => s + (o.ganancia_personal_compra || 0), 0);
 
+    const isFrutos = (data.modalidad || '').toLowerCase().includes('frutos') || (data.modalidad || '').toLowerCase().includes('kam') || (data.asociadoComercial || '').toLowerCase().includes('frutos');
+    const isAcuna = (data.modalidad || '').toLowerCase().includes('acuña') || (data.asociadoComercial || '').toLowerCase().includes('acuna');
+    const isPorCuenta = isFrutos || isAcuna;
+
     const opsRows = operaciones.map(op => {
         const color = getUNColor(op.tipo);
         const resAj = (op.resultado_topeado_venta || 0) + (op.resultado_topeado_compra || 0);
@@ -102,6 +106,7 @@ export function generateClosureHtml(data: CommercialResult): string {
             <td style="${s};color:${B.textSec};max-width:60px;overflow:hidden;text-overflow:ellipsis" title="${op.comercial_venta || ''}">${op.comercial_venta || '—'}</td>
             <td style="${s};color:${B.textSec};max-width:60px;overflow:hidden;text-overflow:ellipsis" title="${op.comercial_compra || ''}">${op.comercial_compra || '—'}</td>
             <td style="${s};text-align:right;color:${B.textSec}">${fmtRendPct(op.rendimiento_topeado)}</td>
+            <td style="${s};text-align:right;color:${B.dark};font-weight:700">${op.escala_aplicada ? fmtPct(op.escala_aplicada) : '—'}</td>
             <td style="${s};text-align:right;color:${resAj < 0 ? B.danger : B.dark};font-weight:600">${fmt(resAj)}</td>
             <td style="${s};text-align:right;color:${varV < 0 ? B.danger : (varV ? B.primary : B.textMuted)};font-weight:600">${varV ? fmt(varV) : '—'}</td>
             <td style="${s};text-align:right;color:${varC < 0 ? B.danger : (varC ? B.primary : B.textMuted)};font-weight:600">${varC ? fmt(varC) : '—'}</td>
@@ -203,7 +208,7 @@ export function generateClosureHtml(data: CommercialResult): string {
                         <div style="display:flex;justify-content:space-between"><span>Tropas</span> <strong>${data.tropasGeneral}</strong></div>
                         <div style="display:flex;justify-content:space-between"><span>Cabezas</span> <strong>${fmtNum(data.cabezasGeneral)}</strong></div>
                         <div style="display:flex;justify-content:space-between"><span>Resultado</span> <strong>${fmt(data.resultado_final_ajustado)}</strong></div>
-                        <div style="display:flex;justify-content:space-between"><span>Escala</span> <strong>${fmtPct(data.escalaGen)}</strong></div>
+                        <div style="display:flex;justify-content:space-between"><span>Escala</span> <strong>${isPorCuenta ? 'Por Cuenta (Ver Detalle)' : fmtPct(data.escalaGen)}</strong></div>
                     </td>
                 </tr>
                 <!-- Desglose por Unidad de Negocio -->
@@ -436,6 +441,7 @@ ${hasOps ? `
                 <th style="padding:3px 4px;font-size:6px;font-weight:800;color:${B.dark};text-transform:uppercase;letter-spacing:0.3px;text-align:left">AC Venta</th>
                 <th style="padding:3px 4px;font-size:6px;font-weight:800;color:${B.dark};text-transform:uppercase;letter-spacing:0.3px;text-align:left">AC Compra</th>
                 <th style="padding:3px 4px;font-size:6px;font-weight:800;color:${B.dark};text-transform:uppercase;letter-spacing:0.3px;text-align:right">Rend(%)</th>
+                <th style="padding:3px 4px;font-size:6px;font-weight:800;color:${B.dark};text-transform:uppercase;letter-spacing:0.3px;text-align:right">Esc(%)</th>
                 <th style="padding:3px 4px;font-size:6px;font-weight:800;color:${B.dark};text-transform:uppercase;letter-spacing:0.3px;text-align:right">Res. Ajustado</th>
                 <th style="padding:3px 4px;font-size:6px;font-weight:800;color:${B.dark};text-transform:uppercase;letter-spacing:0.3px;text-align:right">Var (V)</th>
                 <th style="padding:3px 4px;font-size:6px;font-weight:800;color:${B.dark};text-transform:uppercase;letter-spacing:0.3px;text-align:right">Var (C)</th>
@@ -451,6 +457,7 @@ ${hasOps ? `
                 <td style="padding:4px 4px"></td>
                 <td style="padding:4px 4px;font-size:6.5px;font-weight:800;color:${B.text};text-align:right">${fmt(operaciones.reduce((s, o) => s + o.importe_vendedor, 0))}</td>
                 <td colspan="2" style="padding:4px 4px"></td>
+                <td style="padding:4px 4px"></td>
                 <td style="padding:4px 4px"></td>
                 <td style="padding:4px 4px;font-size:6.5px;font-weight:800;color:${totalResAj < 0 ? B.danger : B.dark};text-align:right">${fmt(totalResAj)}</td>
                 <td style="padding:4px 4px;font-size:6.5px;font-weight:800;color:${totalVarV < 0 ? B.danger : B.primary};text-align:right">${totalVarV ? fmt(totalVarV) : '—'}</td>
