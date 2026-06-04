@@ -307,9 +307,9 @@ router.post('/generate', async (req, res) => {
         try {
             const rawQ95: any[] = await fetchQ95();
             
-            // Determinar los 3 meses: M, M-1, M-2
+            // Determinar los 4 meses: M, M-1, M-2, M-3
             const mesesIncluir: string[] = [];
-            for (let i = 0; i <= 2; i++) {
+            for (let i = 0; i <= 3; i++) {
                 let pastM = Number(month) - i;
                 let pastY = Number(year);
                 if (pastM <= 0) { pastM += 12; pastY -= 1; }
@@ -323,7 +323,7 @@ router.post('/generate', async (req, res) => {
                 return mesesIncluir.includes(prefix);
             });
             
-            console.log(`[bajada] Q95 total: ${rawQ95.length} rows, filtrado a 3 meses (${mesesIncluir.join(', ')}): ${filteredOps.length} rows`);
+            console.log(`[bajada] Q95 total: ${rawQ95.length} rows, filtrado a 4 meses (${mesesIncluir.join(', ')}): ${filteredOps.length} rows`);
             
             // Tomar TODAS las columnas de la Q95 tal cual vienen
             if (filteredOps.length > 0) {
