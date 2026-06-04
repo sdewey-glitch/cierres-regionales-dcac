@@ -1137,7 +1137,7 @@ const AcGroupAccordion: React.FC<{ acName: string; list: any[] }> = ({ acName, l
                 className={`cursor-pointer group bg-white rounded-2xl p-4 shadow-sm border transition-all duration-300 select-none ${
                   isActive 
                     ? 'shadow-[0_16px_36px_rgba(0,0,0,0.06)] border-blue-500/40 ring-4 ring-blue-500/10 bg-slate-50/30' 
-                    : 'border-slate-200/60 hover:shadow-md hover:-translate-y-0.5 hover:border-slate-300'
+                    : 'border-slate-200/60 hover:shadow-md hover:-translate-y-0.5 hover:border-slate-300 active:scale-[0.98]'
                 }`}
               >
                 <div className="flex justify-between items-start mb-3">

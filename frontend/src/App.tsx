@@ -1011,7 +1011,7 @@ function App() {
                           }
                         }}
                         disabled={isGeneratingPdf}
-                        className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-gray-900 text-white text-xs font-bold hover:bg-black transition-colors shadow-sm disabled:opacity-50"
+                        className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-gray-900 text-white text-xs font-bold hover:bg-black transition-colors shadow-sm disabled:opacity-50 active:scale-95"
                       >
                         {isGeneratingPdf ? (
                           <>

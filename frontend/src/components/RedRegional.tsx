@@ -42,9 +42,8 @@ export default function RedRegional({ data, selectedMonth, onSelectMonth, onBack
   const [activeSubTab, setActiveSubTab] = useState<'canales' | 'plm'>(initialSubTab);
   const [plmData, setPlmData] = useState<any>(null);
   const [loadingPlm, setLoadingPlm] = useState<boolean>(false);
+  const [plmViewType, setPlmViewType] = useState<'percent' | 'cabezas' | 'rendimiento' | 'importe' | 'resultado'>('percent');
   const [plmYear, setPlmYear] = useState<string>('2026');
-  const [plmViewType, setPlmViewType] = useState<'percent' | 'cabezas' | 'rendimiento'>('percent');
-
   useEffect(() => {
     if (activeSubTab === 'plm' && !plmData) {
       setLoadingPlm(true);
@@ -984,7 +983,7 @@ export default function RedRegional({ data, selectedMonth, onSelectMonth, onBack
               <div className="flex items-center gap-0.5 bg-slate-100 rounded-xl p-0.5 border border-slate-200">
                 <button
                   onClick={() => setPlmViewType('percent')}
-                  className={`px-3 py-1 rounded-lg text-[10px] font-black whitespace-nowrap transition-all cursor-pointer ${
+                  className={`px-3 py-1 rounded-lg text-[10px] font-black whitespace-nowrap transition-all cursor-pointer active:scale-95 ${
                     plmViewType === 'percent' ? 'bg-teal-600 text-white shadow-sm' : 'text-slate-500 hover:text-slate-700 hover:bg-white'
                   }`}
                 >
@@ -992,7 +991,7 @@ export default function RedRegional({ data, selectedMonth, onSelectMonth, onBack
                 </button>
                 <button
                   onClick={() => setPlmViewType('cabezas')}
-                  className={`px-3 py-1 rounded-lg text-[10px] font-black whitespace-nowrap transition-all cursor-pointer ${
+                  className={`px-3 py-1 rounded-lg text-[10px] font-black whitespace-nowrap transition-all cursor-pointer active:scale-95 ${
                     plmViewType === 'cabezas' ? 'bg-teal-600 text-white shadow-sm' : 'text-slate-500 hover:text-slate-700 hover:bg-white'
                   }`}
                 >
@@ -1000,11 +999,27 @@ export default function RedRegional({ data, selectedMonth, onSelectMonth, onBack
                 </button>
                 <button
                   onClick={() => setPlmViewType('rendimiento')}
-                  className={`px-3 py-1 rounded-lg text-[10px] font-black whitespace-nowrap transition-all cursor-pointer ${
+                  className={`px-3 py-1 rounded-lg text-[10px] font-black whitespace-nowrap transition-all cursor-pointer active:scale-95 ${
                     plmViewType === 'rendimiento' ? 'bg-teal-600 text-white shadow-sm' : 'text-slate-500 hover:text-slate-700 hover:bg-white'
                   }`}
                 >
-                  Rendimiento
+                  Rend.
+                </button>
+                <button
+                  onClick={() => setPlmViewType('importe')}
+                  className={`px-3 py-1 rounded-lg text-[10px] font-black whitespace-nowrap transition-all cursor-pointer active:scale-95 ${
+                    plmViewType === 'importe' ? 'bg-teal-600 text-white shadow-sm' : 'text-slate-500 hover:text-slate-700 hover:bg-white'
+                  }`}
+                >
+                  Importe
+                </button>
+                <button
+                  onClick={() => setPlmViewType('resultado')}
+                  className={`px-3 py-1 rounded-lg text-[10px] font-black whitespace-nowrap transition-all cursor-pointer active:scale-95 ${
+                    plmViewType === 'resultado' ? 'bg-teal-600 text-white shadow-sm' : 'text-slate-500 hover:text-slate-700 hover:bg-white'
+                  }`}
+                >
+                  Resultado
                 </button>
               </div>
             </div>
@@ -1051,11 +1066,13 @@ export default function RedRegional({ data, selectedMonth, onSelectMonth, onBack
                 <div className="bg-white rounded-2xl border border-slate-200/60 shadow-sm overflow-hidden">
                   <div className="px-4 py-3 border-b border-slate-100 bg-slate-50/50 flex items-center justify-between">
                     <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">
-                      📋 Matriz de {plmViewType === 'percent' ? 'Share Regional' : plmViewType === 'cabezas' ? 'Cabezas (Reg / Total)' : 'Rendimiento ($/cbz)'} por UN
+                      📋 Matriz de {plmViewType === 'percent' ? 'Share Regional' : plmViewType === 'cabezas' ? 'Cabezas (Reg / Total)' : plmViewType === 'rendimiento' ? 'Rendimiento ($/cbz)' : plmViewType === 'importe' ? 'Facturación Bruta ($)' : 'Resultado Neto ($)'} por UN
                     </span>
                     <span className="text-[9px] font-black text-slate-400 bg-slate-100 px-2 py-0.5 rounded-lg">
                       {plmViewType === 'percent' ? 'Fórmula: Cabezas Regionales / Cabezas Totales' : 
                        plmViewType === 'cabezas' ? 'Fórmula: Cabezas Canal Venta = REGIONAL vs Total' :
+                       plmViewType === 'importe' ? 'Fórmula: Suma de Importe Regional por UN' :
+                       plmViewType === 'resultado' ? 'Fórmula: Suma de Resultado Final por UN' :
                        'Fórmula: Resultado Final / Cabezas Regionales'}
                     </span>
                   </div>
@@ -1105,6 +1122,14 @@ export default function RedRegional({ data, selectedMonth, onSelectMonth, onBack
                                         <span className="font-extrabold text-teal-700">{fmtK(ud.regionalCabezas)}</span>
                                         <span className="font-bold text-slate-400 border-t border-slate-100 mt-0.5 pt-0.5">{fmtK(ud.totalCabezas)}</span>
                                       </div>
+                                    ) : plmViewType === 'importe' ? (
+                                      <span className="font-bold text-slate-700">
+                                        {fmtCur.format(ud.importeRegional || 0)}
+                                      </span>
+                                    ) : plmViewType === 'resultado' ? (
+                                      <span className={`font-bold ${ud.resultadoFinal >= 0 ? 'text-emerald-600' : 'text-rose-500'}`}>
+                                        {fmtCur.format(ud.resultadoFinal || 0)}
+                                      </span>
                                     ) : (
                                       <span className="font-bold text-slate-700">
                                         {fmtCur.format(rend)}
@@ -1128,11 +1153,15 @@ export default function RedRegional({ data, selectedMonth, onSelectMonth, onBack
                       name: plmYear === 'Todos' ? `${String(m.year).substring(2)}/${String(m.month).padStart(2, '0')}` : m.monthName.substring(0, 3) 
                     };
                     plmData.unList.forEach((un: string) => {
-                      const ud = m.unData[un] || { totalCabezas: 0, regionalCabezas: 0, resultadoFinal: 0 };
+                      const ud = m.unData[un] || { totalCabezas: 0, regionalCabezas: 0, resultadoFinal: 0, importeRegional: 0 };
                       if (plmViewType === 'percent') {
                         obj[un] = ud.totalCabezas > 0 ? (ud.regionalCabezas / ud.totalCabezas) * 100 : 0;
                       } else if (plmViewType === 'cabezas') {
                         obj[un] = ud.regionalCabezas;
+                      } else if (plmViewType === 'importe') {
+                        obj[un] = ud.importeRegional || 0;
+                      } else if (plmViewType === 'resultado') {
+                        obj[un] = ud.resultadoFinal || 0;
                       } else {
                         obj[un] = ud.regionalCabezas > 0 ? (ud.resultadoFinal / ud.regionalCabezas) : 0;
                       }
