@@ -12,7 +12,15 @@ import { updateDynamicSueldos } from '../core/writer';
 const router = express.Router();
 
 // ── Config ──
-const IS_VERCEL = !!process.env.VERCEL;
+const IS_VERCEL = !!process.env.VERCEL && process.env.VERCEL_ENV !== 'development';
+
+// Force Vercel dependency tracing to bundle ESM-only packages and their sub-dependencies
+if (false) {
+    // @ts-ignore
+    require('@sparticuz/chromium');
+    // @ts-ignore
+    require('puppeteer-core');
+}
 const OVERRIDE_DIR = IS_VERCEL ? '/tmp/overrides' : path.join(__dirname, '..', '..', 'data', 'overrides');
 const MONTHS = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
 const TEST_EMAIL = 'sdewey@decampoacampo.com';
@@ -112,12 +120,34 @@ function adjustAgentDataWithConfig(agentData: CommercialResult, c: any) {
     agentData.cierreReal = sueldoFinal + reintegroNeto - (agentData.amortizacioneDcac || 0) + ajusteEspecial;
 }
 
-/** Genera PDF buffer para un agente (solo local — en Vercel lo genera el Apps Script) */
+/** Genera PDF buffer para un agente */
 async function generatePdfBuffer(agentData: CommercialResult, overrideHtml?: string): Promise<Buffer | null> {
-    if (IS_VERCEL) return null; // Vercel no tiene Chrome; el PDF lo genera el Apps Script vía Drive
     const html = overrideHtml || generateClosureHtml(agentData);
-    const puppeteer = await import('puppeteer');
-    const browser = await puppeteer.default.launch({ headless: true, args: ['--no-sandbox', '--disable-setuid-sandbox'] });
+    let browser: any;
+
+    const dynamicImport = new Function('specifier', 'return import(specifier)');
+
+    if (IS_VERCEL) {
+        // En Vercel (serverless) no hay Chrome instalado → usamos @sparticuz/chromium y puppeteer-core
+        const chromiumModule = await dynamicImport('@sparticuz/chromium');
+        const puppeteerCoreModule = await dynamicImport('puppeteer-core');
+        
+        const chromium = chromiumModule.default || chromiumModule;
+        const puppeteerCore = puppeteerCoreModule.default || puppeteerCoreModule;
+
+        browser = await puppeteerCore.launch({
+            args: chromium.args,
+            defaultViewport: chromium.defaultViewport,
+            executablePath: await chromium.executablePath(),
+            headless: true,
+        });
+    } else {
+        // Local: puppeteer normal con Chrome instalado
+        const puppeteerModule = await dynamicImport('puppeteer');
+        const puppeteer = puppeteerModule.default || puppeteerModule;
+        browser = await puppeteer.launch({ headless: true, args: ['--no-sandbox', '--disable-setuid-sandbox'] });
+    }
+
     const page = await browser.newPage();
     await page.setContent(html, { waitUntil: 'load', timeout: 15000 });
     const pdfBuffer = await page.pdf({
@@ -133,7 +163,7 @@ async function generatePdfBuffer(agentData: CommercialResult, overrideHtml?: str
 /** 
  * Envía mail + guarda PDF en Drive via Apps Script web app
  * El Apps Script corre como el usuario → tiene cuota de Drive
- * En Vercel: manda htmlContent para que Apps Script genere el PDF vía DriveApp
+ * En Vercel: manda htmlContent para que Apps Script genere el PDF vía DriveApp (o pdfBase64 si se generó local)
  */
 async function sendViaAppsScript(params: {
     to: string;
@@ -147,8 +177,21 @@ async function sendViaAppsScript(params: {
     month: string;
     isTest?: boolean;
     testEmail?: string;
+    sender?: string;
 }): Promise<{ success: boolean; error?: string; sender?: string; driveLink?: string }> {
-    if (!APPS_SCRIPT_URL) {
+    // Resolve which Apps Script URL to use based on sender
+    let appScriptUrl = APPS_SCRIPT_URL;
+    if (params.sender) {
+        const senderKey = params.sender.trim().toLowerCase();
+        const prefix = senderKey.split('@')[0].toUpperCase();
+        const envVarName = `APPS_SCRIPT_MAIL_URL_${prefix}`;
+        if (process.env[envVarName]) {
+            appScriptUrl = process.env[envVarName];
+            console.log(`[dispatch] Usando URL de Apps Script específica para remitente ${params.sender}: ${envVarName}`);
+        }
+    }
+
+    if (!appScriptUrl) {
         return { success: false, error: 'APPS_SCRIPT_MAIL_URL no configurada en .env' };
     }
 
@@ -164,17 +207,17 @@ async function sendViaAppsScript(params: {
             testEmail: params.testEmail || TEST_EMAIL,
         };
 
-        // Adjuntar PDF como base64 (local) o HTML para que Apps Script genere el PDF (Vercel)
+        // Adjuntar PDF como base64 (local o Vercel con chromium) o HTML para que Apps Script genere el PDF
         if (params.pdfBuffer) {
             payload.pdfBase64 = params.pdfBuffer.toString('base64');
             payload.pdfFileName = params.pdfFileName || 'cierre.pdf';
         } else if (params.htmlContent) {
-            // Vercel: Apps Script convierte HTML → PDF usando DriveApp
+            // Apps Script convierte HTML → PDF usando DriveApp
             payload.htmlContent = params.htmlContent;
             payload.pdfFileName = params.pdfFileName || 'cierre.pdf';
         }
 
-        const response = await fetch(APPS_SCRIPT_URL, {
+        const response = await fetch(appScriptUrl, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(payload),
@@ -663,6 +706,7 @@ router.post('/dispatch/test', async (req, res) => {
             month: String(month),
             isTest: true,
             testEmail: TEST_EMAIL,
+            sender: sender || '',
         });
 
         console.log(`[dispatch/test] Resultado:`, result.success ? '✅' : '❌', result.error || '');
@@ -754,6 +798,7 @@ router.post('/dispatch/send', async (req, res) => {
             pdfFileName,
             year: String(year),
             month: String(month),
+            sender: sender || '',
         });
 
         // 3. Registrar en historial
@@ -794,11 +839,20 @@ router.post('/dispatch/send', async (req, res) => {
  * GET /api/dispatch/health — Verifica conexión con Apps Script
  */
 router.get('/dispatch/health', async (req, res) => {
-    if (!APPS_SCRIPT_URL) {
+    const { sender } = req.query;
+    let url = APPS_SCRIPT_URL;
+    if (sender) {
+        const prefix = String(sender).trim().toLowerCase().split('@')[0].toUpperCase();
+        const envVarName = `APPS_SCRIPT_MAIL_URL_${prefix}`;
+        if (process.env[envVarName]) {
+            url = process.env[envVarName];
+        }
+    }
+    if (!url) {
         return res.json({ ok: false, error: 'APPS_SCRIPT_MAIL_URL no configurada' });
     }
     try {
-        const response = await fetch(APPS_SCRIPT_URL, { redirect: 'follow' });
+        const response = await fetch(url, { redirect: 'follow' });
         const data = await response.json();
         res.json({ ok: true, ...data });
     } catch (e: any) {

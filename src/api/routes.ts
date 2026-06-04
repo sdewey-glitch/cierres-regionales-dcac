@@ -5,7 +5,7 @@ import * as fs from 'fs';
 const router = express.Router();
 
 // En Vercel el filesystem es read-only, usar /tmp/ para archivos temporales
-const IS_VERCEL = !!process.env.VERCEL;
+const IS_VERCEL = !!process.env.VERCEL && process.env.VERCEL_ENV !== 'development';
 const SNAPSHOTS_DIR = IS_VERCEL ? '/tmp' : path.join(__dirname, '../core/snapshots');
 
 // API para listar meses disponibles
