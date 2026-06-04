@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Map as MapIcon, ArrowLeft, Database, ExternalLink, BarChart3, Calculator, FileText, RefreshCw, BookOpen, Layers, TrendingUp, Users, ChevronRight, Activity, Target, X, CheckCircle, AlertCircle, Package, Mail, ChevronDown, ChevronUp, Shield, Settings, PieChart } from 'lucide-react';
+import { Map as MapIcon, ArrowLeft, Database, ExternalLink, BarChart3, Calculator, FileText, RefreshCw, BookOpen, Layers, TrendingUp, Users, ChevronRight, Activity, Target, X, CheckCircle, AlertCircle, Package, Mail, ChevronDown, ChevronUp, Shield, Settings, PieChart, Loader2 } from 'lucide-react';
 import MermaidChart from './MermaidChart';
 import { diagramaCierres } from './mermaidConstants';
 import SortableTable from './SortableTable';
@@ -73,6 +73,7 @@ export default function Hub({ API_URL, setActiveTab, activeYear, activeMonth }: 
     mendel: [] as any[],
     prices: {} as any
   });
+  const [loading, setLoading] = useState(true);
   const [cierreData, setCierreData] = useState<any[]>([]);
   const [activeView, setActiveView] = useState<'cards' | 'data_sources' | 'red' | 'ajustes'>('cards');
   const [kpiModal, setKpiModal] = useState<{ title: string; items: any[]; columns: any[]; type?: 'grouped' | 'menu_armado' | 'menu_revision' | 'gastos_detail' | 'sociedad_detail'; cardId?: string } | null>(null);
@@ -197,6 +198,7 @@ export default function Hub({ API_URL, setActiveTab, activeYear, activeMonth }: 
 
   useEffect(() => {
     const fetchAll = async () => {
+      setLoading(true);
       try {
         const [cuentasRes, rosterRes, mendelRes, pricesRes] = await Promise.all([
           fetch(`${API_URL}/cuentas`).catch(() => null),
@@ -238,6 +240,8 @@ export default function Hub({ API_URL, setActiveTab, activeYear, activeMonth }: 
         }
       } catch (e) {
         console.error(e);
+      } finally {
+        setLoading(false);
       }
     };
     fetchAll();
@@ -1047,9 +1051,16 @@ const AcGroupAccordion: React.FC<{ acName: string; list: any[] }> = ({ acName, l
       {renderHistoricoModal()}
 
       {/* Header del Hub */}
-      <div className="mb-8">
-        <h1 className="text-2xl font-black text-slate-800 tracking-tight">Hub Principal</h1>
-        <p className="text-sm text-slate-500 mt-1">Centro de control del motor de cierres regionales.</p>
+      <div className="mb-8 flex items-center justify-between">
+        <div>
+          <h1 className="text-2xl font-black text-slate-800 tracking-tight flex items-center gap-2">
+            Hub Principal
+            {loading && <Loader2 className="animate-spin text-[#ff3b30] h-5 w-5" />}
+          </h1>
+          <p className="text-sm text-slate-500 mt-1">
+            {loading ? 'Obteniendo datos de Google Sheets y Metabase...' : 'Centro de control del motor de cierres regionales.'}
+          </p>
+        </div>
       </div>
 
       {/* KPI Rápidos - Clickeables — siempre 1 fila en desktop */}
