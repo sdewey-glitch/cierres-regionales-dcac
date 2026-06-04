@@ -69,10 +69,31 @@ export interface MendelGasto {
     fecha?: string;
 }
 
+export interface ViajeEntry {
+    idViaje: string;
+    fecha: string;       // YYYY-MM-DD
+    desde: string;
+    hasta: string;
+    km: number;
+    motivo: string;
+    usuario: string;     // email
+    comercial: string;   // nombre normalizado
+}
+
+export interface ViajesAgregados {
+    comercial: string;
+    año: number;
+    mes: number;
+    kmsTotales: number;
+    cantViajes: number;
+    viajes: ViajeEntry[];
+}
+
 // Para leer los inputs usaremos las planillas divididas por dominio
 const CONFIG_ID = config.HUB_CONFIGURACIONES_ID;
 const GASTOS_ID = config.HUB_GASTOS_ID;
 const CIERRES_ID = config.HUB_CIERRES_ID;
+const KMS_VIAJES_ID = config.KMS_VIAJES_ID;
 const TABLERO_ID = config.HUB_TABLERO_ID;
 const HISTORIAL_ID = config.HUB_HISTORIAL_ID;
 
@@ -327,3 +348,109 @@ export async function fetchMendelGastos(): Promise<MendelGasto[]> {
     }
 }
 
+/** 
+ * Lee viajes individuales del CRM (Viajes CRM - AutosPropios) y los agrega por comercial+mes.
+ * Regla: viajes de los primeros 5 días del mes se cuentan para el mes anterior.
+ */
+export async function fetchViajesPropios(): Promise<ViajesAgregados[]> {
+    try {
+        if (!KMS_VIAJES_ID) {
+            console.warn("KMS_VIAJES_ID no configurado, saltando viajes propios.");
+            return [];
+        }
+        const roster = await getRoster();
+        
+        // Leer Viajes CRM - AutosPropios
+        // Headers: ID Viaje | Fecha | Desde | Hasta | KM | Motivo de viaje | Usuario (email) | Actualizado | Comercial | Año
+        const raw = await readSheet(KMS_VIAJES_ID, "'Viajes CRM - AutosPropios'!A2:J");
+        
+        // Mapear emails del roster para resolver usuarios
+        const emailToName = new Map<string, string>();
+        for (const [name, r] of roster.entries()) {
+            const email = (r.mail || r.email || '').toLowerCase();
+            if (email) emailToName.set(email, name);
+        }
+        
+        const serialToDate = (serial: number): Date => {
+            return new Date((serial - 25569) * 86400000);
+        };
+        
+        // Cutoff: los primeros 5 días del mes van al mes anterior
+        const CUTOFF_DAYS = 5;
+        
+        const getEffectiveMonth = (date: Date): { año: number; mes: number } => {
+            let year = date.getUTCFullYear();
+            let month = date.getUTCMonth() + 1; // 1-indexed
+            const day = date.getUTCDate();
+            
+            if (day <= CUTOFF_DAYS) {
+                // Primeros 5 días → mes anterior
+                month--;
+                if (month === 0) { month = 12; year--; }
+            }
+            return { año: year, mes: month };
+        };
+        
+        // Parse viajes
+        const viajes: ViajeEntry[] = [];
+        for (const row of raw) {
+            const fechaSerial = Number(row[1]);
+            const km = Number(row[4]) || 0;
+            const email = String(row[6] || '').trim().toLowerCase();
+            const comercialDirect = String(row[8] || '').trim();
+            
+            if (!fechaSerial || fechaSerial < 45000 || km <= 0 || km > 50000) continue;
+            
+            const date = serialToDate(fechaSerial);
+            const dateStr = date.toISOString().split('T')[0];
+            
+            // Resolver nombre del comercial
+            let comercial = comercialDirect;
+            if (!comercial && email) {
+                comercial = emailToName.get(email) || email.split('@')[0];
+            }
+            
+            viajes.push({
+                idViaje: String(row[0] || ''),
+                fecha: dateStr,
+                desde: String(row[2] || ''),
+                hasta: String(row[3] || ''),
+                km,
+                motivo: String(row[5] || ''),
+                usuario: email,
+                comercial,
+            });
+        }
+        
+        // Agregar por comercial + mes efectivo
+        const agrupado = new Map<string, ViajesAgregados>();
+        
+        for (const v of viajes) {
+            const date = new Date(v.fecha);
+            const { año, mes } = getEffectiveMonth(date);
+            const key = `${v.comercial.toLowerCase()}_${año}_${mes}`;
+            
+            if (!agrupado.has(key)) {
+                agrupado.set(key, {
+                    comercial: v.comercial,
+                    año,
+                    mes,
+                    kmsTotales: 0,
+                    cantViajes: 0,
+                    viajes: [],
+                });
+            }
+            const ag = agrupado.get(key)!;
+            ag.kmsTotales += v.km;
+            ag.cantViajes++;
+            ag.viajes.push(v);
+        }
+        
+        const result = [...agrupado.values()];
+        console.log(`[ViajesPropios] ${viajes.length} viajes → ${result.length} registros agregados`);
+        return result;
+    } catch (e: any) {
+        console.warn("No se pudo leer Viajes CRM - AutosPropios.", e.message);
+        return [];
+    }
+}

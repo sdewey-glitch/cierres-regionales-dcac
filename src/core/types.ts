@@ -110,6 +110,7 @@ export interface CommercialResult {
     amortizacioneDcac: number;
     gastosDetalle: { categoria: string; importe: number }[];
     gastosMendelMovilidad?: number;
+    viajesPropios?: { fecha: string; desde: string; hasta: string; km: number; motivo: string }[];
 
     // Desglose KAM (Frutos / Acuña) - subtotales por tipo de cuenta
     grandesCuentas?: number;

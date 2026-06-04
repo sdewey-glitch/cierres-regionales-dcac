@@ -1,7 +1,7 @@
 import { fetchQ95 } from '../api/metabase';
 import { getRoster, normalizeName } from './normalization';
 import { interpolateLogScale, getMinimumForCategory, getExactScale } from './calculator';
-import { fetchGastos, fetchAjustesManuales, fetchKms, fetchPreciosKm, fetchAmortDcac, fetchMendelGastos, fetchVehicleMap, fetchTajada } from './inputs';
+import { fetchGastos, fetchAjustesManuales, fetchKms, fetchPreciosKm, fetchAmortDcac, fetchMendelGastos, fetchVehicleMap, fetchTajada, fetchViajesPropios } from './inputs';
 import { fetchHistoricalSalaries } from './historical';
 import { getModelByModalidad, resolveScalePct } from './models';
 import * as fs from 'fs';
@@ -65,8 +65,8 @@ export async function calculateDynamicMonth(year: number, month: number): Promis
     const roster = await getRoster();
 
     // Fetch gastos data sources and config
-    const [kmsData, preciosKm, amortData, mendelData, vehicleMap, gastos, manualAdjustments, tajadaData, historicalSalaries] = await Promise.all([
-        fetchKms(), fetchPreciosKm(), fetchAmortDcac(), fetchMendelGastos(), fetchVehicleMap(), fetchGastos(), fetchAjustesManuales(), fetchTajada(), fetchHistoricalSalaries()
+    const [kmsData, preciosKm, amortData, mendelData, vehicleMap, gastos, manualAdjustments, tajadaData, historicalSalaries, viajesPropios] = await Promise.all([
+        fetchKms(), fetchPreciosKm(), fetchAmortDcac(), fetchMendelGastos(), fetchVehicleMap(), fetchGastos(), fetchAjustesManuales(), fetchTajada(), fetchHistoricalSalaries(), fetchViajesPropios()
     ]);
     const añoMes = `${year}${String(month).padStart(2, '0')}`;
 
@@ -1004,6 +1004,30 @@ export async function calculateDynamicMonth(year: number, month: number): Promis
             res.reintegroMovilidad = 0;
             res.gastosMovilidad = 0;
             // Amortización se mantiene — puede haber amortización sin KMS cargados aún
+        }
+        
+        // 5b2. Viajes CRM (autos propios) - enriquecer con viajes individuales del CRM
+        const viajesEntry = viajesPropios.find(v => 
+            v.año === year && v.mes === month && 
+            v.comercial.toLowerCase() === nameLC
+        );
+        if (viajesEntry) {
+            // Si el KMS tab no tenía datos para este propio, usar los del CRM
+            if (res.kms === 0 && viajesEntry.kmsTotales > 0) {
+                res.kms = viajesEntry.kmsTotales;
+                res.auto = res.auto || 'propio';
+                res.precioPorKm = preciosKm.get(res.auto) || preciosKm.get('propio') || preciosKm.get('auto') || 0;
+                res.reintegroMovilidad = res.kms * res.precioPorKm;
+                res.amortizacioneDcac = 0;
+            }
+            // Adjuntar detalle de viajes para el reporte
+            res.viajesPropios = viajesEntry.viajes.map(v => ({
+                fecha: v.fecha,
+                desde: v.desde,
+                hasta: v.hasta,
+                km: v.km,
+                motivo: v.motivo,
+            }));
         }
         
         // 5c. Mendel (gastos de tarjeta corporativa) - Período anterior (M-1)

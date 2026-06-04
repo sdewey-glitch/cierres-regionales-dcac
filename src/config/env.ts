@@ -20,9 +20,11 @@ export const config = {
     MASTER_ROSTER_ID: process.env.MASTER_ROSTER_ID || '',
     MENDEL_SPREADSHEET_ID: process.env.MENDEL_SPREADSHEET_ID || '',
     CIERRES_ROOT_FOLDER_ID: process.env.CIERRES_ROOT_FOLDER_ID || '',
+    KMS_VIAJES_ID: process.env.KMS_VIAJES_ID || '',
 };
 
-const missing = Object.entries(config).filter(([_, v]) => !v).map(([k]) => k);
+const OPTIONAL_KEYS = ['KMS_VIAJES_ID'];
+const missing = Object.entries(config).filter(([k, v]) => !v && !OPTIONAL_KEYS.includes(k)).map(([k]) => k);
 if (missing.length > 0) {
     throw new Error(`Faltan variables de entorno: ${missing.join(', ')}`);
 }
