@@ -532,6 +532,39 @@ router.get('/dispatch/preview', async (req, res) => {
 });
 
 /**
+ * GET /api/dispatch/preview-html/:agent — Alias con param en la URL
+ */
+router.get('/dispatch/preview-html/:agent', async (req, res) => {
+    try {
+        const agentName = decodeURIComponent(req.params.agent);
+        const { year, month } = req.query;
+        if (!year || !month) return res.status(400).json({ error: 'year y month requeridos' });
+
+        const agentData = await getAgentData(Number(year), Number(month), agentName);
+        if (!agentData) return res.status(404).json({ error: `No se encontró datos para ${agentName}` });
+
+        const c = await getAgentConfig(Number(year), Number(month), agentName);
+        if (c) {
+            adjustAgentDataWithConfig(agentData, c);
+        }
+
+        let finalHtml = '';
+        const overrideDir = path.join(__dirname, '..', '..', 'data', 'overrides');
+        const overrideFile = path.join(overrideDir, `${year}_${month}_${agentName.replace(/[^a-z0-9]/gi, '_')}.html`);
+        
+        if (fs.existsSync(overrideFile)) {
+            finalHtml = fs.readFileSync(overrideFile, 'utf8');
+        } else {
+            finalHtml = generateClosureHtml(agentData);
+        }
+
+        res.send(finalHtml);
+    } catch (e: any) {
+        res.status(500).json({ error: e.message });
+    }
+});
+
+/**
  * POST /api/dispatch/override/:agent — Guarda el HTML modificado a mano
  */
 router.post('/dispatch/override/:agent', async (req, res) => {

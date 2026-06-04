@@ -59,3 +59,36 @@ export async function loadMonthSnapshot(year: number, month: number): Promise<Co
     return null;
 }
 
+export async function loadAllSnapshots(): Promise<Record<string, CommercialResult[]>> {
+    try {
+        await createSheetIfNotExists(config.TARGET_SPREADSHEET_ID, 'Sys_Snapshots');
+        const rows = await readSheet(config.TARGET_SPREADSHEET_ID, 'Sys_Snapshots!A:C');
+        
+        const groups: Record<string, any[][]> = {};
+        for (const r of rows) {
+            const period = r[0];
+            if (!period || period === 'Periodo') continue;
+            if (!groups[period]) {
+                groups[period] = [];
+            }
+            groups[period].push(r);
+        }
+        
+        const out: Record<string, CommercialResult[]> = {};
+        for (const [period, chunkRows] of Object.entries(groups)) {
+            chunkRows.sort((a, b) => parseInt(a[1], 10) - parseInt(b[1], 10));
+            const jsonStr = chunkRows.map(r => r[2] || '').join('');
+            try {
+                out[period] = JSON.parse(jsonStr);
+            } catch (err: any) {
+                console.error(`[snapshot] Error parsing JSON for period ${period}:`, err.message);
+            }
+        }
+        return out;
+    } catch (e) {
+        console.error('Error leyendo todos los snapshots de sheets', e);
+        return {};
+    }
+}
+
+

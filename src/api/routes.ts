@@ -4,7 +4,9 @@ import * as fs from 'fs';
 
 const router = express.Router();
 
-const SNAPSHOTS_DIR = path.join(__dirname, '../core/snapshots');
+// En Vercel el filesystem es read-only, usar /tmp/ para archivos temporales
+const IS_VERCEL = !!process.env.VERCEL;
+const SNAPSHOTS_DIR = IS_VERCEL ? '/tmp' : path.join(__dirname, '../core/snapshots');
 
 // API para listar meses disponibles
 router.get('/snapshots', async (req, res) => {
@@ -51,7 +53,7 @@ router.get('/snapshots/:filename', async (req, res) => {
 });
 
 import { calculateDynamicMonth, classifyChannel } from '../core/engine';
-import { saveMonthSnapshot, loadMonthSnapshot } from '../core/snapshot';
+import { saveMonthSnapshot, loadMonthSnapshot, loadAllSnapshots } from '../core/snapshot';
 import { updateDynamicSueldos } from '../core/writer';
 import { fetchPreciosKm, fetchMendelGastos, fetchAjustesManuales, cleanSheetsNumber } from '../core/inputs';
 import { calculateRetroactiveAdjustments } from '../core/engine';
@@ -237,10 +239,14 @@ router.post('/generate', async (req, res) => {
         const retros = await calculateRetroactiveAdjustments(Number(year), Number(month));
         
         // Guardar retroactivos como JSON local (backup)
-        const retroDir = path.join(__dirname, '../core/snapshots');
-        const retroFile = path.join(retroDir, `retro_${year}_${String(month).padStart(2, '0')}.json`);
-        fs.writeFileSync(retroFile, JSON.stringify(retros, null, 2));
-        console.log(`[retro] Guardado ${retros.length} ajustes en ${retroFile}`);
+        try {
+            const retroDir = SNAPSHOTS_DIR;
+            const retroFile = path.join(retroDir, `retro_${year}_${String(month).padStart(2, '0')}.json`);
+            fs.writeFileSync(retroFile, JSON.stringify(retros, null, 2));
+            console.log(`[retro] Guardado ${retros.length} ajustes en ${retroFile}`);
+        } catch (writeErr: any) {
+            console.warn(`[retro] ⚠️ No se pudo guardar retro local: ${writeErr.message}`);
+        }
         
         // === ESCRIBIR RETROACTIVOS AL SHEET ===
         const añoMes = `${year}${String(month).padStart(2, '0')}`;
@@ -467,9 +473,12 @@ router.post('/generate/agent', async (req, res) => {
         const retros = await calculateRetroactiveAdjustments(Number(year), Number(month));
         
         // Guardar retroactivos como JSON local (backup)
-        const retroDir = path.join(__dirname, '../core/snapshots');
-        const retroFile = path.join(retroDir, `retro_${year}_${String(month).padStart(2, '0')}.json`);
-        fs.writeFileSync(retroFile, JSON.stringify(retros, null, 2));
+        try {
+            const retroFile = path.join(SNAPSHOTS_DIR, `retro_${year}_${String(month).padStart(2, '0')}.json`);
+            fs.writeFileSync(retroFile, JSON.stringify(retros, null, 2));
+        } catch (writeErr: any) {
+            console.warn(`[retro] ⚠️ No se pudo guardar retro local: ${writeErr.message}`);
+        }
         
         // Sumar ajustes por agente
         const ajustesPorAgente = new Map<string, number>();
@@ -535,7 +544,7 @@ router.get('/retroactivos', async (req, res) => {
     if (!year || !month) return res.status(400).json({ error: "Falta year y month" });
     
     try {
-        const retroFile = path.join(__dirname, `core/snapshots/retro_${year}_${String(Number(month)).padStart(2, '0')}.json`);
+        const retroFile = path.join(SNAPSHOTS_DIR, `retro_${year}_${String(Number(month)).padStart(2, '0')}.json`);
         
         if (fs.existsSync(retroFile)) {
             // Devolver retroactivos pre-calculados
@@ -977,8 +986,8 @@ router.get('/market-metrics', async (req, res) => {
 import { CommercialResult } from '../core/types';
 
 // ── Cache offline: guarda datos de Google Sheets a disco para funcionar sin WiFi ──
-const OFFLINE_CACHE_DIR = path.join(__dirname, '../core/cache');
-if (!fs.existsSync(OFFLINE_CACHE_DIR)) fs.mkdirSync(OFFLINE_CACHE_DIR, { recursive: true });
+const OFFLINE_CACHE_DIR = IS_VERCEL ? '/tmp/cache' : path.join(__dirname, '../core/cache');
+try { if (!fs.existsSync(OFFLINE_CACHE_DIR)) fs.mkdirSync(OFFLINE_CACHE_DIR, { recursive: true }); } catch (e) {}
 
 function saveOfflineCache(name: string, data: any) {
     try {
@@ -1347,23 +1356,14 @@ router.get('/historico/:agente', async (req, res) => {
         }
 
         // 2. Read V4 data (from local snapshots)
-        let snapshotRows: any[][] = [];
         try {
-            await createSheetIfNotExists(config.TARGET_SPREADSHEET_ID, 'Sys_Snapshots');
-            snapshotRows = await readSheet(config.TARGET_SPREADSHEET_ID, 'Sys_Snapshots!A:B');
-        } catch (e) {
-            console.warn('Could not read Sys_Snapshots', e);
-        }
-
-        for (const row of snapshotRows) {
-            if (!row[0] || !row[1] || row[0] === 'Periodo') continue;
-            try {
-                const parts = row[0].split('_');
+            const allSnaps = await loadAllSnapshots();
+            for (const [period, snapshotData] of Object.entries(allSnaps)) {
+                const parts = period.split('_');
                 const year = parseInt(parts[0], 10);
                 const month = parseInt(parts[1], 10);
                 const am = year * 100 + month;
 
-                const snapshotData: any[] = JSON.parse(row[1]);
                 const agentSnap = snapshotData.find((s: any) => s.asociadoComercial && s.asociadoComercial.toLowerCase() === agentName.toLowerCase());
 
                 if (agentSnap) {
@@ -1385,9 +1385,9 @@ router.get('/historico/:agente', async (req, res) => {
                         hasSnapshot: true,
                     });
                 }
-            } catch (snapErr: any) {
-                console.warn(`[historico] Error parsing snapshot ${row[0]}:`, snapErr.message);
             }
+        } catch (e: any) {
+            console.warn('[historico] Error al cargar los snapshots:', e.message);
         }
 
         // 3. Load Drive links
@@ -1612,21 +1612,13 @@ router.get('/metricas-red', async (req, res) => {
         // --- Cargar costos de los snapshots ---
         const snapshotCosts = new Map<string, { costoRed: number; agentes: number; acDetail: any[] }>();
         
-        let snapshotRows: any[][] = [];
         try {
-            await createSheetIfNotExists(config.TARGET_SPREADSHEET_ID, 'Sys_Snapshots');
-            snapshotRows = await readSheet(config.TARGET_SPREADSHEET_ID, 'Sys_Snapshots!A:B');
-        } catch (e) {
-            console.warn('Could not read Sys_Snapshots', e);
-        }
-
-        for (const row of snapshotRows) {
-            if (!row[0] || !row[1] || row[0] === 'Periodo') continue;
-            const match = row[0].match(/^(\d{4})_(\d{2})$/);
-            if (!match) continue;
-            const key = `${match[1]}_${match[2]}`;
-            const periodo = `${match[1]}${match[2]}`; // e.g. "202605"
-            const raw = JSON.parse(row[1]);
+            const allSnaps = await loadAllSnapshots();
+            for (const [periodCode, raw] of Object.entries(allSnaps)) {
+                const match = periodCode.match(/^(\d{4})_(\d{2})$/);
+                if (!match) continue;
+                const key = `${match[1]}_${match[2]}`;
+                const periodo = `${match[1]}${match[2]}`; // e.g. "202605"
                 let costoRed = 0;
                 const agentesSet = new Set<string>();
                 const acDetail: any[] = [];
@@ -1665,6 +1657,9 @@ router.get('/metricas-red', async (req, res) => {
                 }
                 snapshotCosts.set(key, { costoRed, agentes: agentesSet.size, acDetail });
             }
+        } catch (e: any) {
+            console.warn('[metricas-red] Error al cargar los snapshots:', e.message);
+        }
 
         // --- Procesar cada mes ---
         const months: any[] = [];
@@ -1949,71 +1944,67 @@ router.get('/minimos-red', async (req, res) => {
         const MONTHS_ES = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
         const months: any[] = [];
 
-        let snapshotRows: any[][] = [];
         try {
-            await createSheetIfNotExists(config.TARGET_SPREADSHEET_ID, 'Sys_Snapshots');
-            snapshotRows = await readSheet(config.TARGET_SPREADSHEET_ID, 'Sys_Snapshots!A:B');
-        } catch (e) {
-            console.warn('Could not read Sys_Snapshots', e);
-        }
+            const allSnaps = await loadAllSnapshots();
+            for (const [periodCode, agents] of Object.entries(allSnaps)) {
+                try {
+                    const parts = periodCode.split('_');
+                    const year = parseInt(parts[0], 10);
+                    const month = parseInt(parts[1], 10);
 
-        for (const row of snapshotRows) {
-            if (!row[0] || !row[1] || row[0] === 'Periodo') continue;
-            try {
-                const parts = row[0].split('_');
-                const year = parseInt(parts[0], 10);
-                const month = parseInt(parts[1], 10);
+                    // Filtrar agentes (excluir tipo Oficina)
+                    const agentesRed = agents.filter(a => a.tipo !== 'Oficina');
 
-                const agents: any[] = JSON.parse(row[1]);
+                    // Agentes que cayeron al mínimo: variable_personal === 0, modalidad no es 'Sin minimo' ni 'Fijo'
+                    const enMinimo = agentesRed.filter(a =>
+                        a.variable_personal === 0 &&
+                        a.modalidad !== 'Sin minimo' &&
+                        a.modalidad !== 'Fijo'
+                    );
 
-                // Filtrar agentes (excluir tipo Oficina)
-                const agentesRed = agents.filter(a => a.tipo !== 'Oficina');
+                    const agentesEnMinimo = enMinimo.length;
+                    const totalAgentes = agentesRed.length;
 
-                // Agentes que cayeron al mínimo: variable_personal === 0, modalidad no es 'Sin minimo' ni 'Fijo'
-                const enMinimo = agentesRed.filter(a =>
-                    a.variable_personal === 0 &&
-                    a.modalidad !== 'Sin minimo' &&
-                    a.modalidad !== 'Fijo'
-                );
+                    const subsidioTotal = enMinimo.reduce((sum, a) => {
+                        return sum + Math.max(0, (a.minimo || 0) - (a.componenteP || 0));
+                    }, 0);
 
-                const agentesEnMinimo = enMinimo.length;
-                const totalAgentes = agentesRed.length;
+                    const sueldoBrutoTotal = agentesRed.reduce((sum, a) => sum + (a.sueldoBruto || 0), 0);
 
-                const subsidioTotal = enMinimo.reduce((sum, a) => {
-                    return sum + Math.max(0, (a.minimo || 0) - (a.componenteP || 0));
-                }, 0);
+                    const pctEnMinimo = totalAgentes > 0 ? Math.round((agentesEnMinimo / totalAgentes) * 1000) / 1000 : 0;
 
-                const sueldoBrutoTotal = agentesRed.reduce((sum, a) => sum + (a.sueldoBruto || 0), 0);
+                    const detalle = enMinimo.map(a => ({
+                        nombre: a.asociadoComercial,
+                        codigo: a.codigo,
+                        provincia: a.provincia,
+                        oficina: a.oficina,
+                        categoria: a.categoria,
+                        modalidad: a.modalidad,
+                        minimo: a.minimo || 0,
+                        componenteP: a.componenteP || 0,
+                        subsidio: Math.max(0, (a.minimo || 0) - (a.componenteP || 0)),
+                        cierreReal: a.cierreReal || 0
+                    }));
 
-                const pctEnMinimo = totalAgentes > 0 ? Math.round((agentesEnMinimo / totalAgentes) * 1000) / 1000 : 0;
-
-                const detalle = enMinimo.map(a => ({
-                    nombre: a.asociadoComercial,
-                    codigo: a.codigo,
-                    provincia: a.provincia,
-                    oficina: a.oficina,
-                    categoria: a.categoria,
-                    modalidad: a.modalidad,
-                    minimo: a.minimo || 0,
-                    componenteP: a.componenteP || 0,
-                    subsidio: Math.max(0, (a.minimo || 0) - (a.componenteP || 0)),
-                    cierreReal: a.cierreReal || 0
-                }));
-
-                months.push({
-                    year,
-                    month,
-                    monthName: MONTHS_ES[month - 1] || '',
-                    agentesEnMinimo,
-                    totalAgentes,
-                    subsidioTotal: Math.round(subsidioTotal),
-                    sueldoBrutoTotal: Math.round(sueldoBrutoTotal),
-                    pctEnMinimo,
-                    detalle
-                });
-            } catch (fileErr: any) {
-                console.warn(`[minimos-red] Error procesando ${row[0]}:`, fileErr.message);
+                    months.push({
+                        year,
+                        month,
+                        monthName: MONTHS_ES[month - 1] || '',
+                        agentesEnMinimo,
+                        totalAgentes,
+                        subsidioTotal: Math.round(subsidioTotal),
+                        sueldoBrutoTotal: Math.round(sueldoBrutoTotal),
+                        pctEnMinimo,
+                        detalle
+                    });
+                } catch (fileErr: any) {
+                    console.warn(`[minimos-red] Error procesando ${periodCode}:`, fileErr.message);
+                }
             }
+        } catch (e: any) {
+            console.error('[minimos-red] Error:', e.message);
+            res.status(500).json({ error: e.message });
+            return;
         }
 
         // Ordenar descendente por año+mes

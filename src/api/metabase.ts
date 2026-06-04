@@ -96,7 +96,8 @@ export async function fetchQ95(): Promise<any[]> {
  * Fetch latest AC assignment dates for all societies from log_modificaciones.
  */
 export async function fetchAcAssignmentDates(): Promise<Record<string, string>> {
-    const cacheDir = path.join(__dirname, '../core/cache');
+    const IS_VERCEL = !!process.env.VERCEL;
+    const cacheDir = IS_VERCEL ? '/tmp/cache' : path.join(__dirname, '../core/cache');
     const cacheFile = path.join(cacheDir, 'ac_assignment_dates.json');
     try {
         const token = await getMetabaseSession();
