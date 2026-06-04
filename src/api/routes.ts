@@ -560,22 +560,41 @@ router.get('/retroactivos', async (req, res) => {
     }
 });
 
-const CUENTAS_FILE = path.join(__dirname, '../core/data/cuentas.json');
+const CUENTAS_FILE_BUNDLED = path.join(__dirname, '../core/data/cuentas.json');
+const CUENTAS_FILE_TMP = '/tmp/cuentas.json';
+
+function getCuentasFile(): string {
+    // En Vercel: intentar /tmp primero (si fue actualizado), luego el bundled
+    if (IS_VERCEL) {
+        if (fs.existsSync(CUENTAS_FILE_TMP)) return CUENTAS_FILE_TMP;
+        return CUENTAS_FILE_BUNDLED;
+    }
+    return CUENTAS_FILE_BUNDLED;
+}
 
 // API para Cuentas Especiales
 router.get('/cuentas', (req, res) => {
-    if (!fs.existsSync(CUENTAS_FILE)) {
+    const cuentasFile = getCuentasFile();
+    if (!fs.existsSync(cuentasFile)) {
         return res.json([]);
     }
     try {
-        const data = fs.readFileSync(CUENTAS_FILE, 'utf8');
+        const data = fs.readFileSync(cuentasFile, 'utf8');
         res.json(JSON.parse(data));
     } catch(e) {
         res.status(500).json({ error: "Error leyendo cuentas.json" });
     }
 });
 
-
+router.post('/cuentas', (req, res) => {
+    try {
+        const target = IS_VERCEL ? CUENTAS_FILE_TMP : CUENTAS_FILE_BUNDLED;
+        fs.writeFileSync(target, JSON.stringify(req.body, null, 2), 'utf8');
+        res.json({ success: true });
+    } catch(e: any) {
+        res.status(500).json({ error: `Error guardando cuentas: ${e.message}` });
+    }
+});
 
 router.get('/mendel', async (req, res) => {
     try {
@@ -596,14 +615,6 @@ router.get('/kms-prices', async (req, res) => {
     }
 });
 
-router.post('/cuentas', (req, res) => {
-    try {
-        fs.writeFileSync(CUENTAS_FILE, JSON.stringify(req.body, null, 2), 'utf8');
-        res.json({ success: true });
-    } catch(e) {
-        res.status(500).json({ error: "Error guardando cuentas" });
-    }
-});
 
 // ── Ajustes Manuales (CRUD en Google Sheets) ──
 router.get('/ajustes-manuales', async (req, res) => {
@@ -1126,13 +1137,13 @@ router.get('/validate', async (req, res) => {
             if (codigo) v3ByCodigo.set(codigo, agent);
         }
 
-        // ── V4: leer snapshot del engine ──
-        const snapshotFile = `cierre_${year}_${String(month).padStart(2, '0')}.json`;
-        const snapshotPath = path.join(__dirname, '../core/snapshots', snapshotFile);
+        // ── V4: leer snapshot del engine (desde Sheets, no filesystem) ──
         let v4List: CommercialResult[] = [];
-        if (fs.existsSync(snapshotPath)) {
-            const raw = fs.readFileSync(snapshotPath, 'utf8');
-            v4List = JSON.parse(raw) as CommercialResult[];
+        try {
+            const snapshotData = await loadMonthSnapshot(Number(year), Number(month));
+            if (snapshotData) v4List = snapshotData;
+        } catch (snapErr: any) {
+            console.warn(`[validate] Error leyendo snapshot de Sheets: ${snapErr.message}`);
         }
 
         const v4Map = new Map<string, CommercialResult>();

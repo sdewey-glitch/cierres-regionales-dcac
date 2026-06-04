@@ -13,7 +13,8 @@ import { updateDynamicSueldos } from '../core/writer';
 const router = express.Router();
 
 // ── Config ──
-const SNAPSHOTS_DIR = path.join(__dirname, '../core/snapshots');
+const IS_VERCEL = !!process.env.VERCEL;
+const OVERRIDE_DIR = IS_VERCEL ? '/tmp/overrides' : path.join(__dirname, '..', '..', 'data', 'overrides');
 const MONTHS = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
 const TEST_EMAIL = 'sdewey@decampoacampo.com';
 const APPS_SCRIPT_URL = process.env.APPS_SCRIPT_MAIL_URL || '';
@@ -516,8 +517,7 @@ router.get('/dispatch/preview', async (req, res) => {
 
         // Check if there is already an override
         let finalHtml = '';
-        const overrideDir = path.join(__dirname, '..', '..', 'data', 'overrides');
-        const overrideFile = path.join(overrideDir, `${year}_${month}_${agentName.replace(/[^a-z0-9]/gi, '_')}.html`);
+        const overrideFile = path.join(OVERRIDE_DIR, `${year}_${month}_${agentName.replace(/[^a-z0-9]/gi, '_')}.html`);
         
         if (fs.existsSync(overrideFile)) {
             finalHtml = fs.readFileSync(overrideFile, 'utf8');
@@ -549,8 +549,7 @@ router.get('/dispatch/preview-html/:agent', async (req, res) => {
         }
 
         let finalHtml = '';
-        const overrideDir = path.join(__dirname, '..', '..', 'data', 'overrides');
-        const overrideFile = path.join(overrideDir, `${year}_${month}_${agentName.replace(/[^a-z0-9]/gi, '_')}.html`);
+        const overrideFile = path.join(OVERRIDE_DIR, `${year}_${month}_${agentName.replace(/[^a-z0-9]/gi, '_')}.html`);
         
         if (fs.existsSync(overrideFile)) {
             finalHtml = fs.readFileSync(overrideFile, 'utf8');
@@ -573,12 +572,11 @@ router.post('/dispatch/override/:agent', async (req, res) => {
         const { year, month, html } = req.body;
         if (!year || !month || !html) return res.status(400).json({ error: 'Faltan parámetros' });
 
-        const overrideDir = path.join(__dirname, '..', '..', 'data', 'overrides');
-        if (!fs.existsSync(overrideDir)) {
-            fs.mkdirSync(overrideDir, { recursive: true });
+        if (!fs.existsSync(OVERRIDE_DIR)) {
+            fs.mkdirSync(OVERRIDE_DIR, { recursive: true });
         }
 
-        const overrideFile = path.join(overrideDir, `${year}_${month}_${agentName.replace(/[^a-z0-9]/gi, '_')}.html`);
+        const overrideFile = path.join(OVERRIDE_DIR, `${year}_${month}_${agentName.replace(/[^a-z0-9]/gi, '_')}.html`);
         fs.writeFileSync(overrideFile, html, 'utf8');
 
         res.json({ success: true });
@@ -608,8 +606,7 @@ router.post('/dispatch/test', async (req, res) => {
         console.log(`[dispatch/test] Generando PDF de ${agent}...`);
 
         // Check for override HTML
-        const overrideDir = path.join(__dirname, '..', '..', 'data', 'overrides');
-        const overrideFile = path.join(overrideDir, `${year}_${month}_${agent.replace(/[^a-z0-9]/gi, '_')}.html`);
+        const overrideFile = path.join(OVERRIDE_DIR, `${year}_${month}_${agent.replace(/[^a-z0-9]/gi, '_')}.html`);
         let overrideHtml = undefined;
         if (fs.existsSync(overrideFile)) {
             overrideHtml = fs.readFileSync(overrideFile, 'utf8');
@@ -699,8 +696,7 @@ router.post('/dispatch/send', async (req, res) => {
         console.log(`[dispatch/send] Enviando cierre a ${agent} (${email})...`);
 
         // Check for override HTML
-        const overrideDir = path.join(__dirname, '..', '..', 'data', 'overrides');
-        const overrideFile = path.join(overrideDir, `${year}_${month}_${agent.replace(/[^a-z0-9]/gi, '_')}.html`);
+        const overrideFile = path.join(OVERRIDE_DIR, `${year}_${month}_${agent.replace(/[^a-z0-9]/gi, '_')}.html`);
         let overrideHtml = undefined;
         if (fs.existsSync(overrideFile)) {
             overrideHtml = fs.readFileSync(overrideFile, 'utf8');
