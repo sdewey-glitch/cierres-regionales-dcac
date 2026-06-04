@@ -12,6 +12,7 @@
   "license": "ISC",
   "type": "commonjs",
   "dependencies": {
+    "@sparticuz/chromium": "^149.0.0",
     "cors": "^2.8.6",
     "dotenv": "^17.4.2",
     "express": "^5.2.1",
@@ -19,14 +20,15 @@
     "multer": "^2.1.1",
     "nodemailer": "^8.0.10",
     "pdf-parse": "^2.4.5",
+    "puppeteer-core": "^25.1.0",
     "resend": "^6.12.3"
   },
   "devDependencies": {
     "@types/cors": "^2.8.19",
-    "@types/nodemailer": "^8.0.0",
     "@types/express": "^5.0.6",
     "@types/multer": "^2.1.0",
     "@types/node": "^25.6.0",
+    "@types/nodemailer": "^8.0.0",
     "marked": "^18.0.3",
     "puppeteer": "^24.43.1",
     "ts-node": "^10.9.2",

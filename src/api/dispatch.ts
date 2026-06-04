@@ -1,5 +1,5 @@
 import express from 'express';
-import puppeteer from 'puppeteer';
+import puppeteerCore from 'puppeteer-core';
 import * as fs from 'fs';
 import * as path from 'path';
 import { config } from '../config/env';
@@ -116,7 +116,22 @@ function adjustAgentDataWithConfig(agentData: CommercialResult, c: any) {
 /** Genera PDF buffer para un agente */
 async function generatePdfBuffer(agentData: CommercialResult, overrideHtml?: string): Promise<Buffer> {
     const html = overrideHtml || generateClosureHtml(agentData);
-    const browser = await puppeteer.launch({ headless: true, args: ['--no-sandbox'] });
+    
+    let browser;
+    if (IS_VERCEL) {
+        // En Vercel: usar @sparticuz/chromium (serverless)
+        const chromium = await import('@sparticuz/chromium');
+        browser = await puppeteerCore.launch({
+            args: chromium.default.args,
+            executablePath: await chromium.default.executablePath(),
+            headless: true,
+        } as any);
+    } else {
+        // En local: usar puppeteer normal
+        const puppeteer = await import('puppeteer');
+        browser = await puppeteer.default.launch({ headless: true, args: ['--no-sandbox'] });
+    }
+    
     const page = await browser.newPage();
     await page.setContent(html, { waitUntil: 'load', timeout: 15000 });
     
