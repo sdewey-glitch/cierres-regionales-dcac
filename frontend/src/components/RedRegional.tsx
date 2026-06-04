@@ -21,6 +21,7 @@ interface RedRegionalProps {
   onBack: () => void;
   activeYear: string;
   activeMonth: string;
+  initialSubTab?: 'canales' | 'rendimiento' | string;
 }
 
 const fmt = new Intl.NumberFormat('es-AR');
