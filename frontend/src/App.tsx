@@ -106,14 +106,14 @@ function App() {
   const [previewHtml, setPreviewHtml] = useState<string>('');
 
   useEffect(() => {
-    if (activeView === 'liquidaciones' && selectedAgent) {
+    if (activeTab === 'cierre' && selectedAgent) {
       setPreviewHtml('Cargando previsualización...');
       fetch(`${API_URL}/dispatch/preview-html/${encodeURIComponent(selectedAgent)}?year=${activeYear}&month=${activeMonth}`)
         .then(res => res.text())
         .then(html => setPreviewHtml(html))
         .catch(e => setPreviewHtml('Error al cargar la previsualización'));
     }
-  }, [activeView, selectedAgent, activeYear, activeMonth]);
+  }, [activeTab, selectedAgent, activeYear, activeMonth]);
 
   const expectedSnapshotName = `cierre_${activeYear}_${activeMonth.padStart(2, '0')}.json`;
   const isSnapshotAvailable = snapshots.includes(expectedSnapshotName);

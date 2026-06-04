@@ -54,8 +54,9 @@ export function generateClosureHtml(data: CommercialResult): string {
     const now = new Date();
     const timestamp = now.toLocaleDateString('es-AR', { day: 'numeric', month: 'long', year: 'numeric', hour: '2-digit', minute: '2-digit' });
 
-    const showRegional = data.componenteR > 0 || data.modalidad === 'Completa';
-    const showOficina = data.componenteO > 0 || data.modalidad === 'Completa';
+    const isFrutos = data.asociadoComercial.toLowerCase() === 'lucila frutos' || (data.modalidad && data.modalidad.toLowerCase().includes('kam')) || (data.modalidad && data.modalidad.toLowerCase().includes('frutos'));
+    const showRegional = (data.componenteR > 0 || data.modalidad === 'Completa') && !isFrutos;
+    const showOficina = (data.componenteO > 0 || data.modalidad === 'Completa') && !isFrutos;
     const showMag = data.cabMag > 0;
     const showGastos = data.gastosDetalle && data.gastosDetalle.length > 0;
     const totalComponentes = (data.componenteP || 0) + (data.componenteR || 0) + (data.componenteO || 0);
