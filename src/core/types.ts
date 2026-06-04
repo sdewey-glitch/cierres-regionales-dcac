@@ -111,6 +111,11 @@ export interface CommercialResult {
     gastosDetalle: { categoria: string; importe: number }[];
     gastosMendelMovilidad?: number;
 
+    // Desglose KAM (Frutos / Acuña) - subtotales por tipo de cuenta
+    grandesCuentas?: number;
+    mermas?: number;
+    activacionCIS?: number;
+
     // Resultados Finales
     fijo: number;
     variable_personal: number;

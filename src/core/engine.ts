@@ -744,6 +744,26 @@ export async function calculateDynamicMonth(year: number, month: number): Promis
                     totalP += (det.ganancia_personal_venta + det.ganancia_personal_compra);
                 }
                 res.componenteP = totalP;
+
+                // Calcular subtotales por tipo de cuenta para el desglose del PDF
+                let gcTotal = 0, mermasTotal = 0, cisTotal = 0;
+                for (const det of res.operacionesDetalle) {
+                    const catV = (det.categoria_venta || 'Operaciones Grandes').toLowerCase();
+                    const catC = (det.categoria_compra || 'Operaciones Grandes').toLowerCase();
+                    const gV = det.ganancia_personal_venta || 0;
+                    const gC = det.ganancia_personal_compra || 0;
+
+                    if (catV.includes('merma')) mermasTotal += gV;
+                    else if (catV.includes('activacion') || catV.includes('ci')) cisTotal += gV;
+                    else gcTotal += gV;
+
+                    if (catC.includes('merma')) mermasTotal += gC;
+                    else if (catC.includes('activacion') || catC.includes('ci')) cisTotal += gC;
+                    else gcTotal += gC;
+                }
+                res.grandesCuentas = gcTotal;
+                res.mermas = mermasTotal;
+                res.activacionCIS = cisTotal;
             } else {
                 res.escalaGen = pctPersonal;
                 res.componenteP = res.resultado_final_ajustado * pctPersonal;

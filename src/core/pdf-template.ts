@@ -200,12 +200,37 @@ export function generateClosureHtml(data: CommercialResult): string {
                   <table style="width:100%;border-collapse:collapse">
                 <!-- Componente Personal -->
                 <tr style="background:${B.bg}">
-                    <td style="padding:6px 10px;font-size:9.5px;font-weight:700;color:${B.dark}">Componente Personal</td>
+                    <td style="padding:6px 10px;font-size:9.5px;font-weight:700;color:${B.dark}">${isPorCuenta ? 'Modelo KAM' : 'Componente Personal'}</td>
                     <td style="padding:6px 10px;font-size:9px;color:${B.textSec};text-align:right"></td>
                     <td style="padding:6px 10px;font-size:10.5px;font-weight:800;color:${data.componenteP < 0 ? B.danger : B.dark};text-align:right">${fmt(data.componenteP)}</td>
                 </tr>
                 <tr>
                     <td colspan="3" style="padding:4px 10px 6px 20px;font-size:8px;color:${B.textSec};line-height:1.6;border-bottom:1px dashed ${B.border}">
+                        ${isPorCuenta ? `
+                        <div style="display:flex;justify-content:space-between"><span>Tropas</span> <strong>${data.tropasGeneral}</strong></div>
+                        <div style="display:flex;justify-content:space-between"><span>Cabezas</span> <strong>${fmtNum(data.cabezasGeneral)}</strong></div>
+                        <div style="display:flex;justify-content:space-between;margin-bottom:4px"><span>Resultado</span> <strong>${fmt(data.resultado_final_ajustado)}</strong></div>
+
+                        <div style="display:flex;justify-content:space-between;margin-top:6px;padding-top:4px;border-top:1px dashed ${B.border}">
+                            <span style="font-weight:700;color:${B.dark}">Grandes Cuentas</span>
+                            <strong style="color:${B.dark}">${fmt(data.grandesCuentas || 0)}</strong>
+                        </div>
+                        <div style="display:flex;justify-content:space-between;color:${B.textMuted};padding-left:8px;font-size:7.5px"><span>↳ Venta 4% · Compra 2%</span></div>
+
+                        <div style="display:flex;justify-content:space-between;margin-top:4px">
+                            <span style="font-weight:700;color:${B.dark}">Mermas</span>
+                            <strong style="color:${B.dark}">${fmt(data.mermas || 0)}</strong>
+                        </div>
+                        <div style="display:flex;justify-content:space-between;color:${B.textMuted};padding-left:8px;font-size:7.5px"><span>↳ Invernada 15% · Faena 20%</span></div>
+
+                        <div style="display:flex;justify-content:space-between;margin-top:4px">
+                            <span style="font-weight:700;color:${B.dark}">Activación CIS</span>
+                            <strong style="color:${B.dark}">${fmt(data.activacionCIS || 0)}</strong>
+                        </div>
+                        <div style="display:flex;justify-content:space-between;color:${B.textMuted};padding-left:8px;font-size:7.5px"><span>↳ 10% sobre resultado</span></div>
+
+                        <div style="display:flex;justify-content:space-between;margin-top:6px;border-top:1px dashed ${B.border};padding-top:4px"><span>Escala</span> <strong>Por Cuenta (Ver Detalle)</strong></div>
+                        ` : `
                         <div style="display:flex;justify-content:space-between"><span>Tropas</span> <strong>${data.tropasGeneral}</strong></div>
                         <div style="display:flex;justify-content:space-between"><span>Cabezas</span> <strong>${fmtNum(data.cabezasGeneral)}</strong></div>
                         <div style="display:flex;justify-content:space-between;margin-bottom:4px"><span>Resultado</span> <strong>${fmt(data.resultado_final_ajustado)}</strong></div>
@@ -216,7 +241,8 @@ export function generateClosureHtml(data: CommercialResult): string {
                         ${data.cabCria > 0 ? `<div style="display:flex;justify-content:space-between;color:${B.textMuted};padding-left:8px;font-size:7.5px"><span>↳ Cría (${fmtNum(data.cabCria)} cab)</span> <span style="color:${data.resCria < 0 ? B.danger : B.textMuted}">${fmt(data.resCria)}</span></div>` : ''}
                         ${showMag ? `<div style="display:flex;justify-content:space-between;color:${B.textMuted};padding-left:8px;font-size:7.5px"><span>↳ MAG (${fmtNum(data.cabMag)} cab)</span> <span style="color:${data.resMag < 0 ? B.danger : B.textMuted}">${fmt(data.resMag)}</span></div>` : ''}
 
-                        <div style="display:flex;justify-content:space-between;margin-top:4px;border-top:1px dashed ${B.border};padding-top:4px"><span>Escala</span> <strong>${isPorCuenta ? 'Por Cuenta (Ver Detalle)' : fmtPct(data.escalaGen)}</strong></div>
+                        <div style="display:flex;justify-content:space-between;margin-top:4px;border-top:1px dashed ${B.border};padding-top:4px"><span>Escala</span> <strong>${fmtPct(data.escalaGen)}</strong></div>
+                        `}
                     </td>
                 </tr>
 
@@ -351,6 +377,27 @@ export function generateClosureHtml(data: CommercialResult): string {
             <div style="font-size:10px;font-weight:800;color:${B.dark};text-transform:uppercase;letter-spacing:1.5px;margin-bottom:10px;padding-bottom:6px;border-bottom:2px solid ${B.primary}">Conceptos Contractuales</div>
 
             <table style="width:100%;border-collapse:collapse">
+                ${isPorCuenta ? `
+                <tr>
+                    <td style="padding:8px 10px;font-size:10px;color:${B.textSec}">Mínimo Garantizado</td>
+                    <td style="padding:8px 10px;font-size:11px;font-weight:600;color:${B.textSec};text-align:right">
+                        ${fmt(data.minimo)}
+                        ${!minimoActivo ? `<span style="color:${B.success};margin-left:4px;font-size:12px">✓</span>` : ''}
+                    </td>
+                </tr>
+                <tr style="background:${B.bg}">
+                    <td style="padding:8px 10px;font-size:10px;font-weight:600;color:${B.dark}">Grandes Cuentas</td>
+                    <td style="padding:8px 10px;font-size:11px;font-weight:700;color:${B.dark};text-align:right">${fmt(data.grandesCuentas || 0)}</td>
+                </tr>
+                <tr>
+                    <td style="padding:8px 10px;font-size:10px;color:${B.text}">Mermas</td>
+                    <td style="padding:8px 10px;font-size:11px;font-weight:600;color:${B.text};text-align:right">${fmt(data.mermas || 0)}</td>
+                </tr>
+                <tr style="background:${B.bg}">
+                    <td style="padding:8px 10px;font-size:10px;color:${B.text}">Activación CIS</td>
+                    <td style="padding:8px 10px;font-size:11px;font-weight:600;color:${B.text};text-align:right">${fmt(data.activacionCIS || 0)}</td>
+                </tr>
+                ` : `
                 <tr>
                     <td style="padding:8px 10px;font-size:10px;color:${B.textSec}">Mínimo Garantizado</td>
                     <td style="padding:8px 10px;font-size:11px;font-weight:600;color:${B.textSec};text-align:right">
@@ -372,6 +419,7 @@ export function generateClosureHtml(data: CommercialResult): string {
                     <td style="padding:8px 10px;font-size:10px;color:${B.text}">Variable Oficina</td>
                     <td style="padding:8px 10px;font-size:11px;font-weight:600;color:${data.componenteO < 0 ? B.danger : B.text};text-align:right">${fmt(data.componenteO)}</td>
                 </tr>` : ''}
+                `}
                 <tr style="border-top:1px solid ${B.border}">
                     <td style="padding:10px 10px;font-size:10px;font-weight:800;color:${B.dark}">TOTAL CONCEPTOS</td>
                     <td style="padding:10px 10px;font-size:11px;font-weight:800;color:${B.dark};text-align:right">${fmt(data.cierreReal)}</td>
