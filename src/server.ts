@@ -285,9 +285,9 @@ app.post('/api/generate', async (req, res) => {
         try {
             const rawQ95: any[] = await fetchQ95();
             
-            // Determinar los 3 meses: M, M-1, M-2
+            // Determinar los 4 meses: M, M-1, M-2, M-3
             const mesesIncluir: string[] = [];
-            for (let i = 0; i <= 2; i++) {
+            for (let i = 0; i <= 3; i++) {
                 let pastM = Number(month) - i;
                 let pastY = Number(year);
                 if (pastM <= 0) { pastM += 12; pastY -= 1; }
@@ -337,6 +337,83 @@ app.post('/api/generate', async (req, res) => {
                 
                 console.log(`[bajada] ✅ Q95 cruda al sheet: ${fullRows.length} operaciones, ${allColumns.length + 1} columnas (${mesesIncluir.join(', ')})`);
             }
+            
+            // --- AJUSTES HISTORICO ---
+            // LOGICA DE VENTANA DESLIZANTE:
+            // Se conserva una fila en la hoja mientras su AñoMes_Tropa esté dentro de la ventana
+            // de 4 meses del cierre actual [M, M-1, M-2, M-3]. Al avanzar un mes, la tropa más
+            // antigua queda afuera de la ventana y desaparece de todos los cierres donde existía.
+            // Resultado: la hoja siempre tiene ~10.000 filas (4+3+2+1 × ~1000 tropas/mes).
+            try {
+                if (filteredOps.length > 0) {
+                    // Ventana de 4 meses como strings YYYYMM: ["202607", "202606", "202605", "202604"]
+                    const ventana = new Set<string>(mesesIncluir.map(m => m.replace('-', '')));
+
+                    // Construir mapa id_lote → gananciaPersonal desde los snapshots de M, M-1, M-2, M-3
+                    const gananciaMap = new Map<number, number>();
+                    for (let i = 0; i <= 3; i++) {
+                        let sM = Number(month) - i;
+                        let sY = Number(year);
+                        if (sM <= 0) { sM += 12; sY -= 1; }
+                        const snapFile = path.join(SNAPSHOTS_DIR, `cierre_${sY}_${String(sM).padStart(2, '0')}.json`);
+                        if (!fs.existsSync(snapFile)) continue;
+                        try {
+                            const snapAgents: any[] = JSON.parse(fs.readFileSync(snapFile, 'utf8'));
+                            for (const agent of snapAgents) {
+                                for (const op of (agent.operacionesDetalle || [])) {
+                                    const id = Number(op.id_lote);
+                                    if (!id) continue;
+                                    const prev = gananciaMap.get(id) || 0;
+                                    gananciaMap.set(id, prev +
+                                        (Number(op.ganancia_personal_venta) || 0) +
+                                        (Number(op.ganancia_personal_compra) || 0));
+                                }
+                            }
+                        } catch { /* snapshot puede no existir aún */ }
+                    }
+
+                    const historicoHeaders = [['AñoMes_Cierre', 'AñoMes_Tropa', 'ID_Tropa', 'Resultado', 'Resultado_Ajustado', 'AC_Vendedor', 'AC_Comprador']];
+
+                    // Filas nuevas del cierre actual
+                    const historicoNewRows = filteredOps.map(op => {
+                        const opYM = op.fecha_operacion
+                            ? op.fecha_operacion.substring(0, 4) + op.fecha_operacion.substring(5, 7)
+                            : '';
+                        const idLote = Number(op.id_lote || op.id);
+                        const ganancia = gananciaMap.get(idLote);
+                        const resultadoAdj = ganancia !== undefined ? Math.round(ganancia * 100) / 100 : '';
+                        return [
+                            añoMes,                                                                    // AñoMes_Cierre
+                            opYM,                                                                      // AñoMes_Tropa
+                            idLote || '',                                                              // ID_Tropa
+                            op.resultado_final !== undefined ? op.resultado_final : '',                // Resultado bruto
+                            resultadoAdj,                                                              // Resultado_Ajustado
+                            op.repre_vendedor || op.AC_Vend || op.asociado_comercial_soc_vend || '',   // AC_Vendedor
+                            op.repre_comprador || op.AC_Comp || op.asociado_comercial_soc_comp || ''   // AC_Comprador
+                        ];
+                    });
+
+                    // Leer hoja existente y aplicar la ventana deslizante:
+                    // conservar solo filas donde AñoMes_Tropa (col B, índice 1) esté en la ventana actual.
+                    // Excluir el mes actual (se reemplaza con las filas nuevas).
+                    const existingHistorico = await readSheet(config.HUB_CIERRES_ID, `'Ajustes Historico'!A2:G100000`).catch(() => []);
+                    const rowsAConservar = existingHistorico.filter(r => {
+                        if (String(r[0]) === añoMes) return false;    // reemplazar mes actual
+                        return ventana.has(String(r[1]));              // solo si AñoMes_Tropa sigue en ventana
+                    });
+
+                    const borradas = existingHistorico.length - rowsAConservar.length;
+                    const allHistorico = [...historicoHeaders, ...rowsAConservar, ...historicoNewRows];
+
+                    await clearSheetRange(config.HUB_CIERRES_ID, `'Ajustes Historico'!A1:G100000`).catch(() => {});
+                    await writeSheet(config.HUB_CIERRES_ID, `'Ajustes Historico'!A1:G${allHistorico.length}`, allHistorico);
+
+                    console.log(`[bajada] ✅ Ajustes Historico: ${historicoNewRows.length} nuevas + ${rowsAConservar.length} conservadas (${borradas} expiradas) → total ${allHistorico.length - 1} filas`);
+                }
+            } catch (histErr: any) {
+                console.warn(`[bajada] ⚠️ No se pudo escribir Ajustes Historico: ${histErr.message}`);
+            }
+            // --- FIN AJUSTES HISTORICO ---
             
             // También actualizar snapshots locales de M-1 y M-2
             for (let i = 1; i <= 2; i++) {
@@ -1980,7 +2057,7 @@ app.get('/api/minimos-red', (req, res) => {
                     subsidioTotal: Math.round(subsidioTotal),
                     sueldoBrutoTotal: Math.round(sueldoBrutoTotal),
                     pctEnMinimo,
-                    detalle
+                detalle
                 });
             } catch (fileErr: any) {
                 console.warn(`[minimos-red] Error procesando ${file}:`, fileErr.message);
@@ -1997,10 +2074,98 @@ app.get('/api/minimos-red', (req, res) => {
     }
 });
 
+// Bootstrap inicial de Ajustes Historico
+// POST http://localhost:4001/api/bootstrap-historico?mes=202605
+// Etiqueta TODO con AñoMes_Cierre = mes dado (la "foto de hoy").
+// Usa Q95 actual para resultado + ACs, y snapshots para ganancia_personal.
+app.post('/api/bootstrap-historico', async (req, res) => {
+    try {
+        // Mes del cierre actual (la "foto de hoy"). Default: mes corriente.
+        const now = new Date();
+        const defaultMes = `${now.getFullYear()}${String(now.getMonth() + 1).padStart(2, '0')}`;
+        const añoMesCierre = String(req.query.mes || defaultMes); // ej: "202605"
+
+        if (!fs.existsSync(SNAPSHOTS_DIR)) {
+            return res.status(400).json({ error: 'No existe el directorio de snapshots.' });
+        }
+        const snapshotFiles = fs.readdirSync(SNAPSHOTS_DIR)
+            .filter(f => f.startsWith('cierre_') && f.endsWith('.json'));
+        if (snapshotFiles.length === 0) {
+            return res.status(400).json({ error: 'No hay snapshots disponibles.' });
+        }
+
+        // Paso 1: id_lote → gananciaPersonal desde TODOS los snapshots
+        const gananciaMap = new Map<number, number>();
+        for (const file of snapshotFiles) {
+            const agents: any[] = JSON.parse(fs.readFileSync(path.join(SNAPSHOTS_DIR, file), 'utf8'));
+            for (const agent of agents) {
+                for (const op of (agent.operacionesDetalle || [])) {
+                    const id = Number(op.id_lote);
+                    if (!id) continue;
+                    const prev = gananciaMap.get(id) || 0;
+                    gananciaMap.set(id, prev +
+                        (Number(op.ganancia_personal_venta) || 0) +
+                        (Number(op.ganancia_personal_compra) || 0));
+                }
+            }
+        }
+
+        // Paso 2: Q95 actual, solo CONCRETADAS, 4 meses hacia atras del mes del cierre
+        const q95Raw: any[] = await fetchQ95();
+        const cY = Number(añoMesCierre.substring(0, 4));
+        const cM = Number(añoMesCierre.substring(4, 6));
+        const mesesIncluir: string[] = [];
+        for (let i = 0; i <= 3; i++) {
+            let pM = cM - i; let pY = cY;
+            if (pM <= 0) { pM += 12; pY -= 1; }
+            mesesIncluir.push(`${pY}-${String(pM).padStart(2, '0')}`);
+        }
+        const filteredQ95 = q95Raw.filter(op =>
+            (op.ESTADO === 'CONCRETADA' || op.Estado_Trop === 'Concretada') &&
+            op.fecha_operacion &&
+            mesesIncluir.some(m => op.fecha_operacion.startsWith(m))
+        );
+
+        // Paso 3: Construir filas todas con AñoMes_Cierre = mes actual
+        const headers = [['AñoMes_Cierre', 'AñoMes_Tropa', 'ID_Tropa', 'Resultado', 'Resultado_Ajustado', 'AC_Vendedor', 'AC_Comprador']];
+        const rows: any[][] = [];
+        for (const op of filteredQ95) {
+            const idLote = Number(op.id_lote || op.id);
+            if (!idLote) continue;
+            const fechaOp = op.fecha_operacion || '';
+            const añoMesTropa = fechaOp.length >= 7 ? fechaOp.substring(0, 4) + fechaOp.substring(5, 7) : '';
+            const ganancia = gananciaMap.get(idLote);
+            const resultadoAdj = ganancia !== undefined ? Math.round(ganancia * 100) / 100 : '';
+            rows.push([
+                añoMesCierre, añoMesTropa, idLote,
+                op.resultado_final ?? '',
+                resultadoAdj,
+                op.repre_vendedor || op.AC_Vend || op.asociado_comercial_soc_vend || '',
+                op.repre_comprador || op.AC_Comp || op.asociado_comercial_soc_comp || ''
+            ]);
+        }
+        rows.sort((a, b) => Number(a[2]) - Number(b[2]));
+
+        // Paso 4: Preservar otros meses en el Sheet, reemplazar solo el mes actual
+        await createSheetIfNotExists(config.HUB_CIERRES_ID, 'Ajustes Historico');
+        const existing = await readSheet(config.HUB_CIERRES_ID, `'Ajustes Historico'!A2:G200000`).catch(() => []);
+        const otherMonths = existing.filter(r => String(r[0]) !== añoMesCierre);
+        const allData = [...headers, ...otherMonths, ...rows];
+        await clearSheetRange(config.HUB_CIERRES_ID, `'Ajustes Historico'!A1:G200000`).catch(() => {});
+        await writeSheet(config.HUB_CIERRES_ID, `'Ajustes Historico'!A1:G${allData.length}`, allData);
+
+        console.log(`[bootstrap-historico] ✅ ${rows.length} filas → AñoMes_Cierre=${añoMesCierre}`);
+        res.json({ ok: true, añoMesCierre, mesesIncluidos: mesesIncluir, filasEscritas: rows.length });
+    } catch (e: any) {
+        console.error('[bootstrap-historico] Error:', e.message);
+        res.status(500).json({ error: e.message });
+    }
+});
+
 app.use('/api/config', configRouter);
 app.use('/api/config-models', configModelsRouter);
 
-const PORT = 4000;
+const PORT = 4001;
 app.listen(PORT, async () => {
     console.log(`=========================================`);
     console.log(`Dashboard Regionales corriendo localmente`);
@@ -2012,6 +2177,7 @@ app.listen(PORT, async () => {
         await createSheetIfNotExists(config.HUB_CIERRES_ID, 'Bajada_Estatica');
         await createSheetIfNotExists(config.HUB_CIERRES_ID, 'Ajustes_Retro');
         await createSheetIfNotExists(config.HUB_CIERRES_ID, 'Detalle_Retro');
+        await createSheetIfNotExists(config.HUB_CIERRES_ID, 'Ajustes Historico');
         console.log(`[init] ✅ Hojas de cierres verificadas`);
     } catch (e: any) {
         console.warn(`[init] ⚠️ No se pudieron crear hojas: ${e.message}`);
