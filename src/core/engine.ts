@@ -739,6 +739,8 @@ export async function calculateDynamicMonth(year: number, month: number): Promis
                     det.ganancia_personal_venta = isVenta ? (det.resultado_topeado_venta * pctVenta) : 0;
                     det.ganancia_personal_compra = isCompra ? (det.resultado_topeado_compra * pctCompra) : 0;
                     det.escala_aplicada = isVenta ? pctVenta : (isCompra ? pctCompra : 0);
+                    det.categoria_venta = cuentaMatchVenta ? cuentaMatchVenta.tipo_cuenta : 'Operaciones Grandes';
+                    det.categoria_compra = cuentaMatchCompra ? cuentaMatchCompra.tipo_cuenta : 'Operaciones Grandes';
                     totalP += (det.ganancia_personal_venta + det.ganancia_personal_compra);
                 }
                 res.componenteP = totalP;

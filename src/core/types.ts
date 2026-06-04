@@ -155,6 +155,8 @@ export interface OperacionDetalle {
     marca: string; // '*' = soc. propia (AC venta vacío), '†' = asignado por AC compra
     canal_venta?: string;
     canal_compra?: string;
+    categoria_venta?: string;
+    categoria_compra?: string;
 }
 
 export interface LoteChange {
