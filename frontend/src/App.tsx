@@ -103,6 +103,17 @@ function App() {
   // WYSIWYG Editor para Liquidaciones
   const iframeRef = React.useRef<HTMLIFrameElement>(null);
   const [savingOverride, setSavingOverride] = useState(false);
+  const [previewHtml, setPreviewHtml] = useState<string>('');
+
+  useEffect(() => {
+    if (activeView === 'liquidaciones' && selectedAgent) {
+      setPreviewHtml('Cargando previsualización...');
+      fetch(`${API_URL}/dispatch/preview-html/${encodeURIComponent(selectedAgent)}?year=${activeYear}&month=${activeMonth}`)
+        .then(res => res.text())
+        .then(html => setPreviewHtml(html))
+        .catch(e => setPreviewHtml('Error al cargar la previsualización'));
+    }
+  }, [activeView, selectedAgent, activeYear, activeMonth]);
 
   const expectedSnapshotName = `cierre_${activeYear}_${activeMonth.padStart(2, '0')}.json`;
   const isSnapshotAvailable = snapshots.includes(expectedSnapshotName);
@@ -1068,7 +1079,7 @@ function App() {
                     <div className="p-4 bg-slate-100 flex justify-center items-center" style={{ minHeight: '600px' }}>
                       <iframe 
                         ref={iframeRef as any}
-                        src={`${API_URL}/dispatch/preview-html/${encodeURIComponent(selectedAgent)}?year=${activeYear}&month=${activeMonth}`} 
+                        srcDoc={previewHtml}
                         className="w-full rounded-lg border border-gray-300 shadow-md bg-white"
                         style={{ height: '1100px', border: 'none', maxWidth: '900px' }}
                         title={`Editor PDF - ${selectedAgent}`}

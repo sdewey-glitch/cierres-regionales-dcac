@@ -612,7 +612,7 @@ export async function calculateDynamicMonth(year: number, month: number): Promis
         let pctPersonal = 0;
         
         const configModel = getModelByModalidad(res.modalidad);
-        const isCustomModel = !['completa', 'simple', 'hibrida', 'sin minimo', 'operario', 'fijo'].includes(configModel.id);
+        const isCustomModel = !['completa', 'simple', 'hibrida', 'sin minimo', 'operario', 'fijo'].includes(configModel.id) && !isFrutos && !isAcuña;
 
         if (isCustomModel) {
             // Evaluación del Componente Personal en el Modelo Custom
