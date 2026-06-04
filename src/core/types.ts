@@ -52,6 +52,17 @@ export interface CommercialResult {
     tajadaRegion: number;
     componenteR: number;
 
+    resInvReg?: number;
+    resInvNeoReg?: number;
+    resFaenaReg?: number;
+    resCriaReg?: number;
+    resMagReg?: number;
+    cabInvReg?: number;
+    cabInvNeoReg?: number;
+    cabFaenaReg?: number;
+    cabCriaReg?: number;
+    cabMagReg?: number;
+
     // Componente Oficina
     tropasOficina: number;
     cabezasOfi: number;
@@ -62,6 +73,17 @@ export interface CommercialResult {
     escalaOficina: number;
     opOficina: number;
     componenteO: number;
+
+    resInvOfi?: number;
+    resInvNeoOfi?: number;
+    resFaenaOfi?: number;
+    resCriaOfi?: number;
+    resMagOfi?: number;
+    cabInvOfi?: number;
+    cabInvNeoOfi?: number;
+    cabFaenaOfi?: number;
+    cabCriaOfi?: number;
+    cabMagOfi?: number;
 
     // Ajustes Retroactivos (Resumidos)
     ajustes: number;

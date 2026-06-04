@@ -208,41 +208,17 @@ export function generateClosureHtml(data: CommercialResult): string {
                     <td colspan="3" style="padding:4px 10px 6px 20px;font-size:8px;color:${B.textSec};line-height:1.6;border-bottom:1px dashed ${B.border}">
                         <div style="display:flex;justify-content:space-between"><span>Tropas</span> <strong>${data.tropasGeneral}</strong></div>
                         <div style="display:flex;justify-content:space-between"><span>Cabezas</span> <strong>${fmtNum(data.cabezasGeneral)}</strong></div>
-                        <div style="display:flex;justify-content:space-between"><span>Resultado</span> <strong>${fmt(data.resultado_final_ajustado)}</strong></div>
-                        <div style="display:flex;justify-content:space-between"><span>Escala</span> <strong>${isPorCuenta ? 'Por Cuenta (Ver Detalle)' : fmtPct(data.escalaGen)}</strong></div>
+                        <div style="display:flex;justify-content:space-between;margin-bottom:4px"><span>Resultado</span> <strong>${fmt(data.resultado_final_ajustado)}</strong></div>
+                        
+                        ${data.cabInv > 0 ? `<div style="display:flex;justify-content:space-between;color:${B.textMuted};padding-left:8px;font-size:7.5px"><span>↳ Invernada (${fmtNum(data.cabInv)} cab)</span> <span style="color:${data.resInv < 0 ? B.danger : B.textMuted}">${fmt(data.resInv)}</span></div>` : ''}
+                        ${data.cabInvNeo > 0 ? `<div style="display:flex;justify-content:space-between;color:${B.textMuted};padding-left:8px;font-size:7.5px"><span>↳ Invernada Neo (${fmtNum(data.cabInvNeo)} cab)</span> <span style="color:${data.resInvNeo < 0 ? B.danger : B.textMuted}">${fmt(data.resInvNeo)}</span></div>` : ''}
+                        ${data.cabFaena > 0 ? `<div style="display:flex;justify-content:space-between;color:${B.textMuted};padding-left:8px;font-size:7.5px"><span>↳ Faena (${fmtNum(data.cabFaena)} cab)</span> <span style="color:${data.resFaena < 0 ? B.danger : B.textMuted}">${fmt(data.resFaena)}</span></div>` : ''}
+                        ${data.cabCria > 0 ? `<div style="display:flex;justify-content:space-between;color:${B.textMuted};padding-left:8px;font-size:7.5px"><span>↳ Cría (${fmtNum(data.cabCria)} cab)</span> <span style="color:${data.resCria < 0 ? B.danger : B.textMuted}">${fmt(data.resCria)}</span></div>` : ''}
+                        ${showMag ? `<div style="display:flex;justify-content:space-between;color:${B.textMuted};padding-left:8px;font-size:7.5px"><span>↳ MAG (${fmtNum(data.cabMag)} cab)</span> <span style="color:${data.resMag < 0 ? B.danger : B.textMuted}">${fmt(data.resMag)}</span></div>` : ''}
+
+                        <div style="display:flex;justify-content:space-between;margin-top:4px;border-top:1px dashed ${B.border};padding-top:4px"><span>Escala</span> <strong>${isPorCuenta ? 'Por Cuenta (Ver Detalle)' : fmtPct(data.escalaGen)}</strong></div>
                     </td>
                 </tr>
-                <!-- Desglose por Unidad de Negocio -->
-                ${data.cabInv > 0 ? `
-                <tr>
-                    <td style="padding:4px 10px 4px 20px;font-size:8px;color:${B.textSec}">↳ Invernada</td>
-                    <td style="padding:4px 10px;font-size:8px;color:${B.textMuted};text-align:right">${fmtNum(data.cabInv)} cab</td>
-                    <td style="padding:4px 10px;font-size:8px;color:${data.resInv < 0 ? B.danger : B.textSec};text-align:right">${fmt(data.resInv)}</td>
-                </tr>` : ''}
-                ${data.cabInvNeo > 0 ? `
-                <tr>
-                    <td style="padding:4px 10px 4px 20px;font-size:8px;color:${B.textSec}">↳ Invernada Neo</td>
-                    <td style="padding:4px 10px;font-size:8px;color:${B.textMuted};text-align:right">${fmtNum(data.cabInvNeo)} cab</td>
-                    <td style="padding:4px 10px;font-size:8px;color:${data.resInvNeo < 0 ? B.danger : B.textSec};text-align:right">${fmt(data.resInvNeo)}</td>
-                </tr>` : ''}
-                ${data.cabFaena > 0 ? `
-                <tr>
-                    <td style="padding:4px 10px 4px 20px;font-size:8px;color:${B.textSec}">↳ Faena</td>
-                    <td style="padding:4px 10px;font-size:8px;color:${B.textMuted};text-align:right">${fmtNum(data.cabFaena)} cab</td>
-                    <td style="padding:4px 10px;font-size:8px;color:${data.resFaena < 0 ? B.danger : B.textSec};text-align:right">${fmt(data.resFaena)}</td>
-                </tr>` : ''}
-                ${data.cabCria > 0 ? `
-                <tr>
-                    <td style="padding:4px 10px 4px 20px;font-size:8px;color:${B.textSec}">↳ Cría</td>
-                    <td style="padding:4px 10px;font-size:8px;color:${B.textMuted};text-align:right">${fmtNum(data.cabCria)} cab</td>
-                    <td style="padding:4px 10px;font-size:8px;color:${data.resCria < 0 ? B.danger : B.textSec};text-align:right">${fmt(data.resCria)}</td>
-                </tr>` : ''}
-                ${showMag ? `
-                <tr>
-                    <td style="padding:4px 10px 4px 20px;font-size:8px;color:${B.textSec}">↳ MAG</td>
-                    <td style="padding:4px 10px;font-size:8px;color:${B.textMuted};text-align:right">${fmtNum(data.cabMag)} cab</td>
-                    <td style="padding:4px 10px;font-size:8px;color:${data.resMag < 0 ? B.danger : B.textSec};text-align:right">${fmt(data.resMag)}</td>
-                </tr>` : ''}
 
                 <!-- Componente Regional -->
                 ${showRegional ? `
@@ -255,8 +231,15 @@ export function generateClosureHtml(data: CommercialResult): string {
                     <td colspan="3" style="padding:4px 10px 6px 20px;font-size:8px;color:${B.textSec};line-height:1.6;border-bottom:1px dashed ${B.border}">
                         <div style="display:flex;justify-content:space-between"><span>Tropas</span> <strong>${data.tropasRegional}</strong></div>
                         <div style="display:flex;justify-content:space-between"><span>Cabezas</span> <strong>${fmtNum(data.cabezasRegional)}</strong></div>
-                        <div style="display:flex;justify-content:space-between"><span>Resultado</span> <strong>${fmt(data.resultadoReg)}</strong></div>
-                        <div style="display:flex;justify-content:space-between"><span>Escala Regional</span> <strong>${fmtPct(data.bolsaRegion)}</strong></div>
+                        <div style="display:flex;justify-content:space-between;margin-bottom:4px"><span>Resultado</span> <strong>${fmt(data.resultadoReg)}</strong></div>
+
+                        ${data.cabInvReg > 0 ? `<div style="display:flex;justify-content:space-between;color:${B.textMuted};padding-left:8px;font-size:7.5px"><span>↳ Invernada (${fmtNum(data.cabInvReg)} cab)</span> <span style="color:${data.resInvReg < 0 ? B.danger : B.textMuted}">${fmt(data.resInvReg)}</span></div>` : ''}
+                        ${data.cabInvNeoReg > 0 ? `<div style="display:flex;justify-content:space-between;color:${B.textMuted};padding-left:8px;font-size:7.5px"><span>↳ Invernada Neo (${fmtNum(data.cabInvNeoReg)} cab)</span> <span style="color:${data.resInvNeoReg < 0 ? B.danger : B.textMuted}">${fmt(data.resInvNeoReg)}</span></div>` : ''}
+                        ${data.cabFaenaReg > 0 ? `<div style="display:flex;justify-content:space-between;color:${B.textMuted};padding-left:8px;font-size:7.5px"><span>↳ Faena (${fmtNum(data.cabFaenaReg)} cab)</span> <span style="color:${data.resFaenaReg < 0 ? B.danger : B.textMuted}">${fmt(data.resFaenaReg)}</span></div>` : ''}
+                        ${data.cabCriaReg > 0 ? `<div style="display:flex;justify-content:space-between;color:${B.textMuted};padding-left:8px;font-size:7.5px"><span>↳ Cría (${fmtNum(data.cabCriaReg)} cab)</span> <span style="color:${data.resCriaReg < 0 ? B.danger : B.textMuted}">${fmt(data.resCriaReg)}</span></div>` : ''}
+                        ${data.cabMagReg > 0 ? `<div style="display:flex;justify-content:space-between;color:${B.textMuted};padding-left:8px;font-size:7.5px"><span>↳ MAG (${fmtNum(data.cabMagReg)} cab)</span> <span style="color:${data.resMagReg < 0 ? B.danger : B.textMuted}">${fmt(data.resMagReg)}</span></div>` : ''}
+
+                        <div style="display:flex;justify-content:space-between;margin-top:4px;border-top:1px dashed ${B.border};padding-top:4px"><span>Escala Regional</span> <strong>${fmtPct(data.bolsaRegion)}</strong></div>
                         <div style="display:flex;justify-content:space-between"><span>Tajada sobre Escala</span> <strong>${fmtPct(data.tajadaRegion)}</strong></div>
                     </td>
                 </tr>` : ''}
@@ -272,8 +255,15 @@ export function generateClosureHtml(data: CommercialResult): string {
                     <td colspan="3" style="padding:4px 10px 6px 20px;font-size:8px;color:${B.textSec};line-height:1.6">
                         <div style="display:flex;justify-content:space-between"><span>Tropas</span> <strong>${data.tropasOficina}</strong></div>
                         <div style="display:flex;justify-content:space-between"><span>Cabezas</span> <strong>${fmtNum(data.cabezasOfi)}</strong></div>
-                        <div style="display:flex;justify-content:space-between"><span>Resultado</span> <strong>${fmt(data.resultadoOfi)}</strong></div>
-                        <div style="display:flex;justify-content:space-between"><span>Escala Oficina</span> <strong>${fmtPct(data.escalaOficina)}</strong></div>
+                        <div style="display:flex;justify-content:space-between;margin-bottom:4px"><span>Resultado</span> <strong>${fmt(data.resultadoOfi)}</strong></div>
+
+                        ${data.cabInvOfi > 0 ? `<div style="display:flex;justify-content:space-between;color:${B.textMuted};padding-left:8px;font-size:7.5px"><span>↳ Invernada (${fmtNum(data.cabInvOfi)} cab)</span> <span style="color:${data.resInvOfi < 0 ? B.danger : B.textMuted}">${fmt(data.resInvOfi)}</span></div>` : ''}
+                        ${data.cabInvNeoOfi > 0 ? `<div style="display:flex;justify-content:space-between;color:${B.textMuted};padding-left:8px;font-size:7.5px"><span>↳ Invernada Neo (${fmtNum(data.cabInvNeoOfi)} cab)</span> <span style="color:${data.resInvNeoOfi < 0 ? B.danger : B.textMuted}">${fmt(data.resInvNeoOfi)}</span></div>` : ''}
+                        ${data.cabFaenaOfi > 0 ? `<div style="display:flex;justify-content:space-between;color:${B.textMuted};padding-left:8px;font-size:7.5px"><span>↳ Faena (${fmtNum(data.cabFaenaOfi)} cab)</span> <span style="color:${data.resFaenaOfi < 0 ? B.danger : B.textMuted}">${fmt(data.resFaenaOfi)}</span></div>` : ''}
+                        ${data.cabCriaOfi > 0 ? `<div style="display:flex;justify-content:space-between;color:${B.textMuted};padding-left:8px;font-size:7.5px"><span>↳ Cría (${fmtNum(data.cabCriaOfi)} cab)</span> <span style="color:${data.resCriaOfi < 0 ? B.danger : B.textMuted}">${fmt(data.resCriaOfi)}</span></div>` : ''}
+                        ${data.cabMagOfi > 0 ? `<div style="display:flex;justify-content:space-between;color:${B.textMuted};padding-left:8px;font-size:7.5px"><span>↳ MAG (${fmtNum(data.cabMagOfi)} cab)</span> <span style="color:${data.resMagOfi < 0 ? B.danger : B.textMuted}">${fmt(data.resMagOfi)}</span></div>` : ''}
+
+                        <div style="display:flex;justify-content:space-between;margin-top:4px;border-top:1px dashed ${B.border};padding-top:4px"><span>Escala Oficina</span> <strong>${fmtPct(data.escalaOficina)}</strong></div>
                         <div style="display:flex;justify-content:space-between"><span>Participación Oficina</span> <strong>${fmtPct(data.opOficina)}</strong></div>
                     </td>
                 </tr>` : ''}
@@ -339,7 +329,10 @@ export function generateClosureHtml(data: CommercialResult): string {
                 <div style="background:${B.bg};border-radius:8px;padding:8px 10px;margin-bottom:8px;border:1px solid ${B.border}">
                     <div style="display:flex;justify-content:space-between;margin-bottom:6px;border-bottom:1px solid ${B.border};padding-bottom:4px">
                         <div style="font-size:8px;font-weight:700;color:${B.textMuted};text-transform:uppercase;letter-spacing:1px">Vehículo de la Empresa</div>
-                        <div style="font-size:9px;font-weight:700;color:${B.dark}">${data.auto || 'Asignado'}</div>
+                        <div style="display:flex;gap:6px;align-items:center">
+                            <span style="font-size:8px;font-weight:600;color:${B.textSec};background:${B.border};padding:2px 4px;border-radius:4px">${fmtNum(data.kms || 0)} km</span>
+                            <span style="font-size:9px;font-weight:700;color:${B.dark}">${data.auto || 'Asignado'}</span>
+                        </div>
                     </div>
                     <div style="display:flex;justify-content:space-between;margin-bottom:4px">
                         <div style="font-size:8px;color:${B.textMuted}">Amortización Vehículo DCAC</div>
@@ -391,6 +384,14 @@ export function generateClosureHtml(data: CommercialResult): string {
                     </tr>
                 </table>
             </div>` : ''}
+
+            <!-- SUMA TOTAL A FACTURAR -->
+            <div style="margin-top:24px;border-top:2px solid ${B.dark};background:${B.bg};border-radius:8px;padding:12px 14px;border:1px solid ${B.border}">
+                <div style="display:flex;justify-content:space-between;align-items:center">
+                    <div style="font-size:10px;font-weight:800;color:${B.dark};text-transform:uppercase;letter-spacing:1px">Suma Total a Facturar</div>
+                    <div style="font-size:16px;font-weight:900;color:${B.dark}">${fmt(data.cierreReal)}</div>
+                </div>
+            </div>
         </div>
     </div>
 

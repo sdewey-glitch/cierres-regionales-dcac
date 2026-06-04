@@ -549,8 +549,19 @@ export async function calculateDynamicMonth(year: number, month: number): Promis
         res.rendimientoGen = res.tropasGeneral > 0 ? res.rendimientoGen / res.tropasGeneral : 0;
     }
 
-    const officeAgentPools = new Map<string, { cabezas: number, resultado: number, socOpGen: number, count: number, tropas: number, loteIds: Set<number> }>();
-    const officePseudoAgentPools = new Map<string, { cabezas: number, resultado: number, tropas: number, loteIds: Set<number> }>();
+    interface PoolStats {
+        cabezas: number; resultado: number; socOpGen: number; count: number; tropas: number; loteIds: Set<number>;
+        resInv: number; resFaena: number; resNeo: number; resCria: number; resMag: number;
+        cabInv: number; cabFaena: number; cabNeo: number; cabCria: number; cabMag: number;
+    }
+    const createPoolStats = (): PoolStats => ({
+        cabezas: 0, resultado: 0, socOpGen: 0, count: 0, tropas: 0, loteIds: new Set<number>(),
+        resInv: 0, resFaena: 0, resNeo: 0, resCria: 0, resMag: 0,
+        cabInv: 0, cabFaena: 0, cabNeo: 0, cabCria: 0, cabMag: 0
+    });
+
+    const officeAgentPools = new Map<string, PoolStats>();
+    const officePseudoAgentPools = new Map<string, PoolStats>();
 
     for (const res of resultsMap.values()) {
         const poolKey = res.oficina || res.provincia || 'Sin Zona';
@@ -561,9 +572,15 @@ export async function calculateDynamicMonth(year: number, month: number): Promis
         const isOperario = res.tipo.toLowerCase().includes('operario');
 
         // Regional pool: ALL agents in the office/province (real + pseudo)
-        const currentPool = officeAgentPools.get(poolKey) || { cabezas: 0, resultado: 0, socOpGen: 0, count: 0, tropas: 0, loteIds: new Set<number>() };
+        const currentPool = officeAgentPools.get(poolKey) || createPoolStats();
         
         currentPool.resultado += res.resultado_final_ajustado;
+        currentPool.resInv += res.resInv;
+        currentPool.resFaena += res.resFaena;
+        currentPool.resNeo += res.resInvNeo;
+        currentPool.resCria += res.resCria;
+        currentPool.resMag += res.resMag;
+
         // V4.0 Logic: TODOS los reales suman a la tajada total y al %OP total
         if (!isPseudo) {
             currentPool.socOpGen += res.socOpGen;
@@ -573,21 +590,45 @@ export async function calculateDynamicMonth(year: number, month: number): Promis
         for (const det of res.operacionesDetalle) {
             if (!currentPool.loteIds.has(det.id_lote)) {
                 currentPool.loteIds.add(det.id_lote);
-                currentPool.cabezas += Number(det.cantidad) || 0;
+                const cant = Number(det.cantidad) || 0;
+                currentPool.cabezas += cant;
                 currentPool.tropas += 1;
+                
+                const tipoLower = det.tipo.toLowerCase();
+                const unLower = (det.un || '').toLowerCase();
+                if (unLower.includes('neo') || tipoLower.includes('neo')) currentPool.cabNeo += cant;
+                else if (tipoLower.includes('invernada')) currentPool.cabInv += cant;
+                else if (tipoLower.includes('faena')) currentPool.cabFaena += cant;
+                else if (tipoLower.includes('cria') || tipoLower.includes('cría')) currentPool.cabCria += cant;
+                else currentPool.cabMag += cant;
             }
         }
         officeAgentPools.set(poolKey, currentPool);
 
         // Oficina pool: ONLY pseudo-agents (directas de oficina)
         if (isPseudo) {
-            const current = officePseudoAgentPools.get(poolKey) || { cabezas: 0, resultado: 0, tropas: 0, loteIds: new Set<number>() };
+            const current = officePseudoAgentPools.get(poolKey) || createPoolStats();
             current.resultado += res.resultado_final_ajustado;
+            current.resInv += res.resInv;
+            current.resFaena += res.resFaena;
+            current.resNeo += res.resInvNeo;
+            current.resCria += res.resCria;
+            current.resMag += res.resMag;
+
             for (const det of res.operacionesDetalle) {
                 if (!current.loteIds.has(det.id_lote)) {
                     current.loteIds.add(det.id_lote);
-                    current.cabezas += Number(det.cantidad) || 0;
+                    const cant = Number(det.cantidad) || 0;
+                    current.cabezas += cant;
                     current.tropas += 1;
+                    
+                    const tipoLower = det.tipo.toLowerCase();
+                    const unLower = (det.un || '').toLowerCase();
+                    if (unLower.includes('neo') || tipoLower.includes('neo')) current.cabNeo += cant;
+                    else if (tipoLower.includes('invernada')) current.cabInv += cant;
+                    else if (tipoLower.includes('faena')) current.cabFaena += cant;
+                    else if (tipoLower.includes('cria') || tipoLower.includes('cría')) current.cabCria += cant;
+                    else current.cabMag += cant;
                 }
             }
             officePseudoAgentPools.set(poolKey, current);
@@ -715,10 +756,16 @@ export async function calculateDynamicMonth(year: number, month: number): Promis
         // 3. Componentes Regional y Oficina
         // Componente Regional = Resultado Total de la Provincia × Escala Provincial × Tajada
         const poolKey = res.oficina || res.provincia || 'Sin Zona';
-        const agentPool = officeAgentPools.get(poolKey) || { cabezas: 0, resultado: 0, socOpGen: 0, count: 0, tropas: 0 };
+        const agentPool = officeAgentPools.get(poolKey) || createPoolStats();
         res.tropasRegional = agentPool.tropas;
         res.cabezasRegional = agentPool.cabezas;
         res.resultadoReg = agentPool.resultado;
+        
+        res.resInvReg = agentPool.resInv; res.cabInvReg = agentPool.cabInv;
+        res.resFaenaReg = agentPool.resFaena; res.cabFaenaReg = agentPool.cabFaena;
+        res.resCriaReg = agentPool.resCria; res.cabCriaReg = agentPool.cabCria;
+        res.resMagReg = agentPool.resMag; res.cabMagReg = agentPool.cabMag;
+        res.resInvNeoReg = agentPool.resNeo; res.cabInvNeoReg = agentPool.cabNeo;
         
         // V3.0: Bolsa se divide por 2 para Buenos Aires
         // V3.0: Bolsa se divide por 2 para Buenos Aires
@@ -756,10 +803,17 @@ export async function calculateDynamicMonth(year: number, month: number): Promis
         }
         
         // Componente Oficina = ops directas (sin AC) de la oficina
-        const pseudoPool = officePseudoAgentPools.get(poolKey) || { cabezas: 0, resultado: 0, tropas: 0 };
+        const pseudoPool = officePseudoAgentPools.get(poolKey) || createPoolStats();
         res.tropasOficina = pseudoPool.tropas;
         res.cabezasOfi = pseudoPool.cabezas;
         res.resultadoOfi = pseudoPool.resultado;
+
+        res.resInvOfi = pseudoPool.resInv; res.cabInvOfi = pseudoPool.cabInv;
+        res.resFaenaOfi = pseudoPool.resFaena; res.cabFaenaOfi = pseudoPool.cabFaena;
+        res.resCriaOfi = pseudoPool.resCria; res.cabCriaOfi = pseudoPool.cabCria;
+        res.resMagOfi = pseudoPool.resMag; res.cabMagOfi = pseudoPool.cabMag;
+        res.resInvNeoOfi = pseudoPool.resNeo; res.cabInvNeoOfi = pseudoPool.cabNeo;
+
         res.escalaOficina = await getExactScale(res.cabezasOfi, 'escalaOficina', year, month);
         res.opOficina = agentPool.count > 0 ? (1 / agentPool.count) : 0;
 
