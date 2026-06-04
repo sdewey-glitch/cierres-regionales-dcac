@@ -115,8 +115,24 @@ function adjustAgentDataWithConfig(agentData: CommercialResult, c: any) {
 /** Genera PDF buffer para un agente */
 async function generatePdfBuffer(agentData: CommercialResult, overrideHtml?: string): Promise<Buffer> {
     const html = overrideHtml || generateClosureHtml(agentData);
-    const puppeteer = await import('puppeteer');
-    const browser = await puppeteer.default.launch({ headless: true, args: ['--no-sandbox', '--disable-setuid-sandbox'] });
+    let browser: any;
+
+    if (IS_VERCEL) {
+        // En Vercel (serverless) no hay Chrome instalado → usamos @sparticuz/chromium
+        const chromium = await import('@sparticuz/chromium');
+        const puppeteerCore = await import('puppeteer-core');
+        browser = await puppeteerCore.default.launch({
+            args: chromium.default.args,
+            defaultViewport: chromium.default.defaultViewport,
+            executablePath: await chromium.default.executablePath(),
+            headless: true,
+        });
+    } else {
+        // Local: puppeteer normal con Chrome instalado
+        const puppeteer = await import('puppeteer');
+        browser = await puppeteer.default.launch({ headless: true, args: ['--no-sandbox', '--disable-setuid-sandbox'] });
+    }
+
     const page = await browser.newPage();
     await page.setContent(html, { waitUntil: 'load', timeout: 15000 });
     
@@ -129,6 +145,7 @@ async function generatePdfBuffer(agentData: CommercialResult, overrideHtml?: str
     await browser.close();
     return Buffer.from(pdfBuffer);
 }
+
 
 /** 
  * Envía mail + guarda PDF en Drive via Apps Script web app
