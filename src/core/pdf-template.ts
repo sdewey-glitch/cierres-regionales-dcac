@@ -101,7 +101,6 @@ export function generateClosureHtml(data: CommercialResult): string {
             <td style="${s};text-align:right;color:${B.text}">${fmt(op.importe_vendedor)}</td>
             <td style="${s};color:${B.textSec};max-width:60px;overflow:hidden;text-overflow:ellipsis" title="${op.comercial_venta || ''}">${op.comercial_venta || '—'}</td>
             <td style="${s};color:${B.textSec};max-width:60px;overflow:hidden;text-overflow:ellipsis" title="${op.comercial_compra || ''}">${op.comercial_compra || '—'}</td>
-            <td style="${s};text-align:right;color:${B.textSec}">${fmtRendPct(op.rendimiento_real)}</td>
             <td style="${s};text-align:right;color:${B.textSec}">${fmtRendPct(op.rendimiento_topeado)}</td>
             <td style="${s};text-align:right;color:${resAj < 0 ? B.danger : B.dark};font-weight:600">${fmt(resAj)}</td>
             <td style="${s};text-align:right;color:${varV < 0 ? B.danger : (varV ? B.primary : B.textMuted)};font-weight:600">${varV ? fmt(varV) : '—'}</td>
@@ -183,11 +182,6 @@ export function generateClosureHtml(data: CommercialResult): string {
                     <div style="font-size:8px;font-weight:600;color:${B.light};text-transform:uppercase;letter-spacing:1px;opacity:0.8">Tropas</div>
                     <div style="font-size:18px;font-weight:800;color:#fff">${fmtNum(data.tropasGeneral)}</div>
                 </div>
-                <div style="width:1px;height:30px;background:rgba(255,255,255,0.2)"></div>
-                <div>
-                    <div style="font-size:8px;font-weight:600;color:${B.light};text-transform:uppercase;letter-spacing:1px;opacity:0.8">Escala</div>
-                    <div style="font-size:18px;font-weight:800;color:#fff">${fmtPct(data.escalaGen)}</div>
-                </div>
             </div>
         </div>
     </div>
@@ -213,21 +207,30 @@ export function generateClosureHtml(data: CommercialResult): string {
                     </td>
                 </tr>
                 <!-- Desglose por Unidad de Negocio -->
+                ${data.cabInv > 0 ? `
                 <tr>
                     <td style="padding:4px 10px 4px 20px;font-size:8px;color:${B.textSec}">↳ Invernada</td>
                     <td style="padding:4px 10px;font-size:8px;color:${B.textMuted};text-align:right">${fmtNum(data.cabInv)} cab</td>
                     <td style="padding:4px 10px;font-size:8px;color:${data.resInv < 0 ? B.danger : B.textSec};text-align:right">${fmt(data.resInv)}</td>
-                </tr>
+                </tr>` : ''}
+                ${data.cabInvNeo > 0 ? `
+                <tr>
+                    <td style="padding:4px 10px 4px 20px;font-size:8px;color:${B.textSec}">↳ Invernada Neo</td>
+                    <td style="padding:4px 10px;font-size:8px;color:${B.textMuted};text-align:right">${fmtNum(data.cabInvNeo)} cab</td>
+                    <td style="padding:4px 10px;font-size:8px;color:${data.resInvNeo < 0 ? B.danger : B.textSec};text-align:right">${fmt(data.resInvNeo)}</td>
+                </tr>` : ''}
+                ${data.cabFaena > 0 ? `
                 <tr>
                     <td style="padding:4px 10px 4px 20px;font-size:8px;color:${B.textSec}">↳ Faena</td>
                     <td style="padding:4px 10px;font-size:8px;color:${B.textMuted};text-align:right">${fmtNum(data.cabFaena)} cab</td>
                     <td style="padding:4px 10px;font-size:8px;color:${data.resFaena < 0 ? B.danger : B.textSec};text-align:right">${fmt(data.resFaena)}</td>
-                </tr>
+                </tr>` : ''}
+                ${data.cabCria > 0 ? `
                 <tr>
                     <td style="padding:4px 10px 4px 20px;font-size:8px;color:${B.textSec}">↳ Cría</td>
                     <td style="padding:4px 10px;font-size:8px;color:${B.textMuted};text-align:right">${fmtNum(data.cabCria)} cab</td>
                     <td style="padding:4px 10px;font-size:8px;color:${data.resCria < 0 ? B.danger : B.textSec};text-align:right">${fmt(data.resCria)}</td>
-                </tr>
+                </tr>` : ''}
                 ${showMag ? `
                 <tr>
                     <td style="padding:4px 10px 4px 20px;font-size:8px;color:${B.textSec}">↳ MAG</td>
@@ -432,8 +435,7 @@ ${hasOps ? `
                 <th style="padding:3px 4px;font-size:6px;font-weight:800;color:${B.dark};text-transform:uppercase;letter-spacing:0.3px;text-align:right">Importe</th>
                 <th style="padding:3px 4px;font-size:6px;font-weight:800;color:${B.dark};text-transform:uppercase;letter-spacing:0.3px;text-align:left">AC Venta</th>
                 <th style="padding:3px 4px;font-size:6px;font-weight:800;color:${B.dark};text-transform:uppercase;letter-spacing:0.3px;text-align:left">AC Compra</th>
-                <th style="padding:3px 4px;font-size:6px;font-weight:800;color:${B.dark};text-transform:uppercase;letter-spacing:0.3px;text-align:right">%Rend</th>
-                <th style="padding:3px 4px;font-size:6px;font-weight:800;color:${B.dark};text-transform:uppercase;letter-spacing:0.3px;text-align:right">%Top</th>
+                <th style="padding:3px 4px;font-size:6px;font-weight:800;color:${B.dark};text-transform:uppercase;letter-spacing:0.3px;text-align:right">Rend(%)</th>
                 <th style="padding:3px 4px;font-size:6px;font-weight:800;color:${B.dark};text-transform:uppercase;letter-spacing:0.3px;text-align:right">Res. Ajustado</th>
                 <th style="padding:3px 4px;font-size:6px;font-weight:800;color:${B.dark};text-transform:uppercase;letter-spacing:0.3px;text-align:right">Var (V)</th>
                 <th style="padding:3px 4px;font-size:6px;font-weight:800;color:${B.dark};text-transform:uppercase;letter-spacing:0.3px;text-align:right">Var (C)</th>
@@ -449,7 +451,7 @@ ${hasOps ? `
                 <td style="padding:4px 4px"></td>
                 <td style="padding:4px 4px;font-size:6.5px;font-weight:800;color:${B.text};text-align:right">${fmt(operaciones.reduce((s, o) => s + o.importe_vendedor, 0))}</td>
                 <td colspan="2" style="padding:4px 4px"></td>
-                <td colspan="2" style="padding:4px 4px"></td>
+                <td style="padding:4px 4px"></td>
                 <td style="padding:4px 4px;font-size:6.5px;font-weight:800;color:${totalResAj < 0 ? B.danger : B.dark};text-align:right">${fmt(totalResAj)}</td>
                 <td style="padding:4px 4px;font-size:6.5px;font-weight:800;color:${totalVarV < 0 ? B.danger : B.primary};text-align:right">${totalVarV ? fmt(totalVarV) : '—'}</td>
                 <td style="padding:4px 4px;font-size:6.5px;font-weight:800;color:${totalVarC < 0 ? B.danger : B.primary};text-align:right">${totalVarC ? fmt(totalVarC) : '—'}</td>

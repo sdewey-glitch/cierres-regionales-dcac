@@ -31,10 +31,12 @@ export interface CommercialResult {
 
     // Desglose Personal
     resInv: number;
+    resInvNeo: number;
     resFaena: number;
     resCria: number;
     resMag: number;
     cabInv: number;
+    cabInvNeo: number;
     cabFaena: number;
     cabCria: number;
     cabMag: number;
@@ -113,6 +115,7 @@ export interface OperacionDetalle {
     asociado_comercial?: string;
     cantidad: number;
     categoria: string;
+    un?: string;
     importe_vendedor: number;
     importe_comprador: number;
     resultado_id: number;

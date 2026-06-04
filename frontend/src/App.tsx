@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { ArrowLeft, Search, Download, Calculator, FileText, CheckCircle, UploadCloud, TrendingUp, BarChart3, Users, Save, ShieldAlert, LayoutDashboard, Database, UserCheck, Check, Edit2, Loader2, PlayCircle, RefreshCw, AlertTriangle, Layers, Plus, Edit, X, ChevronDown, ChevronUp, ChevronsUpDown, Play, BookOpen, Mail, Settings } from 'lucide-react';
 // @ts-ignore
@@ -99,6 +99,10 @@ function App() {
   // Lotes table sort state
   const [lotesSortKey, setLotesSortKey] = useState<string | null>(null);
   const [lotesSortDir, setLotesSortDir] = useState<'asc' | 'desc'>('asc');
+
+  // WYSIWYG Editor para Liquidaciones
+  const iframeRef = React.useRef<HTMLIFrameElement>(null);
+  const [savingOverride, setSavingOverride] = useState(false);
 
   const expectedSnapshotName = `cierre_${activeYear}_${activeMonth.padStart(2, '0')}.json`;
   const isSnapshotAvailable = snapshots.includes(expectedSnapshotName);
@@ -1019,364 +1023,68 @@ function App() {
                           </>
                         )}
                       </button>
+
+                      <button
+                        onClick={async () => {
+                          if (!iframeRef.current || !iframeRef.current.contentWindow) return;
+                          setSavingOverride(true);
+                          try {
+                            const htmlContent = iframeRef.current.contentWindow.document.documentElement.outerHTML;
+                            const res = await fetch(`${API_URL}/dispatch/override/${encodeURIComponent(selectedAgent)}?year=${activeYear}&month=${activeMonth}`, {
+                              method: 'POST',
+                              headers: { 'Content-Type': 'application/json' },
+                              body: JSON.stringify({ html: htmlContent })
+                            });
+                            if (res.ok) {
+                              alert("Cambios guardados correctamente. El próximo PDF o Mail usará esta versión.");
+                            } else {
+                              alert("Error al guardar los cambios.");
+                            }
+                          } catch(e) {
+                            alert("Error de red al guardar.");
+                          } finally {
+                            setSavingOverride(false);
+                          }
+                        }}
+                        disabled={savingOverride}
+                        className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-blue-600 text-white text-xs font-bold hover:bg-blue-700 transition-colors shadow-sm disabled:opacity-50"
+                      >
+                        {savingOverride ? <Loader2 size={14} className="animate-spin" /> : <Save size={14} />}
+                        Guardar Edición Manual
+                      </button>
                     </div>
                   </div>
 
-                  <div className="bg-white shadow-xl rounded-xl border border-gray-300 overflow-hidden mb-6 mt-4">
-                    {/* Header Azul DCAC */}
-                    <div className="bg-[#1f5f99] px-6 py-3 flex items-center gap-3">
-                      <div className="w-8 h-8 border-2 border-white rounded flex items-center justify-center font-sans text-white font-black text-sm tracking-tighter">
-                        dCaC
-                      </div>
-                      <span className="text-white font-sans font-bold text-lg tracking-wide">deCampo aCampo</span>
-                    </div>
-
-                    {/* Fila de Datos del Comercial */}
-                    <div className="bg-[#e7e6e6] border-b-4 border-white flex text-center text-[10px] font-bold text-gray-700 divide-x-4 divide-white uppercase">
-                      <div className="w-24 py-1">Año - Mes</div>
-                      <div className="w-56 py-1">Asociado</div>
-                      <div className="w-48 py-1">Provincia</div>
-                      <div className="w-48 py-1">Oficina</div>
-                      <div className="w-32 py-1">Modalidad</div>
-                    </div>
-                    <div className="bg-white border-b border-gray-300 flex text-center text-sm font-semibold text-gray-900 divide-x-4 divide-white">
-                      <div className="w-24 py-1.5">{activeData?.añoMes}</div>
-                      <div className="w-56 py-1.5">{activeData?.asociadoComercial}</div>
-                      <div className="w-48 py-1.5">{activeData?.provincia || '--'}</div>
-                      <div className="w-48 py-1.5">{activeData?.oficina || '--'}</div>
-                      <div className="w-32 py-1.5">{activeData?.modalidad || '--'}</div>
-                    </div>
-
-                    
-                    
-                    {/* TABLA P&L ESTILO SIMULADOR */}
-                    <div className="p-4 md:p-8">
-                        {activeData?.componenteP < activeData?.minimo && activeData?.minimo > 0 && (
-                            <div className={`mb-6 p-3 border rounded flex items-start gap-3 ${activeData?.asociadoComercial?.toLowerCase() === 'david menghi' ? 'bg-green-50 border-green-300' : 'bg-gray-50 border-gray-300'}`}>
-                                <div>
-                                    <h4 className={`font-bold text-xs uppercase ${activeData?.asociadoComercial?.toLowerCase() === 'david menghi' ? 'text-green-800' : 'text-gray-900'}`}>
-                                        {activeData?.asociadoComercial?.toLowerCase() === 'david menghi' ? 'Excepción Contractual' : 'Rendimiento bajo Mínimo Garantizado'}
-                                    </h4>
-                                    <p className={`text-[10px] mt-0.5 leading-tight ${activeData?.asociadoComercial?.toLowerCase() === 'david menghi' ? 'text-green-700' : 'text-gray-600'}`}>
-                                        El ingreso operativo calculado ({fmt.format(activeData?.componenteP || 0)}) no cubre el Fijo Garantizado. Se consolida el pago al valor del Mínimo ({fmt.format(activeData?.minimo || 0)}).
-                                        {activeData?.asociadoComercial?.toLowerCase() === 'david menghi' 
-                                            ? ' Mantiene participación en bonos colectivos (Regional / Oficina).'
-                                            : ' Se inhabilitan bonos colectivos.'}
-                                    </p>
-                                </div>
-                            </div>
-                        )}
-                        
-                        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 md:gap-12">
-                            {/* COLUMNA IZQUIERDA: Componentes Operativos */}
-                            <div>
-                                <table className="w-full text-sm">
-                                    <thead className="border-b-2 border-gray-900 text-left">
-                                        <tr>
-                                            <th className="py-2 text-xs font-black text-gray-900 uppercase tracking-wider">Concepto Operativo</th>
-                                            <th className="py-2 text-xs font-black text-gray-900 uppercase tracking-wider text-center">Ref</th>
-                                            <th className="py-2 text-xs font-black text-gray-900 uppercase tracking-wider text-right">Monto</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody className="divide-y divide-gray-200">
-                                        
-                                        <tr className="hover:bg-gray-50">
-                                            <td className="py-3 pr-2">
-                                                <div className="font-bold text-gray-900 text-sm">Componente Personal</div>
-                                                <div className="text-xs text-slate-600 mt-1.5 space-y-0.5">
-                                                    <div className="flex justify-between max-w-[280px]">
-                                                        <span>Escala (%) personal: <strong className="text-gray-900">{fmtPct.format(activeData?.escalaGen || 0)}</strong></span>
-                                                        <span>Resultado (Aj. Top.): <strong className="text-gray-900">{fmt.format(activeData?.resultado_final_ajustado || 0)}</strong></span>
-                                                    </div>
-                                                    <div>Tropas: <strong className="text-gray-900">{activeData?.tropasGeneral || 0}</strong> | Cabezas: <strong className="text-gray-900">{Number(activeData?.cabezasGeneral || 0).toLocaleString('es-AR')}</strong></div>
-                                                </div>
-                                                
-                                                <div className="mt-2 pl-3 border-l-2 border-gray-300 text-xs space-y-1.5">
-                                                    <div className="flex justify-between w-full max-w-[200px]">
-                                                        <span className="text-gray-600 font-medium">Inv: {activeData?.cabInv || 0} cab</span>
-                                                        <span className="font-bold text-gray-800">{fmt.format(activeData?.resInv || 0)}</span>
-                                                    </div>
-                                                    <div className="flex justify-between w-full max-w-[200px]">
-                                                        <span className="text-gray-600 font-medium">Faena: {activeData?.cabFaena || 0} cab</span>
-                                                        <span className="font-bold text-gray-800">{fmt.format(activeData?.resFaena || 0)}</span>
-                                                    </div>
-                                                    <div className="flex justify-between w-full max-w-[200px]">
-                                                        <span className="text-gray-600 font-medium">Cría: {activeData?.cabCria || 0} cab</span>
-                                                        <span className="font-bold text-gray-800">{fmt.format(activeData?.resCria || 0)}</span>
-                                                    </div>
-                                                    {(activeData?.cabMag || 0) > 0 && (
-                                                    <div className="flex justify-between w-full max-w-[200px]">
-                                                        <span className="text-gray-900 font-medium">MAG: {activeData?.cabMag || 0} cab</span>
-                                                        <span className="font-bold text-gray-900">{fmt.format(activeData?.resMag || 0)}</span>
-                                                    </div>
-                                                    )}
-                                                </div>
-                                            </td>
-                                            <td className="py-3 text-center align-top pt-4">
-                                                <span className="inline-flex px-1.5 py-0.5 rounded bg-gray-100 text-gray-800 text-[10px] font-bold border border-gray-300">{fmtPct.format(activeData?.escalaGen || 0)}</span>
-                                            </td>
-                                            <td className="py-3 text-right font-semibold text-gray-900 align-top pt-4">{fmt.format(activeData?.componenteP || 0)}</td>
-                                        </tr>
-
-                                        {((activeData?.componenteR || 0) > 0 || activeData?.modalidad?.toLowerCase() === 'completa') && (
-                                            <tr className="hover:bg-gray-50">
-                                                <td className="py-3 pr-2">
-                                                    <div className="font-bold text-gray-900 text-sm">Componente Regional</div>
-                                                    <div className="text-xs text-slate-600 mt-1.5 space-y-0.5">
-                                                        <div className="flex justify-between max-w-[280px]">
-                                                            <span>Escala (%) Regional: <strong className="text-gray-900">{fmtPct.format(activeData?.bolsaRegion || 0)}</strong></span>
-                                                            <span>Tajada (%): <strong className="text-gray-900">{fmtPct.format(activeData?.tajadaRegion || 0)}</strong></span>
-                                                        </div>
-                                                        <div className="flex justify-between max-w-[280px]">
-                                                            <span>Tropas: <strong className="text-gray-900">{activeData?.tropasRegional || 0}</strong> | Cabezas: <strong className="text-gray-900">{Number(activeData?.cabezasRegional || 0).toLocaleString('es-AR')}</strong></span>
-                                                        </div>
-                                                        <div>Resultado Regional (Aj. Top.): <strong className="text-gray-900">{fmt.format(activeData?.resultadoReg || 0)}</strong></div>
-                                                    </div>
-                                                </td>
-                                                <td className="py-3 text-center align-top pt-4">
-                                                    <span className="inline-flex px-1.5 py-0.5 rounded bg-gray-100 text-gray-800 text-[10px] font-bold border border-gray-300">{fmtPct.format(activeData?.bolsaRegion || 0)}</span>
-                                                </td>
-                                                <td className="py-3 text-right font-semibold text-gray-900 align-top pt-4">{fmt.format(activeData?.componenteR || 0)}</td>
-                                            </tr>
-                                        )}
-
-                                        {((activeData?.componenteO || 0) > 0 || activeData?.modalidad?.toLowerCase() === 'completa') && (
-                                            <tr className="hover:bg-gray-50">
-                                                <td className="py-3 pr-2">
-                                                    <div className="font-bold text-gray-900 text-sm">Componente Oficina</div>
-                                                    <div className="text-xs text-slate-600 mt-1.5 space-y-0.5">
-                                                        <div className="flex justify-between max-w-[280px]">
-                                                            <span>Escala (%) Oficina: <strong className="text-gray-900">{fmtPct.format(activeData?.escalaOficina || 0)}</strong></span>
-                                                            <span>OP Oficina (%): <strong className="text-gray-900">{fmtPct.format(activeData?.opOficina || 0)}</strong></span>
-                                                        </div>
-                                                        <div className="flex justify-between max-w-[280px]">
-                                                            <span>Tropas: <strong className="text-gray-900">{activeData?.tropasOficina || 0}</strong> | Cabezas: <strong className="text-gray-900">{Number(activeData?.cabezasOfi || 0).toLocaleString('es-AR')}</strong></span>
-                                                        </div>
-                                                        <div>Resultado Oficina (Aj. Top.): <strong className="text-gray-900">{fmt.format(activeData?.resultadoOfi || 0)}</strong></div>
-                                                    </div>
-                                                </td>
-                                                <td className="py-3 text-center align-top pt-4">
-                                                    <span className="inline-flex px-1.5 py-0.5 rounded bg-gray-100 text-gray-800 text-[10px] font-bold border border-gray-300">{fmtPct.format(activeData?.escalaOficina || 0)}</span>
-                                                </td>
-                                                <td className="py-3 text-right font-semibold text-gray-900 align-top pt-4">{fmt.format(activeData?.componenteO || 0)}</td>
-                                            </tr>
-                                        )}
-                                        <tr className="border-y-2 border-gray-300 bg-gray-50/50">
-                                            <td colSpan={2} className="py-3 pl-2 text-xs font-black uppercase tracking-widest text-gray-700">Subtotal Componentes</td>
-                                            <td className="py-3 text-right font-black text-gray-800">
-                                                {fmt.format((activeData?.componenteP || 0) + (activeData?.componenteR || 0) + (activeData?.componenteO || 0))}
-                                            </td>
-                                        </tr>
-                                    </tbody>
-                                </table>
-                                
-                                {activeData?.gastosDetalle && activeData.gastosDetalle.length > 0 && (
-                                <div className="mt-8 border border-gray-200 rounded-lg overflow-hidden">
-                                    <div className="bg-gray-100 px-4 py-2 border-b border-gray-200">
-                                        <h3 className="text-xs font-black uppercase tracking-wider text-gray-800">Gastos por Categoría</h3>
-                                    </div>
-                                    <div className="p-4 space-y-2">
-                                        {activeData.gastosDetalle.map((g: any, i: number) => (
-                                            <div key={i} className="flex justify-between items-center text-sm">
-                                                <span className="font-semibold text-gray-700">{g.categoria}</span>
-                                                <span className="font-bold text-gray-900">{fmt.format(g.importe)}</span>
-                                            </div>
-                                        ))}
-                                    </div>
-                                </div>
-                                )}
-                            </div>
-
-                            {/* COLUMNA DERECHA: P&L (Mínimo, Variable, Final) */}
-                            <div>
-                                <table className="w-full text-sm">
-                                    <thead className="border-b-2 border-gray-900 text-left">
-                                        <tr>
-                                            <th className="py-2 text-xs font-black text-gray-900 uppercase tracking-wider">Concepto Contractual</th>
-                                            <th className="py-2 text-xs font-black text-gray-900 uppercase tracking-wider text-right">Monto</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody className="divide-y divide-gray-200">
-                                        
-                                        <tr className="hover:bg-gray-50">
-                                            <td className="py-3">
-                                                <div className="font-bold text-gray-900 text-sm flex items-center gap-2">
-                                                    Mínimo Garantizado Asegurado
-                                                    {((activeData?.componenteP || 0) + (activeData?.componenteR || 0) + (activeData?.componenteO || 0)) >= (activeData?.minimo || 0) && (
-                                                        <span className="inline-flex items-center justify-center w-4 h-4 bg-gray-900 text-white rounded-full text-[10px]">✓</span>
-                                                    )}
-                                                </div>
-                                                <div className="text-[10px] text-gray-500 mt-1">Piso salarial asegurado para la categoría.</div>
-                                            </td>
-                                            <td className="py-3 text-right font-semibold text-gray-900">
-                                                {fmt.format(activeData?.minimo || 0)}
-                                            </td>
-                                        </tr>
-
-                                        <tr className="hover:bg-gray-50">
-                                            <td className="py-3">
-                                                <div className="font-bold text-gray-900 text-sm">Variable Personal</div>
-                                                <div className="text-[10px] text-gray-500 mt-1">Excedente del componente personal sobre el mínimo garantizado.</div>
-                                            </td>
-                                            <td className="py-3 text-right font-semibold text-gray-900">
-                                                {fmt.format(activeData?.variable_personal || 0)}
-                                            </td>
-                                        </tr>
-
-                                        {((activeData?.componenteR || 0) > 0 || activeData?.modalidad?.toLowerCase() === 'completa') && (
-                                            <tr className="hover:bg-gray-50">
-                                                <td className="py-3">
-                                                    <div className="font-bold text-gray-900 text-sm">Variable Regional</div>
-                                                    <div className="text-[10px] text-gray-500 mt-1">Bono por alcance regional.</div>
-                                                </td>
-                                                <td className="py-3 text-right font-semibold text-gray-900">
-                                                    {fmt.format(activeData?.componenteR || 0)}
-                                                </td>
-                                            </tr>
-                                        )}
-
-                                        {((activeData?.componenteO || 0) > 0 || activeData?.modalidad?.toLowerCase() === 'completa') && (
-                                            <tr className="hover:bg-gray-50">
-                                                <td className="py-3">
-                                                    <div className="font-bold text-gray-900 text-sm">Variable Oficina</div>
-                                                    <div className="text-[10px] text-gray-500 mt-1">Bono por desempeño de la oficina.</div>
-                                                </td>
-                                                <td className="py-3 text-right font-semibold text-gray-900">
-                                                    {fmt.format(activeData?.componenteO || 0)}
-                                                </td>
-                                            </tr>
-                                        )}
-
-
-
-                                        <tr className="border-y-2 border-gray-900 bg-gray-50">
-                                            <td className="py-5 pl-4 text-base font-black uppercase tracking-widest text-gray-900">Total A Facturar</td>
-                                            <td className="py-5 text-right font-black text-2xl text-gray-900">{fmt.format(activeData?.cierreReal || 0)}</td>
-                                        </tr>
-                                    </tbody>
-                                </table>
-
-                                <div className="mt-8 border border-gray-200 rounded-lg overflow-hidden">
-                                    <div className="bg-gray-100 px-4 py-2 border-b border-gray-200">
-                                        <h3 className="text-xs font-black uppercase tracking-wider text-gray-800">Rendiciones Posteriores</h3>
-                                    </div>
-                                    <div className="p-4 space-y-2">
-                                        <div className="flex justify-between items-center text-sm">
-                                            <span className="font-semibold text-gray-700">Reintegro Movilidad (KMS)</span>
-                                            <span className="font-bold text-gray-900">{(activeData?.reintegroMovilidad || 0) > 0 ? fmt.format(activeData.reintegroMovilidad) : '--'}</span>
-                                        </div>
-                                        <div className="flex justify-between items-center text-sm">
-                                            <span className="font-semibold text-gray-700">Gastos Mendel</span>
-                                            <span className="font-bold text-gray-900">{(activeData?.gastosMkt || 0) > 0 ? `- ${fmt.format(activeData.gastosMkt)}` : '--'}</span>
-                                        </div>
-                                        <div className="flex justify-between items-center text-sm">
-                                            <span className="font-semibold text-gray-700">Amortización Vehículo DCAC</span>
-                                            <span className="font-bold text-gray-900">{(activeData?.amortizacioneDcac || 0) > 0 ? `- ${fmt.format(activeData.amortizacioneDcac)}` : '--'}</span>
-                                        </div>
-                                        <div className="pt-2 mt-2 border-t border-gray-200 flex justify-between items-center text-sm">
-                                            <span className="font-black text-gray-900">Total Rendiciones y Descuentos</span>
-                                            <span className="font-black text-gray-900">
-                                                {fmt.format((activeData?.reintegroMovilidad || 0) - (activeData?.gastosMkt || 0) - (activeData?.amortizacioneDcac || 0))}
-                                            </span>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                  </div>
-{/* CIERRE DEL CONTENEDOR max-w-[1400px] */}
-
-                  <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden w-full overflow-x-auto mt-6 transition-all duration-300 hover:shadow-xl hover:-translate-y-1 print-hide-lotes">
-                    <table className="w-full text-left border-collapse whitespace-nowrap">
-                      <thead>
-                        <tr className="bg-gray-100/50 text-[9px] uppercase tracking-widest font-bold text-gray-500 border-b border-gray-200">
-                          <th className="py-2.5 px-3 font-bold cursor-pointer hover:bg-gray-200/60 select-none" onClick={() => handleLotesSort('id_lote')}>Lote <LotesSortIcon col="id_lote" /></th>
-                          <th className="py-2.5 px-2 font-bold cursor-pointer hover:bg-gray-200/60 select-none" onClick={() => handleLotesSort('tipo')}>UN <LotesSortIcon col="tipo" /></th>
-                          <th className="py-2.5 px-2 font-bold cursor-pointer hover:bg-gray-200/60 select-none" onClick={() => handleLotesSort('fecha_operacion')}>Fecha <LotesSortIcon col="fecha_operacion" /></th>
-                          <th className="py-2.5 px-2 font-bold cursor-pointer hover:bg-gray-200/60 select-none" onClick={() => handleLotesSort('sociedad_vendedora')}>RS Vendedora <LotesSortIcon col="sociedad_vendedora" /></th>
-                          <th className="py-2.5 px-2 font-bold cursor-pointer hover:bg-gray-200/60 select-none" onClick={() => handleLotesSort('sociedad_compradora')}>RS Compradora <LotesSortIcon col="sociedad_compradora" /></th>
-                          <th className="py-2.5 px-2 font-bold text-center cursor-pointer hover:bg-gray-200/60 select-none" onClick={() => handleLotesSort('cantidad')}>Cant. <LotesSortIcon col="cantidad" /></th>
-                          <th className="py-2.5 px-2 font-bold text-center cursor-pointer hover:bg-gray-200/60 select-none" onClick={() => handleLotesSort('categoria')}>Categoría <LotesSortIcon col="categoria" /></th>
-                          <th className="py-2.5 px-2 font-bold text-right cursor-pointer hover:bg-gray-200/60 select-none" onClick={() => handleLotesSort('importe_vendedor')}>Importe <LotesSortIcon col="importe_vendedor" /></th>
-                          <th className="py-2.5 px-2 font-bold cursor-pointer hover:bg-gray-200/60 select-none" onClick={() => handleLotesSort('comercial_venta')}>AC Venta <LotesSortIcon col="comercial_venta" /></th>
-                          <th className="py-2.5 px-2 font-bold cursor-pointer hover:bg-gray-200/60 select-none" onClick={() => handleLotesSort('comercial_compra')}>AC Compra <LotesSortIcon col="comercial_compra" /></th>
-                          <th className="py-2.5 px-2 font-bold text-right cursor-pointer hover:bg-gray-200/60 select-none" onClick={() => handleLotesSort('rendimiento_real')}>%Rend <LotesSortIcon col="rendimiento_real" /></th>
-                          <th className="py-2.5 px-2 font-bold text-right cursor-pointer hover:bg-gray-200/60 select-none" onClick={() => handleLotesSort('rendimiento_topeado')}>%Top <LotesSortIcon col="rendimiento_topeado" /></th>
-                          <th className="py-2.5 px-3 font-bold text-right text-gray-700 bg-blue-50/50 cursor-pointer hover:bg-blue-100/60 select-none" onClick={() => handleLotesSort('resultado_topeado_venta')}>Res. Ajustado <LotesSortIcon col="resultado_topeado_venta" /></th>
-                          <th className="py-2.5 px-3 font-bold text-right text-green-700 bg-green-50/50 border-l border-white cursor-pointer hover:bg-green-100/60 select-none" onClick={() => handleLotesSort('ganancia_personal_venta')}>Variable (V) <LotesSortIcon col="ganancia_personal_venta" /></th>
-                          <th className="py-2.5 px-3 font-bold text-right text-green-700 bg-green-50/50 border-l border-white cursor-pointer hover:bg-green-100/60 select-none" onClick={() => handleLotesSort('ganancia_personal_compra')}>Variable (C) <LotesSortIcon col="ganancia_personal_compra" /></th>
-                        </tr>
-                      </thead>
-                      <tbody className="text-[10px]">
-                        {sortedLotesData.map((lote: any, i: number) => {
-                          const isSeller = lote.ganancia_personal_venta > 0 || lote.resultado_topeado_venta > 0;
-                          const isBuyer = lote.ganancia_personal_compra > 0 || lote.resultado_topeado_compra > 0;
-                          
-                          let resAjustado = 0;
-                          if (isSeller) resAjustado += lote.resultado_topeado_venta;
-                          if (isBuyer) resAjustado += lote.resultado_topeado_compra;
-
-                          const importeFinal = Math.max(lote.importe_vendedor || 0, lote.importe_comprador || 0);
-
-                          return (
-                            <tr key={i} className={`border-b border-gray-100 hover:bg-gray-50 transition-colors group ${lote.marca ? 'bg-amber-50/30' : ''}`}>
-                              <td className="py-2 px-3 font-bold text-gray-900 group-hover:text-blue-600 transition-colors">
-                                {lote.id_lote}
-                                {lote.marca && <span className={`ml-1 font-black ${lote.marca === '⚑' ? 'text-red-500' : 'text-amber-600'}`} title={
-                                  lote.marca === '*' ? 'Soc. propia (AC venta vacío en legajo)' : 
-                                  lote.marca === '†' ? 'Asignado por AC compra (otro vendedor)' :
-                                  lote.marca === '⚑' ? '⚠ AC resuelto desde la sociedad, no del legajo' : lote.marca
-                                }>{lote.marca}</span>}
-                              </td>
-                              <td className="py-2 px-2">
-                                <span className={`px-2 py-0.5 rounded text-[9px] font-bold tracking-wide shadow-sm ${getUnBadgeClass(lote.tipo)}`}>
-                                  {lote.tipo}
-                                </span>
-                              </td>
-                              <td className="py-2 px-2 text-gray-500 font-medium">{lote.fecha_operacion}</td>
-                              <td className="py-2 px-2 truncate max-w-[120px] font-semibold text-gray-800" title={lote.sociedad_vendedora}>{lote.sociedad_vendedora}</td>
-                              <td className="py-2 px-2 truncate max-w-[120px] font-semibold text-gray-800" title={lote.sociedad_compradora}>{lote.sociedad_compradora}</td>
-                              <td className="py-2 px-2 text-center font-bold text-gray-900 bg-gray-50/50">{lote.cantidad}</td>
-                              <td className="py-2 px-2 text-center text-gray-500 truncate max-w-[100px] capitalize" title={lote.categoria}>{lote.categoria?.toLowerCase()}</td>
-                              <td className="py-2 px-2 text-right text-gray-500 font-medium">{fmt.format(importeFinal)}</td>
-                              <td className="py-2 px-2 text-gray-500 truncate max-w-[90px]">{lote.comercial_venta}</td>
-                              <td className="py-2 px-2 text-gray-500 truncate max-w-[90px]">{lote.comercial_compra}</td>
-                              <td className="py-2 px-2 font-bold text-right text-gray-400">{fmtPct.format(lote.rendimiento_real / 100)}</td>
-                              <td className="py-2 px-2 font-bold text-right text-blue-600 bg-blue-50/20">{fmtPct.format(lote.rendimiento_topeado / 100)}</td>
-                              <td className="py-2 px-3 text-right font-bold text-gray-800 bg-blue-50/40 border-l border-blue-100/50">
-                                {fmt.format(resAjustado)}
-                              </td>
-                              <td className="py-2 px-3 text-right font-bold text-[#2e5e22] bg-green-50/40 border-l border-white text-[11px]">
-                                {lote.ganancia_personal_venta > 0 ? fmt.format(lote.ganancia_personal_venta) : '-'}
-                              </td>
-                              <td className="py-2 px-3 text-right font-bold text-[#2e5e22] bg-green-50/40 border-l border-white text-[11px]">
-                                {lote.ganancia_personal_compra > 0 ? fmt.format(lote.ganancia_personal_compra) : '-'}
-                              </td>
-                            </tr>
-                          )
-                        })}
-                      </tbody>
-                    </table>
-                  </div>
-
-                  {/* PDF Preview Embed */}
-                  <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden w-full mt-6 transition-all duration-300 hover:shadow-xl print-hide-lotes">
+                  <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden w-full mt-2 transition-all duration-300">
                     <div className="bg-gray-100 px-6 py-3 border-b border-gray-200 flex justify-between items-center">
                       <h3 className="text-sm font-black uppercase tracking-wider text-gray-800 flex items-center gap-2">
                         <FileText size={16} className="text-blue-500" />
-                        Vista Previa del PDF de Envío (Liquidación de Cierres)
+                        Editor de Liquidación de Cierre
                       </h3>
                       <span className="text-[10px] text-gray-500 font-bold hidden sm:inline">
-                        Este es el documento final adjunto que se envía por correo electrónico.
+                        Este documento es 100% editable. Hacé click en cualquier texto o número para cambiarlo.
                       </span>
                     </div>
                     <div className="p-4 bg-slate-100 flex justify-center items-center" style={{ minHeight: '600px' }}>
                       <iframe 
-                        src={`${API_URL}/dispatch/preview-pdf/${encodeURIComponent(selectedAgent)}?year=${activeYear}&month=${activeMonth}`} 
-                        className="w-full rounded-lg border border-gray-300 shadow-md"
-                        style={{ height: '800px', border: 'none' }}
-                        title={`PDF Preview - ${selectedAgent}`}
+                        ref={iframeRef as any}
+                        src={`${API_URL}/dispatch/preview-html/${encodeURIComponent(selectedAgent)}?year=${activeYear}&month=${activeMonth}`} 
+                        className="w-full rounded-lg border border-gray-300 shadow-md bg-white"
+                        style={{ height: '1100px', border: 'none', maxWidth: '900px' }}
+                        title={`Editor PDF - ${selectedAgent}`}
+                        onLoad={(e) => {
+                          const doc = (e.target as HTMLIFrameElement).contentDocument;
+                          if (doc) {
+                            doc.designMode = "on";
+                            doc.body.style.cursor = "text";
+                            const style = doc.createElement("style");
+                            style.textContent = \`
+                              *:hover { outline: 1px dashed rgba(59, 130, 246, 0.5); }
+                              *:focus { outline: 2px solid #3b82f6 !important; background: rgba(59, 130, 246, 0.05); }
+                            \`;
+                            doc.head.appendChild(style);
+                          }
+                        }}
                       />
                     </div>
                   </div>

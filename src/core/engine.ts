@@ -122,7 +122,7 @@ export async function calculateDynamicMonth(year: number, month: number): Promis
 
             tropasGeneral: 0, cabezasGeneral: 0, cabzGenVenta: 0, cabzGenCompra: 0, importeGen: 0, resultado_final: 0, resultado_final_ajustado: 0, resultado_final_ajustado_regional_venta: 0, resultado_final_ajustado_regional_compra: 0, escalaGen: 0, componenteP: 0, componentePAju: 0,
             
-            resInv: 0, resFaena: 0, resCria: 0, resMag: 0, cabInv: 0, cabFaena: 0, cabCria: 0, cabMag: 0,
+            resInv: 0, resInvNeo: 0, resFaena: 0, resCria: 0, resMag: 0, cabInv: 0, cabInvNeo: 0, cabFaena: 0, cabCria: 0, cabMag: 0,
 
             tropasRegional: 0, cabezasRegional: 0, cabzRegVenta: 0, cabzRegCompra: 0, importeReg: 0, resultadoReg: 0, bolsaRegion: 0, tajadaRegion: 0, componenteR: 0,
             tropasOficina: 0, cabezasOfi: 0, cabzRegOfi: 0, cabzOfiCompra: 0, importeOfi: 0, resultadoOfi: 0, escalaOficina: 0, opOficina: 0, componenteO: 0,
@@ -167,7 +167,7 @@ export async function calculateDynamicMonth(year: number, month: number): Promis
 
                 tropasGeneral: 0, cabezasGeneral: 0, cabzGenVenta: 0, cabzGenCompra: 0, importeGen: 0, resultado_final: 0, resultado_final_ajustado: 0, resultado_final_ajustado_regional_venta: 0, resultado_final_ajustado_regional_compra: 0, escalaGen: 0, componenteP: 0, componentePAju: 0,
                 
-                resInv: 0, resFaena: 0, resCria: 0, resMag: 0, cabInv: 0, cabFaena: 0, cabCria: 0, cabMag: 0,
+                resInv: 0, resInvNeo: 0, resFaena: 0, resCria: 0, resMag: 0, cabInv: 0, cabInvNeo: 0, cabFaena: 0, cabCria: 0, cabMag: 0,
 
                 tropasRegional: 0, cabezasRegional: 0, cabzRegVenta: 0, cabzRegCompra: 0, importeReg: 0, resultadoReg: 0, bolsaRegion: 0, tajadaRegion: 0, componenteR: 0,
                 tropasOficina: 0, cabezasOfi: 0, cabzRegOfi: 0, cabzOfiCompra: 0, importeOfi: 0, resultadoOfi: 0, escalaOficina: 0, opOficina: 0, componenteO: 0,
@@ -300,9 +300,12 @@ export async function calculateDynamicMonth(year: number, month: number): Promis
             resComp.resultado_final_ajustado += resultadoFinalAjustado * (1/3);
             resComp.resultado_final_ajustado_regional_compra += resultadoFinalAjustado * (1/3);
 
+            const isInvNeo = (op.UN || '').toLowerCase().includes('neo');
+
             if (isMag) { resComp.cabMag += cabezas; resComp.resMag += resultadoFinalAjustado * (1/3); }
             else if (isFaenaCat) { resComp.cabFaena += cabezas; resComp.resFaena += resultadoFinalAjustado * (1/3); }
             else if (isCria) { resComp.cabCria += cabezas; resComp.resCria += resultadoFinalAjustado * (1/3); }
+            else if (isInvNeo) { resComp.cabInvNeo += cabezas; resComp.resInvNeo += resultadoFinalAjustado * (1/3); }
             else { resComp.cabInv += cabezas; resComp.resInv += resultadoFinalAjustado * (1/3); }
 
             resComp.rendimientoGen += rendimiento;
@@ -316,6 +319,7 @@ export async function calculateDynamicMonth(year: number, month: number): Promis
                 sociedad_compradora: op.RS_Compradora || op.sociedad_compradora || op.comprador_nombre || '',
                 cantidad: cabezas,
                 categoria: op.categoria || '',
+                un: op.UN || '',
                 importe_vendedor: importeVend,
                 importe_comprador: importeComp,
                 resultado_id: rawResultadoFinal,
@@ -355,9 +359,12 @@ export async function calculateDynamicMonth(year: number, month: number): Promis
             resVend.resultado_final_ajustado_regional_venta += resultadoFinalAjustado * (2/3); 
             resVend.resultado_final_ajustado += resultadoFinalAjustado * (2/3); 
 
+            const isInvNeo = (op.UN || '').toLowerCase().includes('neo');
+
             if (isMag) { resVend.cabMag += cabezas; resVend.resMag += resultadoFinalAjustado * (2/3); }
             else if (isFaenaCat) { resVend.cabFaena += cabezas; resVend.resFaena += resultadoFinalAjustado * (2/3); }
             else if (isCria) { resVend.cabCria += cabezas; resVend.resCria += resultadoFinalAjustado * (2/3); }
+            else if (isInvNeo) { resVend.cabInvNeo += cabezas; resVend.resInvNeo += resultadoFinalAjustado * (2/3); }
             else { resVend.cabInv += cabezas; resVend.resInv += resultadoFinalAjustado * (2/3); }
             
             resVend.rendimientoGen += rendimiento;
@@ -416,9 +423,12 @@ export async function calculateDynamicMonth(year: number, month: number): Promis
                 resComp.resultado_final_ajustado_regional_compra += resultadoFinalAjustado * (1/3);
                 resComp.resultado_final_ajustado += resultadoFinalAjustado * (1/3);
 
+                const isInvNeo = (op.UN || '').toLowerCase().includes('neo');
+
                 if (isMag) { if (acVend !== acComp) resComp.cabMag += cabezas; resComp.resMag += resultadoFinalAjustado * (1/3); }
                 else if (isFaenaCat) { if (acVend !== acComp) resComp.cabFaena += cabezas; resComp.resFaena += resultadoFinalAjustado * (1/3); }
                 else if (isCria) { if (acVend !== acComp) resComp.cabCria += cabezas; resComp.resCria += resultadoFinalAjustado * (1/3); }
+                else if (isInvNeo) { if (acVend !== acComp) resComp.cabInvNeo += cabezas; resComp.resInvNeo += resultadoFinalAjustado * (1/3); }
                 else { if (acVend !== acComp) resComp.cabInv += cabezas; resComp.resInv += resultadoFinalAjustado * (1/3); }
 
 
@@ -436,6 +446,7 @@ export async function calculateDynamicMonth(year: number, month: number): Promis
                         sociedad_compradora: op.RS_Compradora || op.sociedad_compradora || op.comprador_nombre || '',
                         cantidad: cabezas,
                         categoria: op.categoria || '',
+                        un: op.UN || '',
                         importe_vendedor: importeVend,
                         importe_comprador: importeComp,
                         resultado_id: rawResultadoFinal,
@@ -471,7 +482,7 @@ export async function calculateDynamicMonth(year: number, month: number): Promis
             res.operacionesDetalle.push({
                 id_lote: op.id_lote || op.id, tipo: tipoOp, fecha_operacion: op.fecha_operacion || '',
                 sociedad_vendedora: opVendedora, sociedad_compradora: opCompradora,
-                cantidad: cabezas, categoria: op.categoria || '',
+                cantidad: cabezas, categoria: op.categoria || '', un: op.UN || '',
                 importe_vendedor: importeVend, importe_comprador: importeComp,
                 resultado_id: rawResultadoFinal, comercial_venta: acVend || '', comercial_compra: acComp || '',
                 bonificacion_vendedor: Number(op.bonificacion_vendedor) || 0, bonificacion_comprador: Number(op.bonificacion_comprador) || 0,
@@ -486,7 +497,7 @@ export async function calculateDynamicMonth(year: number, month: number): Promis
             res.operacionesDetalle.push({
                 id_lote: op.id_lote || op.id, tipo: tipoOp, fecha_operacion: op.fecha_operacion || '',
                 sociedad_vendedora: opVendedora, sociedad_compradora: opCompradora,
-                cantidad: cabezas, categoria: op.categoria || '',
+                cantidad: cabezas, categoria: op.categoria || '', un: op.UN || '',
                 importe_vendedor: importeVend, importe_comprador: importeComp,
                 resultado_id: rawResultadoFinal, comercial_venta: acVend || '', comercial_compra: acComp || '',
                 bonificacion_vendedor: Number(op.bonificacion_vendedor) || 0, bonificacion_comprador: Number(op.bonificacion_comprador) || 0,
@@ -505,7 +516,7 @@ export async function calculateDynamicMonth(year: number, month: number): Promis
             res.operacionesDetalle.push({
                 id_lote: op.id_lote || op.id, tipo: tipoOp, fecha_operacion: op.fecha_operacion || '',
                 sociedad_vendedora: opVendedora, sociedad_compradora: opCompradora,
-                cantidad: cabezas, categoria: op.categoria || '',
+                cantidad: cabezas, categoria: op.categoria || '', un: op.UN || '',
                 importe_vendedor: importeVend, importe_comprador: importeComp,
                 resultado_id: rawResultadoFinal, comercial_venta: acVend || '', comercial_compra: acComp || '',
                 bonificacion_vendedor: Number(op.bonificacion_vendedor) || 0, bonificacion_comprador: Number(op.bonificacion_comprador) || 0,
@@ -520,7 +531,7 @@ export async function calculateDynamicMonth(year: number, month: number): Promis
             res.operacionesDetalle.push({
                 id_lote: op.id_lote || op.id, tipo: tipoOp, fecha_operacion: op.fecha_operacion || '',
                 sociedad_vendedora: opVendedora, sociedad_compradora: opCompradora,
-                cantidad: cabezas, categoria: op.categoria || '',
+                cantidad: cabezas, categoria: op.categoria || '', un: op.UN || '',
                 importe_vendedor: importeVend, importe_comprador: importeComp,
                 resultado_id: rawResultadoFinal, comercial_venta: acVend || '', comercial_compra: acComp || '',
                 bonificacion_vendedor: Number(op.bonificacion_vendedor) || 0, bonificacion_comprador: Number(op.bonificacion_comprador) || 0,
@@ -955,28 +966,34 @@ export async function calculateDynamicMonth(year: number, month: number): Promis
 
         // Aguinaldo (SAC) para Junio y Diciembre
         let aguinaldo = 0;
-        if (month === 6 || month === 12) {
-            const isExcluded = ['manu pons', 'alan garcia', 'milagros lizazo'].some(n => res.asociadoComercial.toLowerCase().includes(n));
-            if (!isExcluded) {
-                const minimosSemestre = [res.minimo]; // El mínimo garantizado de este mes actual
-                const snapDir = path.join(__dirname, 'snapshots');
+        
+        // 1. Check if there's a manual override in the adjustments sheet
+        const manualSacAdj = res.retroactivosDetalle?.find(adj => 
+            (adj as any).motivo?.toLowerCase().includes('aguinaldo') || 
+            (adj as any).motivo?.toLowerCase().includes('sac') ||
+            (adj as any).observaciones?.toLowerCase().includes('aguinaldo')
+        );
+
+        if (manualSacAdj) {
+            aguinaldo = manualSacAdj.deltaResultado;
+            // Remove it from the general ajustes pool so it doesn't double-count
+            res.ajustes -= manualSacAdj.deltaResultado;
+        } else if (month === 6 || month === 12) {
+            // 2. Automatic calculation for Jun/Dec if no manual override
+            const isAcunaOrFrutos = ['agustin acuna', 'agustn acua', 'lucila frutos'].includes(res.asociadoComercial.toLowerCase());
+            const exentosAguinaldo = ['manu pons', 'manuel pons', 'alan garcia', 'alan garca', 'milagros lizazo'];
+            if (!isAcunaOrFrutos && !exentosAguinaldo.includes(res.asociadoComercial.toLowerCase())) {
+                const minimosSemestre = [];
                 for (let i = 1; i <= 5; i++) {
-                    let pMonth = month - i;
-                    let pYear = year;
-                    if (pMonth <= 0) {
-                        pMonth += 12;
-                        pYear -= 1;
+                    let m = month - i;
+                    let y = year;
+                    if (m <= 0) {
+                        m += 12;
+                        y -= 1;
                     }
-                    const snapPath = path.join(snapDir, `cierre_${pYear}_${String(pMonth).padStart(2, '0')}.json`);
-                    if (fs.existsSync(snapPath)) {
-                        try {
-                            const snapData = JSON.parse(fs.readFileSync(snapPath, 'utf8'));
-                            const agentPast = snapData.find((a: any) => a.asociadoComercial === res.asociadoComercial);
-                            if (agentPast && agentPast.minimo) {
-                                minimosSemestre.push(agentPast.minimo);
-                            }
-                        } catch (e) {}
-                    }
+                    const prevBaseMinimo = await getMinimumForCategory(Number(res.categoria) || 0, y, m);
+                    const prevMinimoReal = Math.round(prevBaseMinimo * (rosterEntry?.pctMinimo ?? 1.0));
+                    minimosSemestre.push(prevMinimoReal);
                 }
                 const maxMinimo = Math.max(...minimosSemestre);
                 aguinaldo = Math.round(maxMinimo * 0.5);
