@@ -58,7 +58,8 @@ let q95Cache: any[] | null = null;
 
 
 export async function calculateDynamicMonth(year: number, month: number): Promise<CommercialResult[]> {
-    if (!q95Cache) q95Cache = await fetchQ95();
+    // Siempre refrescar datos para evitar caché viciada (importante en Vercel serverless)
+    q95Cache = await fetchQ95();
     
     const rawOps = q95Cache;
     const roster = await getRoster();
@@ -958,7 +959,7 @@ export async function calculateDynamicMonth(year: number, month: number): Promis
         // 5. Gastos: KMS + Mendel + Amortización DCAC
         const nameLC = res.asociadoComercial.toLowerCase();
         
-        // 5a. Amortización DCAC (Calculada primero para usar en la lógica de coche propio vs empresa)
+        // 5a. Amortización DCAC (costo mensual del vehículo de la empresa)
         const amortEntry = amortData.find(a => a.comercial.toLowerCase() === nameLC);
         if (amortEntry) {
             // Use 2025 rate (latest available), divide by 12 for monthly
@@ -984,25 +985,25 @@ export async function calculateDynamicMonth(year: number, month: number): Promis
             res.auto = resolvedType || kmsEntry.tipoVehiculo || 'auto';
             res.precioPorKm = preciosKm.get(res.auto) || preciosKm.get('auto') || 0;
             
-            // Regla Tipo de Vehículo: Usar columna F (Tipo) de la hoja de KMS, o amortización > 0, o Valentín/David, o contiene 'empresa'
+            // Regla: vehículo empresa (dcac) → NO tiene reintegro de KMs (pero SÍ mantiene amortización)
+            //         vehículo propio → SÍ tiene reintegro de KMs (kms × precioPorKm), NO tiene amortización
             const esVehiculoEmpresa = kmsEntry.tipoVehiculo.toLowerCase().includes('dcac') || 
-                                      res.amortizacioneDcac > 0 || 
-                                      nameLC === 'valentin torriglia' || 
-                                      nameLC === 'david menghi' || 
                                       res.auto.toLowerCase().includes('empresa');
             
             if (esVehiculoEmpresa) {
+                // Auto de la empresa: amortización se mantiene, NO hay reintegro de KMs
                 res.reintegroMovilidad = 0;
-                res.amortizacioneDcac = 0; // Se remueve la amortización para vehículos de la empresa
             } else {
+                // Auto propio: reintegro por KMs, NO hay amortización DCAC
                 res.reintegroMovilidad = res.kms * res.precioPorKm;
+                res.amortizacioneDcac = 0; // No corresponde amortización para auto propio
             }
             res.gastosMovilidad = 0; // Se elimina el gasto espejo redundante
         } else {
             res.kms = 0;
             res.reintegroMovilidad = 0;
             res.gastosMovilidad = 0;
-            res.amortizacioneDcac = 0; // Se remueve la amortización para vehículos de la empresa
+            // Amortización se mantiene — puede haber amortización sin KMS cargados aún
         }
         
         // 5c. Mendel (gastos de tarjeta corporativa) - Período anterior (M-1)
