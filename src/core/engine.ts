@@ -8,6 +8,7 @@ import * as fs from 'fs';
 import * as path from 'path';
 
 import { CommercialResult, LoteChange, RetroactiveAdjustment } from './types';
+import { loadMonthSnapshot } from './snapshot';
 
 export function classifyChannel(
     acName: string | null,
@@ -652,7 +653,7 @@ export async function calculateDynamicMonth(year: number, month: number): Promis
         const isFrutos = res.asociadoComercial.toLowerCase() === 'lucila frutos' || res.modalidad.toLowerCase().includes('kam') || res.modalidad.toLowerCase().includes('frutos');
         let pctPersonal = 0;
         
-        const configModel = getModelByModalidad(res.modalidad);
+        const configModel = await getModelByModalidad(res.modalidad);
         const isCustomModel = !['completa', 'simple', 'hibrida', 'sin minimo', 'operario', 'fijo'].includes(configModel.id) && !isFrutos && !isAcuña;
 
         if (isCustomModel) {
@@ -740,32 +741,40 @@ export async function calculateDynamicMonth(year: number, month: number): Promis
                 for (const det of res.operacionesDetalle) {
                     const isVenta = det.resultado_topeado_venta > 0;
                     const isCompra = det.resultado_topeado_compra > 0;
+                    const esCtaEspecial = det.marca === '⚑ Cta Especial';
 
-                    // Defaults: Grandes Cuentas
-                    let pctVenta = 0.04;
-                    let pctCompra = 0.02;
-                    let catVenta = 'Operaciones Grandes';
-                    let catCompra = 'Operaciones Grandes';
+                    let pctVenta = 0;
+                    let pctCompra = 0;
+                    let catVenta = 'Sin Comision';
+                    let catCompra = 'Sin Comision';
 
-                    const cuentaMatchVenta = cuentasFrutos.find(c => (c.razon_social && c.razon_social.toLowerCase() === det.sociedad_vendedora?.toLowerCase()) || (c.ac_metabase && det.vendedor_ac?.toLowerCase().includes(c.ac_metabase.toLowerCase())));
-                    const cuentaMatchCompra = cuentasFrutos.find(c => (c.razon_social && c.razon_social.toLowerCase() === det.sociedad_compradora?.toLowerCase()) || (c.ac_metabase && det.comprador_ac?.toLowerCase().includes(c.ac_metabase.toLowerCase())));
+                    if (esCtaEspecial) {
+                        // Operación viene por matching de sociedad en cuentas especiales
+                        // Solo cobra si la cuenta es del tipo correcto, lado correcto, y vigente
+                        const cuentaMatchVenta = cuentasFrutos.find(c => (c.razon_social && c.razon_social.toLowerCase() === det.sociedad_vendedora?.toLowerCase()) || (c.ac_metabase && det.vendedor_ac?.toLowerCase().includes(c.ac_metabase.toLowerCase())));
+                        const cuentaMatchCompra = cuentasFrutos.find(c => (c.razon_social && c.razon_social.toLowerCase() === det.sociedad_compradora?.toLowerCase()) || (c.ac_metabase && det.comprador_ac?.toLowerCase().includes(c.ac_metabase.toLowerCase())));
 
-                    // ── VENTA: Solo Mermas aplica (si está vigente) ──
-                    if (cuentaMatchVenta && cuentaMatchVenta.tipo_cuenta === 'Mermas' && cuentaVigente(cuentaMatchVenta)) {
-                        if (det.tipo.toLowerCase().includes('faena')) pctVenta = 0.20;
-                        else pctVenta = 0.15; // Invernada y otros
-                        catVenta = 'Mermas';
+                        // VENTA: Solo Mermas vigente
+                        if (cuentaMatchVenta && cuentaMatchVenta.tipo_cuenta === 'Mermas' && cuentaVigente(cuentaMatchVenta)) {
+                            if (det.tipo.toLowerCase().includes('faena')) pctVenta = 0.20;
+                            else pctVenta = 0.15;
+                            catVenta = 'Mermas';
+                        }
+                        // Vencida o tipo incorrecto → 0%
+
+                        // COMPRA: Solo Activacion CI vigente
+                        if (cuentaMatchCompra && cuentaMatchCompra.tipo_cuenta === 'Activacion CI' && cuentaVigente(cuentaMatchCompra)) {
+                            pctCompra = 0.10;
+                            catCompra = 'Activacion CI';
+                        }
+                        // Vencida o tipo incorrecto → 0%
+                    } else {
+                        // Operación donde Luli es AC directo → Grandes Cuentas
+                        pctVenta = 0.04;
+                        pctCompra = 0.02;
+                        catVenta = 'Operaciones Grandes';
+                        catCompra = 'Operaciones Grandes';
                     }
-                    // Si es Activacion CI en venta → NO aplica, queda GC 4%
-                    // Si es Merma pero venció → queda GC 4%
-
-                    // ── COMPRA: Solo Activacion CI aplica (si está vigente) ──
-                    if (cuentaMatchCompra && cuentaMatchCompra.tipo_cuenta === 'Activacion CI' && cuentaVigente(cuentaMatchCompra)) {
-                        pctCompra = 0.10;
-                        catCompra = 'Activacion CI';
-                    }
-                    // Si es Mermas en compra → NO aplica, queda GC 2%
-                    // Si es CIS pero venció → queda GC 2%
 
                     det.ganancia_personal_venta = isVenta ? (det.resultado_topeado_venta * pctVenta) : 0;
                     det.ganancia_personal_compra = isCompra ? (det.resultado_topeado_compra * pctCompra) : 0;
@@ -776,10 +785,10 @@ export async function calculateDynamicMonth(year: number, month: number): Promis
 
                     // Acumular subtotales por categoría
                     if (catVenta === 'Mermas') mermasTotal += det.ganancia_personal_venta;
-                    else gcTotal += det.ganancia_personal_venta;
+                    else if (catVenta === 'Operaciones Grandes') gcTotal += det.ganancia_personal_venta;
 
                     if (catCompra === 'Activacion CI') cisTotal += det.ganancia_personal_compra;
-                    else gcTotal += det.ganancia_personal_compra;
+                    else if (catCompra === 'Operaciones Grandes') gcTotal += det.ganancia_personal_compra;
                 }
                 res.componenteP = totalP;
                 res.grandesCuentas = gcTotal;
@@ -1106,21 +1115,11 @@ export async function calculateDynamicMonth(year: number, month: number): Promis
     return finalResults;
 }
 
-export function saveSnapshot(year: number, month: number, results: CommercialResult[]) {
-    const dir = path.join(__dirname, 'snapshots');
-    if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
-    
-    const filePath = path.join(dir, `cierre_${year}_${String(month).padStart(2, '0')}.json`);
-    fs.writeFileSync(filePath, JSON.stringify(results, null, 2));
-    console.log(`Snapshot guardado en ${filePath}`);
-}
-
 // Retroactive Adjustment Engine — Método Genuino
 // Usa escala CONGELADA × delta de resultado para no generar efecto cascada
 
 export async function calculateRetroactiveAdjustments(year: number, month: number): Promise<RetroactiveAdjustment[]> {
     const adjustments: RetroactiveAdjustment[] = [];
-    const dir = path.join(__dirname, 'snapshots');
 
     // Revisar 3 meses anteriores (M-1, M-2, M-3)
     for (let i = 1; i <= 3; i++) {
@@ -1131,13 +1130,11 @@ export async function calculateRetroactiveAdjustments(year: number, month: numbe
             pastYear -= 1;
         }
 
-        const snapshotPath = path.join(dir, `cierre_${pastYear}_${String(pastMonth).padStart(2, '0')}.json`);
-        if (!fs.existsSync(snapshotPath)) {
+        const frozenData = await loadMonthSnapshot(pastYear, pastMonth);
+        if (!frozenData) {
             console.log(`[retro] No hay snapshot estático para ${pastYear}-${pastMonth}, skip`);
             continue;
         }
-
-        const frozenData: CommercialResult[] = JSON.parse(fs.readFileSync(snapshotPath, 'utf8'));
         const dynamicResults = await calculateDynamicMonth(pastYear, pastMonth);
 
         console.log(`[retro] Comparando ${pastYear}-${pastMonth}: ${frozenData.length} congelados vs ${dynamicResults.length} dinámicos`);

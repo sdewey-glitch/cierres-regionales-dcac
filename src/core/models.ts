@@ -1,6 +1,8 @@
 import * as fs from 'fs';
 import * as path from 'path';
 import { getExactScale } from './calculator';
+import { readSheet, writeSheet, appendSheet, createSheetIfNotExists } from '../api/sheets';
+import { config } from '../config/env';
 
 export interface ScaleTramo {
     cabezas: number;
@@ -30,9 +32,6 @@ export interface CommissionModel {
     componenteR: ComponentConfig;
     componenteO: ComponentConfig;
 }
-
-const SCALES_PATH = path.resolve(__dirname, 'data/custom_scales.json');
-const MODELS_PATH = path.resolve(__dirname, 'data/custom_models.json');
 
 // Modelos estándar predefinidos (de compatibilidad con el Roster actual)
 const PREDEFINED_MODELS: Record<string, CommissionModel> = {
@@ -93,43 +92,71 @@ const PREDEFINED_MODELS: Record<string, CommissionModel> = {
 };
 
 // Cargar escalas custom
-export function loadCustomScales(): Record<string, CustomScale> {
+export async function loadCustomScales(): Promise<Record<string, CustomScale>> {
     try {
-        if (fs.existsSync(SCALES_PATH)) {
-            const data = fs.readFileSync(SCALES_PATH, 'utf-8');
-            return JSON.parse(data);
+        await createSheetIfNotExists(config.TARGET_SPREADSHEET_ID, 'Sys_Config');
+        const rows = await readSheet(config.TARGET_SPREADSHEET_ID, 'Sys_Config!A:B');
+        const row = rows.find(r => r[0] === 'scales');
+        if (row && row[1]) {
+            return JSON.parse(row[1]);
         }
     } catch (e) {
-        console.error('Error cargando custom_scales.json', e);
+        console.error('Error cargando scales de Google Sheets', e);
     }
     return {};
 }
 
 // Guardar escalas custom
-export function saveCustomScales(scales: Record<string, CustomScale>) {
-    fs.writeFileSync(SCALES_PATH, JSON.stringify(scales, null, 2), 'utf-8');
+export async function saveCustomScales(scales: Record<string, CustomScale>) {
+    try {
+        await createSheetIfNotExists(config.TARGET_SPREADSHEET_ID, 'Sys_Config');
+        const rows = await readSheet(config.TARGET_SPREADSHEET_ID, 'Sys_Config!A:B');
+        const rowIndex = rows.findIndex(r => r[0] === 'scales');
+        if (rowIndex >= 0) {
+            const range = `Sys_Config!A${rowIndex + 1}:B${rowIndex + 1}`;
+            await writeSheet(config.TARGET_SPREADSHEET_ID, range, [['scales', JSON.stringify(scales)]]);
+        } else {
+            await appendSheet(config.TARGET_SPREADSHEET_ID, 'Sys_Config!A:B', [['scales', JSON.stringify(scales)]]);
+        }
+    } catch (e) {
+        console.error('Error guardando scales en Google Sheets', e);
+    }
 }
 
 // Cargar modelos custom
-export function loadCustomModels(): Record<string, CommissionModel> {
+export async function loadCustomModels(): Promise<Record<string, CommissionModel>> {
     try {
-        if (fs.existsSync(MODELS_PATH)) {
-            const data = fs.readFileSync(MODELS_PATH, 'utf-8');
-            return JSON.parse(data);
+        await createSheetIfNotExists(config.TARGET_SPREADSHEET_ID, 'Sys_Config');
+        const rows = await readSheet(config.TARGET_SPREADSHEET_ID, 'Sys_Config!A:B');
+        const row = rows.find(r => r[0] === 'models');
+        if (row && row[1]) {
+            return JSON.parse(row[1]);
         }
     } catch (e) {
-        console.error('Error cargando custom_models.json', e);
+        console.error('Error cargando models de Google Sheets', e);
     }
     return {};
 }
 
 // Guardar modelos custom
-export function saveCustomModels(models: Record<string, CommissionModel>) {
-    fs.writeFileSync(MODELS_PATH, JSON.stringify(models, null, 2), 'utf-8');
+export async function saveCustomModels(models: Record<string, CommissionModel>) {
+    try {
+        await createSheetIfNotExists(config.TARGET_SPREADSHEET_ID, 'Sys_Config');
+        const rows = await readSheet(config.TARGET_SPREADSHEET_ID, 'Sys_Config!A:B');
+        const rowIndex = rows.findIndex(r => r[0] === 'models');
+        if (rowIndex >= 0) {
+            const range = `Sys_Config!A${rowIndex + 1}:B${rowIndex + 1}`;
+            await writeSheet(config.TARGET_SPREADSHEET_ID, range, [['models', JSON.stringify(models)]]);
+        } else {
+            await appendSheet(config.TARGET_SPREADSHEET_ID, 'Sys_Config!A:B', [['models', JSON.stringify(models)]]);
+        }
+    } catch (e) {
+        console.error('Error guardando models en Google Sheets', e);
+    }
 }
 
 // Obtener modelo por modalidad (soporta predefinidos y custom)
-export function getModelByModalidad(modalidad: string): CommissionModel {
+export async function getModelByModalidad(modalidad: string): Promise<CommissionModel> {
     const modNormalized = (modalidad || '').trim().toLowerCase();
     
     // 1. Buscar en modelos predefinidos
@@ -155,7 +182,7 @@ export function getModelByModalidad(modalidad: string): CommissionModel {
     }
 
     // 2. Buscar en modelos custom por ID o nombre
-    const customModels = loadCustomModels();
+    const customModels = await loadCustomModels();
     
     // Intenta buscar coincidencia exacta de ID
     if (customModels[modalidad]) {
@@ -200,7 +227,7 @@ export async function resolveScalePct(
     }
 
     // 3. Escalas custom basadas en tramos definidos por el usuario
-    const customScales = loadCustomScales();
+    const customScales = await loadCustomScales();
     const customScale = customScales[escalaId];
     if (customScale && customScale.tramos && customScale.tramos.length > 0) {
         // Ordenar tramos por cabezas ascendente para buscar
@@ -221,7 +248,7 @@ export async function resolveScalePct(
 }
 
 // Retorna todos los modelos disponibles para la interfaz de usuario
-export function getAllModels(): { id: string; nombre: string; tieneMinimo: boolean; descripcion: string; isCustom: boolean }[] {
+export async function getAllModels(): Promise<{ id: string; nombre: string; tieneMinimo: boolean; descripcion: string; isCustom: boolean }[]> {
     const list: any[] = [];
     
     // Agregar predefinidos
@@ -236,7 +263,7 @@ export function getAllModels(): { id: string; nombre: string; tieneMinimo: boole
     }
 
     // Agregar custom
-    const custom = loadCustomModels();
+    const custom = await loadCustomModels();
     for (const [id, m] of Object.entries(custom)) {
         list.push({
             id,

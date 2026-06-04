@@ -7,24 +7,42 @@ const router = express.Router();
 const SNAPSHOTS_DIR = path.join(__dirname, '../core/snapshots');
 
 // API para listar meses disponibles
-router.get('/snapshots', (req, res) => {
-    if (!fs.existsSync(SNAPSHOTS_DIR)) {
-        return res.json([]);
+router.get('/snapshots', async (req, res) => {
+    try {
+        await createSheetIfNotExists(config.TARGET_SPREADSHEET_ID, 'Sys_Snapshots');
+        const rows = await readSheet(config.TARGET_SPREADSHEET_ID, 'Sys_Snapshots!A:B');
+        // skip header if any, or just filter valid periods
+        const files = rows
+            .filter(r => r[0] && r[0].match(/^\d{4}_\d{2}$/))
+            .map(r => `cierre_${r[0]}.json`);
+        res.json(files);
+    } catch (e: any) {
+        console.error('Error fetching snapshots', e);
+        res.status(500).json({ error: "Error fetch snapshots" });
     }
-    const files = fs.readdirSync(SNAPSHOTS_DIR).filter(f => f.endsWith('.json'));
-    res.json(files);
 });
 
-// API para cargar un mes específico
-router.get('/snapshots/:filename', (req, res) => {
-    const filePath = path.join(SNAPSHOTS_DIR, req.params.filename);
-    if (!fs.existsSync(filePath)) {
-        return res.status(404).json({ error: "Archivo no encontrado" });
-    }
+// API para cargar un mes especfico
+router.get('/snapshots/:filename', async (req, res) => {
     try {
-        const data = fs.readFileSync(filePath, 'utf8');
-        res.json(JSON.parse(data));
+        const filename = req.params.filename; // e.g. cierre_2026_04.json
+        const match = filename.match(/^cierre_(\d{4}_\d{2})\.json$/);
+        if (!match) {
+            return res.status(400).json({ error: "Archivo invalido" });
+        }
+        const periodo = match[1];
+
+        await createSheetIfNotExists(config.TARGET_SPREADSHEET_ID, 'Sys_Snapshots');
+        const rows = await readSheet(config.TARGET_SPREADSHEET_ID, 'Sys_Snapshots!A:B');
+        const row = rows.find(r => r[0] === periodo);
+        
+        if (!row || !row[1]) {
+            return res.status(404).json({ error: "Archivo no encontrado" });
+        }
+
+        res.json(JSON.parse(row[1]));
     } catch(e) {
+        console.error('Error leyendo JSON de sheet', e);
         res.status(500).json({ error: "Error leyendo JSON" });
     }
 });
@@ -422,7 +440,7 @@ router.post('/generate/agent', async (req, res) => {
         }
         
         // 2. Cargar snapshot actual
-        const currentSnapshot = loadMonthSnapshot(Number(year), Number(month)) || [];
+        const currentSnapshot = await loadMonthSnapshot(Number(year), Number(month)) || [];
         
         // Asegurar que cada registro en el snapshot tiene cargado ajustesManuales
         for (const r of currentSnapshot) {
@@ -1326,18 +1344,23 @@ router.get('/historico/:agente', async (req, res) => {
         }
 
         // 2. Read V4 data (from local snapshots)
-        const snapshotDir = path.join(__dirname, '../core/snapshots');
-        const snapshotFiles = fs.existsSync(snapshotDir) ? fs.readdirSync(snapshotDir).filter(f => f.startsWith('cierre_') && f.endsWith('.json')) : [];
+        let snapshotRows: any[][] = [];
+        try {
+            await createSheetIfNotExists(config.TARGET_SPREADSHEET_ID, 'Sys_Snapshots');
+            snapshotRows = await readSheet(config.TARGET_SPREADSHEET_ID, 'Sys_Snapshots!A:B');
+        } catch (e) {
+            console.warn('Could not read Sys_Snapshots', e);
+        }
 
-        for (const file of snapshotFiles) {
+        for (const row of snapshotRows) {
+            if (!row[0] || !row[1] || row[0] === 'Periodo') continue;
             try {
-                const parts = file.replace('.json', '').split('_');
-                const year = parseInt(parts[1], 10);
-                const month = parseInt(parts[2], 10);
+                const parts = row[0].split('_');
+                const year = parseInt(parts[0], 10);
+                const month = parseInt(parts[1], 10);
                 const am = year * 100 + month;
 
-                const filePath = path.join(snapshotDir, file);
-                const snapshotData: any[] = JSON.parse(fs.readFileSync(filePath, 'utf8'));
+                const snapshotData: any[] = JSON.parse(row[1]);
                 const agentSnap = snapshotData.find((s: any) => s.asociadoComercial && s.asociadoComercial.toLowerCase() === agentName.toLowerCase());
 
                 if (agentSnap) {
@@ -1360,7 +1383,7 @@ router.get('/historico/:agente', async (req, res) => {
                     });
                 }
             } catch (snapErr: any) {
-                console.warn(`[historico] Error parsing snapshot ${file}:`, snapErr.message);
+                console.warn(`[historico] Error parsing snapshot ${row[0]}:`, snapErr.message);
             }
         }
 
@@ -1483,7 +1506,6 @@ router.get('/historico/:agente', async (req, res) => {
 // Trae operaciones concretadas del Q95, filtradas por fecha server-side
 router.get('/metricas-red', async (req, res) => {
     try {
-        const snapshotDir = path.join(__dirname, '../core/snapshots');
         const MONTHS_ES = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
 
         // Parámetros opcionales de fecha (del filtro principal)
@@ -1586,14 +1608,22 @@ router.get('/metricas-red', async (req, res) => {
 
         // --- Cargar costos de los snapshots ---
         const snapshotCosts = new Map<string, { costoRed: number; agentes: number; acDetail: any[] }>();
-        if (fs.existsSync(snapshotDir)) {
-            const files = fs.readdirSync(snapshotDir).filter(f => f.startsWith('cierre_') && f.endsWith('.json'));
-            for (const file of files) {
-                const match = file.match(/cierre_(\d{4})_(\d{2})\.json/);
-                if (!match) continue;
-                const key = `${match[1]}_${match[2]}`;
-                const periodo = `${match[1]}${match[2]}`; // e.g. "202605"
-                const raw = JSON.parse(fs.readFileSync(path.join(snapshotDir, file), 'utf8'));
+        
+        let snapshotRows: any[][] = [];
+        try {
+            await createSheetIfNotExists(config.TARGET_SPREADSHEET_ID, 'Sys_Snapshots');
+            snapshotRows = await readSheet(config.TARGET_SPREADSHEET_ID, 'Sys_Snapshots!A:B');
+        } catch (e) {
+            console.warn('Could not read Sys_Snapshots', e);
+        }
+
+        for (const row of snapshotRows) {
+            if (!row[0] || !row[1] || row[0] === 'Periodo') continue;
+            const match = row[0].match(/^(\d{4})_(\d{2})$/);
+            if (!match) continue;
+            const key = `${match[1]}_${match[2]}`;
+            const periodo = `${match[1]}${match[2]}`; // e.g. "202605"
+            const raw = JSON.parse(row[1]);
                 let costoRed = 0;
                 const agentesSet = new Set<string>();
                 const acDetail: any[] = [];
@@ -1632,7 +1662,6 @@ router.get('/metricas-red', async (req, res) => {
                 }
                 snapshotCosts.set(key, { costoRed, agentes: agentesSet.size, acDetail });
             }
-        }
 
         // --- Procesar cada mes ---
         const months: any[] = [];
@@ -1911,26 +1940,28 @@ router.get('/metricas-plm', async (req, res) => {
     }
 });
 
-// ── Costo de mínimos garantizados en toda la red ──
-router.get('/minimos-red', (req, res) => {
+// 🔴 Costo de mínimos garantizados en toda la red 🔴
+router.get('/minimos-red', async (req, res) => {
     try {
-        if (!fs.existsSync(SNAPSHOTS_DIR)) {
-            return res.json({ months: [] });
-        }
-
         const MONTHS_ES = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
-        const files = fs.readdirSync(SNAPSHOTS_DIR).filter(f => f.startsWith('cierre_') && f.endsWith('.json'));
-
         const months: any[] = [];
 
-        for (const file of files) {
-            try {
-                const parts = file.replace('.json', '').split('_');
-                const year = parseInt(parts[1], 10);
-                const month = parseInt(parts[2], 10);
+        let snapshotRows: any[][] = [];
+        try {
+            await createSheetIfNotExists(config.TARGET_SPREADSHEET_ID, 'Sys_Snapshots');
+            snapshotRows = await readSheet(config.TARGET_SPREADSHEET_ID, 'Sys_Snapshots!A:B');
+        } catch (e) {
+            console.warn('Could not read Sys_Snapshots', e);
+        }
 
-                const filePath = path.join(SNAPSHOTS_DIR, file);
-                const agents: any[] = JSON.parse(fs.readFileSync(filePath, 'utf8'));
+        for (const row of snapshotRows) {
+            if (!row[0] || !row[1] || row[0] === 'Periodo') continue;
+            try {
+                const parts = row[0].split('_');
+                const year = parseInt(parts[0], 10);
+                const month = parseInt(parts[1], 10);
+
+                const agents: any[] = JSON.parse(row[1]);
 
                 // Filtrar agentes (excluir tipo Oficina)
                 const agentesRed = agents.filter(a => a.tipo !== 'Oficina');
@@ -1978,7 +2009,7 @@ router.get('/minimos-red', (req, res) => {
                     detalle
                 });
             } catch (fileErr: any) {
-                console.warn(`[minimos-red] Error procesando ${file}:`, fileErr.message);
+                console.warn(`[minimos-red] Error procesando ${row[0]}:`, fileErr.message);
             }
         }
 

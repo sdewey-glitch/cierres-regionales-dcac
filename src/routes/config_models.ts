@@ -9,14 +9,15 @@ import {
     getAllModels 
 } from '../core/models';
 import { runRegression, RegressionInput } from '../core/regression';
+import { loadMonthSnapshot } from '../core/snapshot';
 
 const configModelsRouter = Router();
 
 // 1. Obtener toda la configuración de modelos y escalas
-configModelsRouter.get('/models', (req: Request, res: Response) => {
+configModelsRouter.get('/models', async (req: Request, res: Response) => {
     try {
-        const models = getAllModels();
-        const customScales = loadCustomScales();
+        const models = await getAllModels();
+        const customScales = await loadCustomScales();
         
         // Retornar las escalas estándar disponibles para selección en UI
         const standardScales = [
@@ -29,7 +30,7 @@ configModelsRouter.get('/models', (req: Request, res: Response) => {
         res.json({
             success: true,
             models,
-            customModels: loadCustomModels(),
+            customModels: await loadCustomModels(),
             customScales,
             standardScales
         });
@@ -39,14 +40,14 @@ configModelsRouter.get('/models', (req: Request, res: Response) => {
 });
 
 // 2. Guardar o actualizar una escala custom
-configModelsRouter.post('/scales', (req: Request, res: Response) => {
+configModelsRouter.post('/scales', async (req: Request, res: Response) => {
     try {
         const { id, nombre, tramos } = req.body;
         if (!id || !nombre || !Array.isArray(tramos)) {
             return res.status(400).json({ success: false, error: 'Faltan parámetros requeridos (id, nombre, tramos).' });
         }
 
-        const scales = loadCustomScales();
+        const scales = await loadCustomScales();
         scales[id] = {
             nombre,
             tramos: tramos.map((t: any) => ({
@@ -55,7 +56,7 @@ configModelsRouter.post('/scales', (req: Request, res: Response) => {
             })).sort((a, b) => a.cabezas - b.cabezas) // Ordenar ascendente por cabezas
         };
 
-        saveCustomScales(scales);
+        await saveCustomScales(scales);
         res.json({ success: true, scales });
     } catch (e: any) {
         res.status(500).json({ success: false, error: e.message });
@@ -63,17 +64,17 @@ configModelsRouter.post('/scales', (req: Request, res: Response) => {
 });
 
 // 3. Eliminar una escala custom
-configModelsRouter.delete('/scales/:id', (req: Request, res: Response) => {
+configModelsRouter.delete('/scales/:id', async (req: Request, res: Response) => {
     try {
         const id = String(req.params.id);
-        const scales = loadCustomScales();
+        const scales = await loadCustomScales();
         
         if (!scales[id]) {
             return res.status(404).json({ success: false, error: 'La escala no existe.' });
         }
 
         delete scales[id];
-        saveCustomScales(scales);
+        await saveCustomScales(scales);
         res.json({ success: true, scales });
     } catch (e: any) {
         res.status(500).json({ success: false, error: e.message });
@@ -81,7 +82,7 @@ configModelsRouter.delete('/scales/:id', (req: Request, res: Response) => {
 });
 
 // 4. Guardar o actualizar un modelo custom
-configModelsRouter.post('/models', (req: Request, res: Response) => {
+configModelsRouter.post('/models', async (req: Request, res: Response) => {
     try {
         const id = String(req.body.id);
         const { nombre, tieneMinimo, descripcion, componenteP, componenteR, componenteO } = req.body;
@@ -89,7 +90,7 @@ configModelsRouter.post('/models', (req: Request, res: Response) => {
             return res.status(400).json({ success: false, error: 'Faltan parámetros requeridos (id, nombre, componenteP).' });
         }
 
-        const models = loadCustomModels();
+        const models = await loadCustomModels();
         models[id] = {
             id,
             nombre,
@@ -113,7 +114,7 @@ configModelsRouter.post('/models', (req: Request, res: Response) => {
             }
         };
 
-        saveCustomModels(models);
+        await saveCustomModels(models);
         res.json({ success: true, models });
     } catch (e: any) {
         res.status(500).json({ success: false, error: e.message });
@@ -121,17 +122,17 @@ configModelsRouter.post('/models', (req: Request, res: Response) => {
 });
 
 // 5. Eliminar un modelo custom
-configModelsRouter.delete('/models/:id', (req: Request, res: Response) => {
+configModelsRouter.delete('/models/:id', async (req: Request, res: Response) => {
     try {
         const id = String(req.params.id);
-        const models = loadCustomModels();
+        const models = await loadCustomModels();
         
         if (!models[id]) {
             return res.status(404).json({ success: false, error: 'El modelo no existe.' });
         }
 
         delete models[id];
-        saveCustomModels(models);
+        await saveCustomModels(models);
         res.json({ success: true, models });
     } catch (e: any) {
         res.status(500).json({ success: false, error: e.message });
@@ -139,7 +140,7 @@ configModelsRouter.delete('/models/:id', (req: Request, res: Response) => {
 });
 
 // 6. Calibrar por regresión lineal OLS sobre datos históricos
-configModelsRouter.post('/regression/calibrate', (req: Request, res: Response) => {
+configModelsRouter.post('/regression/calibrate', async (req: Request, res: Response) => {
     try {
         const { year, month, targetField } = req.body; // targetField: 'sueldoBruto' | 'sueldoNeto'
         if (!year || !month) {
@@ -147,17 +148,15 @@ configModelsRouter.post('/regression/calibrate', (req: Request, res: Response) =
         }
 
         const field = targetField || 'sueldoBruto';
-        const snapshotName = `cierre_${year}_${String(month).padStart(2, '0')}.json`;
-        const snapshotPath = path.resolve(__dirname, `../core/snapshots/${snapshotName}`);
 
-        if (!fs.existsSync(snapshotPath)) {
+        const snapshotData = await loadMonthSnapshot(Number(year), Number(month)) as any[];
+
+        if (!snapshotData) {
             return res.status(404).json({ 
                 success: false, 
                 error: `No hay snapshot de liquidación disponible para el periodo ${month}/${year}. Para calibrar, primero debés generar el cierre de ese periodo.` 
             });
         }
-
-        const snapshotData = JSON.parse(fs.readFileSync(snapshotPath, 'utf-8'));
         
         // Mapear agentes de snapshot para regresión
         const regressionData: RegressionInput[] = [];

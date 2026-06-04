@@ -59,38 +59,34 @@ export async function fetchCard(cardId: number, sessionToken: string, parameters
     return data;
 }
 
+let q95Cache: any[] | null = null;
+let q95CacheTime = 0;
+
 /**
  * Fetch Q95 data from Metabase.
  * Always fetches full dataset — filtering is done server-side in the endpoint.
  */
 export async function fetchQ95(): Promise<any[]> {
-    const cacheDir = path.join(__dirname, '../core/cache');
-    const cacheFile = path.join(cacheDir, 'q95_raw.json');
+    const now = Date.now();
+    if (q95Cache && (now - q95CacheTime) < 3600000) {
+        console.log(`[metabase] Loaded Q95 data from memory cache (${q95Cache.length} rows)`);
+        return q95Cache;
+    }
+
     try {
         const token = await getMetabaseSession();
         // 298 is the new Card ID for Q95_Engine_Ready
         const data = await fetchCard(298, token);
         // Save to cache
-        try {
-            if (!fs.existsSync(cacheDir)) {
-                fs.mkdirSync(cacheDir, { recursive: true });
-            }
-            fs.writeFileSync(cacheFile, JSON.stringify(data));
-            console.log(`[metabase] Saved Q95 cache to ${cacheFile}`);
-        } catch (e: any) {
-            console.warn(`[metabase] Failed to write Q95 cache: ${e.message}`);
-        }
+        q95Cache = data;
+        q95CacheTime = Date.now();
+        console.log(`[metabase] Saved Q95 data to memory cache`);
         return data;
     } catch (e: any) {
-        console.warn(`[metabase] Metabase fetch failed: ${e.message}. Attempting to load from local cache...`);
-        if (fs.existsSync(cacheFile)) {
-            try {
-                const cached = JSON.parse(fs.readFileSync(cacheFile, 'utf8'));
-                console.log(`[metabase] Loaded Q95 data from offline cache (${cached.length} rows)`);
-                return cached;
-            } catch (cacheErr: any) {
-                console.error(`[metabase] Failed to parse Q95 cache: ${cacheErr.message}`);
-            }
+        console.warn(`[metabase] Metabase fetch failed: ${e.message}. Attempting to load from memory cache...`);
+        if (q95Cache) {
+            console.log(`[metabase] Loaded Q95 data from memory cache (${q95Cache.length} rows)`);
+            return q95Cache;
         }
         throw e;
     }

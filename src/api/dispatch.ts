@@ -7,7 +7,7 @@ import { readSheet, writeSheet, appendSheet, createSheetIfNotExists, clearSheetR
 import { generateClosureHtml } from '../core/pdf-template';
 import { CommercialResult } from '../core/types';
 import { calculateDynamicMonth, calculateRetroactiveAdjustments } from '../core/engine';
-import { saveMonthSnapshot } from '../core/snapshot';
+import { saveMonthSnapshot, loadMonthSnapshot } from '../core/snapshot';
 import { updateDynamicSueldos } from '../core/writer';
 
 const router = express.Router();
@@ -41,12 +41,9 @@ function getLocalTimestamp(): string {
 }
 
 /** Lee el snapshot del mes y busca un agente por nombre */
-function getAgentData(year: number, month: number, agentName: string): CommercialResult | null {
-    const filename = `cierre_${year}_${String(month).padStart(2, '0')}.json`;
-    const filePath = path.join(SNAPSHOTS_DIR, filename);
-    if (!fs.existsSync(filePath)) return null;
-    
-    const data: CommercialResult[] = JSON.parse(fs.readFileSync(filePath, 'utf8'));
+async function getAgentData(year: number, month: number, agentName: string): Promise<CommercialResult | null> {
+    const data = await loadMonthSnapshot(year, month);
+    if (!data) return null;
     return data.find(d => d.asociadoComercial?.toString().trim().toLowerCase() === agentName.trim().toLowerCase()) || null;
 }
 
@@ -60,11 +57,9 @@ async function getAgentConfig(year: number, month: number, agentName: string) {
     const row = configData.find((r, i) => i > 0 && r[0]?.toString().trim().toLowerCase() === agentName.trim().toLowerCase());
     if (!row) return null;
 
-    const filename = `cierre_${year}_${String(month).padStart(2, '0')}.json`;
-    const filePath = path.join(SNAPSHOTS_DIR, filename);
     let defaultManualMonto = 0;
-    if (fs.existsSync(filePath)) {
-        const snapshot: CommercialResult[] = JSON.parse(fs.readFileSync(filePath, 'utf8'));
+    const snapshot = await loadMonthSnapshot(year, month);
+    if (snapshot) {
         const agentSnap = snapshot.find(s => s.asociadoComercial?.toString().trim().toLowerCase() === agentName.trim().toLowerCase());
         if (agentSnap) {
             const totalRetro = agentSnap.retroactivosDetalle?.reduce((s, a) => s + a.ajusteComponenteP, 0) || 0;
@@ -237,11 +232,8 @@ router.get('/dispatch/config', async (req, res) => {
 
         // Si está vacía, inicializar desde el snapshot
         if (configData.length <= 1) {
-            const filename = `cierre_${y}_${String(m).padStart(2, '0')}.json`;
-            const filePath = path.join(SNAPSHOTS_DIR, filename);
-            
-            if (fs.existsSync(filePath)) {
-                const snapshot: CommercialResult[] = JSON.parse(fs.readFileSync(filePath, 'utf8'));
+            const snapshot = await loadMonthSnapshot(y, m);
+            if (snapshot) {
                 const header = ['Nombre', 'Codigo', 'Email', 'Enviar', 'CC', 'Ultimo_Envio', 'Estado', 'Ajustes_Manuales_Monto', 'Incluir_Ajustes_Manuales'];
                 const rows = snapshot.map(r => {
                     const totalRetro = r.retroactivosDetalle?.reduce((s, a) => s + a.ajusteComponenteP, 0) || 0;
@@ -265,12 +257,7 @@ router.get('/dispatch/config', async (req, res) => {
             }
         }
 
-        const filename = `cierre_${y}_${String(m).padStart(2, '0')}.json`;
-        const filePath = path.join(SNAPSHOTS_DIR, filename);
-        let snapshot: CommercialResult[] = [];
-        if (fs.existsSync(filePath)) {
-            snapshot = JSON.parse(fs.readFileSync(filePath, 'utf8'));
-        }
+        let snapshot: CommercialResult[] = await loadMonthSnapshot(y, m) || [];
 
         // Parsear config (skip header)
         const envioConfig = configData.slice(1).map(row => {
@@ -426,9 +413,12 @@ router.post('/dispatch/config', async (req, res) => {
                 const results = await calculateDynamicMonth(targetYear, targetMonth);
                 const retros = await calculateRetroactiveAdjustments(targetYear, targetMonth);
 
-                // Guardar retroactivos como JSON local
-                const retroFile = path.join(SNAPSHOTS_DIR, `retro_${targetYear}_${String(targetMonth).padStart(2, '0')}.json`);
-                fs.writeFileSync(retroFile, JSON.stringify(retros, null, 2));
+                // Guardar retroactivos en Sheets temporalmente? O quizÃ¡s no sea necesario guardarlo local.
+                // En este script sÃ³lo procesamos y mostramos.
+                // Si la lÃ³gica de retroactivos es la misma que engine.ts, el cierre es puramente en Sheets.
+                // Comentado para evitar FS local.
+                // const retroFile = path.join(SNAPSHOTS_DIR, `retro_${targetYear}_${String(targetMonth).padStart(2, '0')}.json`);
+                // fs.writeFileSync(retroFile, JSON.stringify(retros, null, 2));
 
                 // Consolidar manuales + retroactivos
                 const ajustesPorAgente = new Map<string, number>();
@@ -485,7 +475,7 @@ router.get('/dispatch/preview-pdf/:agent', async (req, res) => {
         const { year, month } = req.query;
         if (!year || !month) return res.status(400).json({ error: 'year y month requeridos' });
 
-        const agentData = getAgentData(Number(year), Number(month), agentName);
+        const agentData = await getAgentData(Number(year), Number(month), agentName);
         if (!agentData) return res.status(404).json({ error: `No se encontró datos para ${agentName}` });
 
         const c = await getAgentConfig(Number(year), Number(month), agentName);
@@ -510,13 +500,13 @@ router.get('/dispatch/preview-pdf/:agent', async (req, res) => {
 /**
  * GET /api/dispatch/preview-html/:agent — Devuelve el HTML final para el editor WYSIWYG
  */
-router.get('/dispatch/preview-html/:agent', async (req, res) => {
+router.get('/dispatch/preview', async (req, res) => {
     try {
-        const agentName = decodeURIComponent(req.params.agent);
+        const agentName = String(req.query.agent);
         const { year, month } = req.query;
         if (!year || !month) return res.status(400).json({ error: 'year y month requeridos' });
 
-        const agentData = getAgentData(Number(year), Number(month), agentName);
+        const agentData = await getAgentData(Number(year), Number(month), agentName);
         if (!agentData) return res.status(404).json({ error: `No se encontró datos para ${agentName}` });
 
         const c = await getAgentConfig(Number(year), Number(month), agentName);
@@ -574,7 +564,7 @@ router.post('/dispatch/test', async (req, res) => {
         if (!agent || !year || !month) return res.status(400).json({ error: 'Faltan parámetros' });
 
         const mesNombre = MONTHS[month - 1];
-        const agentData = getAgentData(year, month, agent);
+        const agentData = await getAgentData(year, month, agent);
         if (!agentData) return res.status(404).json({ error: `No hay datos de ${agent}` });
 
         const c = await getAgentConfig(Number(year), Number(month), agent);
@@ -655,7 +645,7 @@ router.post('/dispatch/send', async (req, res) => {
         if (!agent || !year || !month) return res.status(400).json({ error: 'Faltan parámetros' });
 
         const mesNombre = MONTHS[month - 1];
-        const agentData = getAgentData(year, month, agent);
+        const agentData = await getAgentData(year, month, agent);
         if (!agentData) return res.status(404).json({ error: `No hay datos de ${agent}` });
 
         const c = await getAgentConfig(Number(year), Number(month), agent);
