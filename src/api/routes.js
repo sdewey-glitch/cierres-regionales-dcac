@@ -1,70 +1,98 @@
-import express from 'express';
-import * as path from 'path';
-import * as fs from 'fs';
-
-const router = express.Router();
-
+"use strict";
+var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    var desc = Object.getOwnPropertyDescriptor(m, k);
+    if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
+      desc = { enumerable: true, get: function() { return m[k]; } };
+    }
+    Object.defineProperty(o, k2, desc);
+}) : (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    o[k2] = m[k];
+}));
+var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
+    Object.defineProperty(o, "default", { enumerable: true, value: v });
+}) : function(o, v) {
+    o["default"] = v;
+});
+var __importStar = (this && this.__importStar) || (function () {
+    var ownKeys = function(o) {
+        ownKeys = Object.getOwnPropertyNames || function (o) {
+            var ar = [];
+            for (var k in o) if (Object.prototype.hasOwnProperty.call(o, k)) ar[ar.length] = k;
+            return ar;
+        };
+        return ownKeys(o);
+    };
+    return function (mod) {
+        if (mod && mod.__esModule) return mod;
+        var result = {};
+        if (mod != null) for (var k = ownKeys(mod), i = 0; i < k.length; i++) if (k[i] !== "default") __createBinding(result, mod, k[i]);
+        __setModuleDefault(result, mod);
+        return result;
+    };
+})();
+var __importDefault = (this && this.__importDefault) || function (mod) {
+    return (mod && mod.__esModule) ? mod : { "default": mod };
+};
+Object.defineProperty(exports, "__esModule", { value: true });
+const express_1 = __importDefault(require("express"));
+const path = __importStar(require("path"));
+const fs = __importStar(require("fs"));
+const router = express_1.default.Router();
 // En Vercel el filesystem es read-only, usar /tmp/ para archivos temporales
 const IS_VERCEL = !!process.env.VERCEL;
 const SNAPSHOTS_DIR = IS_VERCEL ? '/tmp' : path.join(__dirname, '../core/snapshots');
-
 // API para listar meses disponibles
 router.get('/snapshots', async (req, res) => {
     try {
-        await createSheetIfNotExists(config.TARGET_SPREADSHEET_ID, 'Sys_Snapshots');
-        const rows = await readSheet(config.TARGET_SPREADSHEET_ID, 'Sys_Snapshots!A:B');
-        
+        await (0, sheets_1.createSheetIfNotExists)(env_1.config.TARGET_SPREADSHEET_ID, 'Sys_Snapshots');
+        const rows = await (0, sheets_1.readSheet)(env_1.config.TARGET_SPREADSHEET_ID, 'Sys_Snapshots!A:B');
         // Filtrar períodos válidos únicos (evita duplicidad por chunks)
-        const uniquePeriods = Array.from(new Set(
-            rows
-                .filter(r => r[0] && r[0].match(/^\d{4}_\d{2}$/))
-                .map(r => r[0])
-        ));
-        
+        const uniquePeriods = Array.from(new Set(rows
+            .filter(r => r[0] && r[0].match(/^\d{4}_\d{2}$/))
+            .map(r => r[0])));
         const files = uniquePeriods.map(p => `cierre_${p}.json`);
         res.json(files);
-    } catch (e: any) {
+    }
+    catch (e) {
         console.error('Error fetching snapshots', e);
         res.status(500).json({ error: "Error fetch snapshots" });
     }
 });
-
-
-import { calculateDynamicMonth, classifyChannel } from '../core/engine';
-import { saveMonthSnapshot, loadMonthSnapshot, loadAllSnapshots } from '../core/snapshot';
-import { updateDynamicSueldos } from '../core/writer';
-import { fetchPreciosKm, fetchMendelGastos, fetchAjustesManuales, cleanSheetsNumber } from '../core/inputs';
-import { calculateRetroactiveAdjustments } from '../core/engine';
-import { getRoster, invalidateRosterCache, normalizeName } from '../core/normalization';
-import { fetchQ95, fetchAcAssignmentDates } from './metabase';
-import { readSheet, writeSheet, appendSheet, createSheetIfNotExists, clearSheetRange } from './sheets';
-import { config } from '../config/env';
-
-async function getFrozenClosures(): Promise<{ period: string, agentName: string, date: string }[]> {
+const engine_1 = require("../core/engine");
+const snapshot_1 = require("../core/snapshot");
+const writer_1 = require("../core/writer");
+const inputs_1 = require("../core/inputs");
+const engine_2 = require("../core/engine");
+const normalization_1 = require("../core/normalization");
+const metabase_1 = require("./metabase");
+const sheets_1 = require("./sheets");
+const env_1 = require("../config/env");
+async function getFrozenClosures() {
     try {
-        await createSheetIfNotExists(config.HUB_CIERRES_ID, 'Cierres_Congelados');
-        const rows = await readSheet(config.HUB_CIERRES_ID, "'Cierres_Congelados'!A2:C10000");
+        await (0, sheets_1.createSheetIfNotExists)(env_1.config.HUB_CIERRES_ID, 'Cierres_Congelados');
+        const rows = await (0, sheets_1.readSheet)(env_1.config.HUB_CIERRES_ID, "'Cierres_Congelados'!A2:C10000");
         return rows.map(r => ({
             period: String(r[0] || ''),
             agentName: String(r[1] || ''),
             date: String(r[2] || '')
         })).filter(item => item.period && item.agentName);
-    } catch (e) {
+    }
+    catch (e) {
         console.error("[frozen] Error reading Cierres_Congelados", e);
         return [];
     }
 }
-
-async function saveSnapshotPreservingFrozen(year: number, month: number, results: any[]) {
+async function saveSnapshotPreservingFrozen(year, month, results) {
     const period = `${year}_${String(month).padStart(2, '0')}`;
     const frozenList = await getFrozenClosures();
     const frozenAgentsForPeriod = frozenList
         .filter(item => item.period === period)
         .map(item => item.agentName.toLowerCase());
-
     let finalResults = results;
     if (frozenAgentsForPeriod.length > 0) {
-        const previousSnapshot = await loadMonthSnapshot(year, month) || [];
+        const previousSnapshot = await (0, snapshot_1.loadMonthSnapshot)(year, month) || [];
         finalResults = results.map(r => {
             if (frozenAgentsForPeriod.includes(r.asociadoComercial.toLowerCase())) {
                 const frozenAgentData = previousSnapshot.find(prev => prev.asociadoComercial.toLowerCase() === r.asociadoComercial.toLowerCase());
@@ -76,21 +104,19 @@ async function saveSnapshotPreservingFrozen(year: number, month: number, results
             return r;
         });
     }
-
-    await saveMonthSnapshot(year, month, finalResults);
+    await (0, snapshot_1.saveMonthSnapshot)(year, month, finalResults);
     return finalResults;
 }
-
 // GET /api/snapshots/frozen
 router.get('/snapshots/frozen', async (req, res) => {
     try {
         const list = await getFrozenClosures();
         res.json(list);
-    } catch (e: any) {
+    }
+    catch (e) {
         res.status(500).json({ error: e.message });
     }
 });
-
 // API para cargar un mes especfico
 router.get('/snapshots/:filename', async (req, res) => {
     try {
@@ -101,19 +127,17 @@ router.get('/snapshots/:filename', async (req, res) => {
         }
         const year = parseInt(match[1], 10);
         const month = parseInt(match[2], 10);
-
-        const data = await loadMonthSnapshot(year, month);
+        const data = await (0, snapshot_1.loadMonthSnapshot)(year, month);
         if (!data) {
             return res.status(404).json({ error: "Archivo no encontrado" });
         }
-
         res.json(data);
-    } catch(e: any) {
+    }
+    catch (e) {
         console.error('Error leyendo JSON de sheet', e);
         res.status(500).json({ error: e.message });
     }
 });
-
 // POST /api/snapshots/freeze
 router.post('/snapshots/freeze', async (req, res) => {
     const { year, month, agentName } = req.body;
@@ -121,26 +145,21 @@ router.post('/snapshots/freeze', async (req, res) => {
         return res.status(400).json({ error: "Falta year, month o agentName" });
     }
     try {
-        await createSheetIfNotExists(config.HUB_CIERRES_ID, 'Cierres_Congelados');
-        await createSheetIfNotExists(config.HUB_CIERRES_ID, 'Ajustes Historico');
-
+        await (0, sheets_1.createSheetIfNotExists)(env_1.config.HUB_CIERRES_ID, 'Cierres_Congelados');
+        await (0, sheets_1.createSheetIfNotExists)(env_1.config.HUB_CIERRES_ID, 'Ajustes Historico');
         const list = await getFrozenClosures();
         const period = `${year}_${String(month).padStart(2, '0')}`;
         const alreadyFrozen = list.some(item => item.period === period && item.agentName.toLowerCase() === agentName.toLowerCase());
-
         if (alreadyFrozen) {
             return res.json({ success: true, message: "El cierre ya está congelado" });
         }
-
         // 1. Agregar a Cierres_Congelados
         const newRow = [period, agentName, new Date().toISOString()];
-        await appendSheet(config.HUB_CIERRES_ID, "'Cierres_Congelados'!A:C", [newRow]);
-
+        await (0, sheets_1.appendSheet)(env_1.config.HUB_CIERRES_ID, "'Cierres_Congelados'!A:C", [newRow]);
         // 2. Obtener las tropas de este agente del mes actual + los últimos 3 meses para Ajustes Historico
         const añoMesCierre = `${year}${String(month).padStart(2, '0')}`;
-
         // Armar lista de meses a procesar: mes actual + 3 anteriores
-        const monthsToProcess: { y: number, m: number }[] = [];
+        const monthsToProcess = [];
         for (let i = 0; i <= 3; i++) {
             let targetMonth = Number(month) - i;
             let targetYear = Number(year);
@@ -150,26 +169,23 @@ router.post('/snapshots/freeze', async (req, res) => {
             }
             monthsToProcess.push({ y: targetYear, m: targetMonth });
         }
-
-        const allTropaRows: any[][] = [];
+        const allTropaRows = [];
         for (const { y, m } of monthsToProcess) {
-            const snap = await loadMonthSnapshot(y, m);
+            const snap = await (0, snapshot_1.loadMonthSnapshot)(y, m);
             if (!snap) {
                 console.log(`[freeze] ⚠️ No hay snapshot para ${y}-${m}, saltando`);
                 continue;
             }
-            const agentResult = snap.find((r: any) => r.asociadoComercial.toLowerCase() === agentName.toLowerCase());
+            const agentResult = snap.find((r) => r.asociadoComercial.toLowerCase() === agentName.toLowerCase());
             if (!agentResult || !agentResult.operacionesDetalle) {
                 console.log(`[freeze] ⚠️ Sin datos de ${agentName} en ${y}-${m}`);
                 continue;
             }
-
             for (const op of agentResult.operacionesDetalle) {
                 const opYearMonth = op.fecha_operacion
                     ? op.fecha_operacion.substring(0, 4) + op.fecha_operacion.substring(5, 7)
                     : `${y}${String(m).padStart(2, '0')}`;
                 const totalResultado = (op.resultado_topeado_venta || 0) + (op.resultado_topeado_compra || 0);
-
                 let ganancia = 0;
                 if (op.comercial_venta && op.comercial_venta.toLowerCase() === agentName.toLowerCase()) {
                     ganancia += op.ganancia_personal_venta || 0;
@@ -177,35 +193,33 @@ router.post('/snapshots/freeze', async (req, res) => {
                 if (op.comercial_compra && op.comercial_compra.toLowerCase() === agentName.toLowerCase()) {
                     ganancia += op.ganancia_personal_compra || 0;
                 }
-
                 allTropaRows.push([
-                    añoMesCierre,        // Col A: Mes del cierre congelado
-                    opYearMonth,         // Col B: Mes real de la operación
-                    op.id_lote,          // Col C: ID tropa/lote
-                    totalResultado,      // Col D: Resultado empresa
-                    ganancia,            // Col E: Resultado ajustado (ganancia del comercial)
-                    op.comercial_venta || '',   // Col F: AC Vendedor
-                    op.comercial_compra || '',  // Col G: AC Comprador
-                    agentName            // Col H: Asociado congelado (para poder borrar por descongelado)
+                    añoMesCierre, // Col A: Mes del cierre congelado
+                    opYearMonth, // Col B: Mes real de la operación
+                    op.id_lote, // Col C: ID tropa/lote
+                    totalResultado, // Col D: Resultado empresa
+                    ganancia, // Col E: Resultado ajustado (ganancia del comercial)
+                    op.comercial_venta || '', // Col F: AC Vendedor
+                    op.comercial_compra || '', // Col G: AC Comprador
+                    agentName // Col H: Asociado congelado (para poder borrar por descongelado)
                 ]);
             }
             console.log(`[freeze] 📋 ${agentResult.operacionesDetalle.length} tropas del mes ${y}-${m} para ${agentName}`);
         }
-
         if (allTropaRows.length > 0) {
-            await appendSheet(config.HUB_CIERRES_ID, "'Ajustes Historico'!A:H", allTropaRows);
+            await (0, sheets_1.appendSheet)(env_1.config.HUB_CIERRES_ID, "'Ajustes Historico'!A:H", allTropaRows);
             console.log(`[freeze] ✅ Total ${allTropaRows.length} filas guardadas en Ajustes Historico para ${agentName} (cierre ${añoMesCierre})`);
-        } else {
+        }
+        else {
             console.log(`[freeze] ⚠️ No se encontraron tropas para guardar de ${agentName}`);
         }
-
         res.json({ success: true, message: `Cierre de ${agentName} congelado correctamente` });
-    } catch (e: any) {
+    }
+    catch (e) {
         console.error("Error al congelar cierre:", e);
         res.status(500).json({ error: e.message });
     }
 });
-
 // POST /api/snapshots/unfreeze
 router.post('/snapshots/unfreeze', async (req, res) => {
     const { year, month, agentName } = req.body;
@@ -215,37 +229,35 @@ router.post('/snapshots/unfreeze', async (req, res) => {
     try {
         const period = `${year}_${String(month).padStart(2, '0')}`;
         const añoMesCierre = `${year}${String(month).padStart(2, '0')}`;
-
         // 1. Quitar de Cierres_Congelados
-        await createSheetIfNotExists(config.HUB_CIERRES_ID, 'Cierres_Congelados');
-        const frozenRows = await readSheet(config.HUB_CIERRES_ID, "'Cierres_Congelados'!A:C").catch(() => []);
+        await (0, sheets_1.createSheetIfNotExists)(env_1.config.HUB_CIERRES_ID, 'Cierres_Congelados');
+        const frozenRows = await (0, sheets_1.readSheet)(env_1.config.HUB_CIERRES_ID, "'Cierres_Congelados'!A:C").catch(() => []);
         if (frozenRows.length > 0) {
             const headers = frozenRows[0];
             const otherFrozen = frozenRows.slice(1).filter(r => !(String(r[0]) === period && String(r[1]).toLowerCase() === agentName.toLowerCase()));
-            await clearSheetRange(config.HUB_CIERRES_ID, "'Cierres_Congelados'!A2:C10000").catch(() => {});
+            await (0, sheets_1.clearSheetRange)(env_1.config.HUB_CIERRES_ID, "'Cierres_Congelados'!A2:C10000").catch(() => { });
             const newFrozenSheetData = [headers, ...otherFrozen];
-            await writeSheet(config.HUB_CIERRES_ID, `'Cierres_Congelados'!A1:C${newFrozenSheetData.length}`, newFrozenSheetData);
+            await (0, sheets_1.writeSheet)(env_1.config.HUB_CIERRES_ID, `'Cierres_Congelados'!A1:C${newFrozenSheetData.length}`, newFrozenSheetData);
         }
-
         // 2. Quitar de Ajustes Historico (usando la columna Asociado_Congelado)
-        await createSheetIfNotExists(config.HUB_CIERRES_ID, 'Ajustes Historico');
-        const histRows = await readSheet(config.HUB_CIERRES_ID, "'Ajustes Historico'!A:H").catch(() => []);
+        await (0, sheets_1.createSheetIfNotExists)(env_1.config.HUB_CIERRES_ID, 'Ajustes Historico');
+        const histRows = await (0, sheets_1.readSheet)(env_1.config.HUB_CIERRES_ID, "'Ajustes Historico'!A:H").catch(() => []);
         if (histRows.length > 0) {
             const headers = histRows[0];
             const otherHist = histRows.slice(1).filter(r => {
                 const isMatchingPeriod = String(r[0]) === añoMesCierre;
-                const matchesAgent = r.length >= 8 
+                const matchesAgent = r.length >= 8
                     ? String(r[7]).toLowerCase() === agentName.toLowerCase()
                     : (String(r[5]).toLowerCase() === agentName.toLowerCase() || String(r[6]).toLowerCase() === agentName.toLowerCase());
                 return !(isMatchingPeriod && matchesAgent);
             });
-            await clearSheetRange(config.HUB_CIERRES_ID, "'Ajustes Historico'!A2:H100000").catch(() => {});
+            await (0, sheets_1.clearSheetRange)(env_1.config.HUB_CIERRES_ID, "'Ajustes Historico'!A2:H100000").catch(() => { });
             const newHistSheetData = [headers, ...otherHist];
-            await writeSheet(config.HUB_CIERRES_ID, `'Ajustes Historico'!A1:H${newHistSheetData.length}`, newHistSheetData);
+            await (0, sheets_1.writeSheet)(env_1.config.HUB_CIERRES_ID, `'Ajustes Historico'!A1:H${newHistSheetData.length}`, newHistSheetData);
         }
-
         res.json({ success: true, message: `Cierre de ${agentName} descongelado correctamente` });
-    } catch (e: any) {
+    }
+    catch (e) {
         console.error("Error al descongelar cierre:", e);
         res.status(500).json({ error: e.message });
     }
@@ -254,52 +266,48 @@ router.post('/snapshots/unfreeze', async (req, res) => {
 router.post('/migrate-ajustes', async (req, res) => {
     try {
         console.log('[migrate] Leyendo ajustes del SOURCE viejo...');
-        const oldData = await readSheet(config.SOURCE_SPREADSHEET_ID, "'Ajustes'!A2:V2000");
-        
+        const oldData = await (0, sheets_1.readSheet)(env_1.config.SOURCE_SPREADSHEET_ID, "'Ajustes'!A2:V2000");
         // Filtrar solo los que tienen ajuste != 0 (col V = index 21)
         const withAdjustment = oldData.filter(r => r.length > 21 && r[21] && Number(r[21]) !== 0);
         console.log(`[migrate] ${withAdjustment.length} registros con ajuste != 0`);
-        
         // Formato nuevo simplificado: Año | Mes | AñoMes | Comercial | Motivo | Monto
         const newHeaders = [['Año', 'Mes', 'AñoMes', 'Asociado_Comercial', 'Motivo', 'Monto']];
         const newRows = withAdjustment.map(r => [
-            Number(r[1]),                    // Año
-            Number(r[2]),                    // Mes
-            String(r[3]),                    // AñoMes
-            String(r[4]),                    // Asociado_Comercial
-            'Retroactivo (migrado)',         // Motivo genérico
-            Math.round(Number(r[21]) * 100) / 100  // Monto del ajuste
+            Number(r[1]), // Año
+            Number(r[2]), // Mes
+            String(r[3]), // AñoMes
+            String(r[4]), // Asociado_Comercial
+            'Retroactivo (migrado)', // Motivo genérico
+            Math.round(Number(r[21]) * 100) / 100 // Monto del ajuste
         ]);
-        
         // Limpiar hoja vieja y escribir datos estáticos
         const targetRange = `'Ajustes'!A1:F${newRows.length + 1}`;
-        await writeSheet(config.HUB_CONFIGURACIONES_ID, "'Ajustes'!A1:V2000", [['']]);  // Limpia
-        await writeSheet(config.HUB_CONFIGURACIONES_ID, targetRange, [...newHeaders, ...newRows]);
-        
+        await (0, sheets_1.writeSheet)(env_1.config.HUB_CONFIGURACIONES_ID, "'Ajustes'!A1:V2000", [['']]); // Limpia
+        await (0, sheets_1.writeSheet)(env_1.config.HUB_CONFIGURACIONES_ID, targetRange, [...newHeaders, ...newRows]);
         console.log(`[migrate] ✅ ${newRows.length} ajustes migrados al sheet nuevo`);
-        res.json({ 
-            success: true, 
+        res.json({
+            success: true,
             migrated: newRows.length,
             periodos: [...new Set(newRows.map(r => r[2]))].sort()
         });
-    } catch (e: any) {
+    }
+    catch (e) {
         console.error('[migrate] Error:', e.message);
         res.status(500).json({ error: e.message });
     }
 });
-
 router.get('/roster', async (req, res) => {
     try {
-        const roster = await getRoster();
+        const roster = await (0, normalization_1.getRoster)();
         const AC_TIPOS = ['Regional', 'City Manager', 'Corporate', 'Representante', 'Operario de carga'];
         const rosterArray = Array.from(roster.values()).filter(r => AC_TIPOS.includes(r.tipo));
         res.json(rosterArray);
-    } catch (e: any) {
+    }
+    catch (e) {
         res.status(500).json({ error: e.message });
     }
 });
-
-let cachedV3Data: any = null;
+let cachedV3Data = null;
 let lastV3Fetch = 0;
 router.get('/v3-salaries', async (req, res) => {
     try {
@@ -307,7 +315,7 @@ router.get('/v3-salaries', async (req, res) => {
         if (cachedV3Data && (now - lastV3Fetch < 1000 * 60 * 60)) { // 1 hora de cache
             return res.json(cachedV3Data);
         }
-        const data = await readSheet(config.TARGET_SPREADSHEET_ID, "'BDSUELDO_REAL'!A2:Z");
+        const data = await (0, sheets_1.readSheet)(env_1.config.TARGET_SPREADSHEET_ID, "'BDSUELDO_REAL'!A2:Z");
         const parsed = data.map(r => ({
             anioMes: r[3],
             asociadoComercial: r[4],
@@ -326,11 +334,11 @@ router.get('/v3-salaries', async (req, res) => {
         cachedV3Data = parsed;
         lastV3Fetch = now;
         res.json(parsed);
-    } catch (e: any) {
+    }
+    catch (e) {
         res.status(500).json({ error: e.message });
     }
 });
-
 router.post('/roster', async (req, res) => {
     try {
         const agent = req.body;
@@ -338,10 +346,9 @@ router.post('/roster', async (req, res) => {
             return res.status(400).json({ error: "Falta nombre del comercial" });
         }
         const MASTER_ROSTER_ID = '1FpgyFCw2hibi3w_jArtohKUxPhvfUpnF9SDDI3YI-aI';
-        const data = await readSheet(MASTER_ROSTER_ID, "'Asociados Comerciales'!A2:AC");
+        const data = await (0, sheets_1.readSheet)(MASTER_ROSTER_ID, "'Asociados Comerciales'!A2:AC");
         let rowIndex = -1;
-        let existingRow: any[] = [];
-        
+        let existingRow = [];
         for (let i = 0; i < data.length; i++) {
             const row = data[i];
             if (row[0] && String(row[0]).trim().toLowerCase() === agent.nombre.toLowerCase()) {
@@ -350,13 +357,12 @@ router.post('/roster', async (req, res) => {
                 break;
             }
         }
-
         // Prepare the new row, preserving existing data where we don't have inputs
         const newRow = Array(29).fill('');
         for (let i = 0; i < 29; i++) {
-            if (existingRow[i] !== undefined) newRow[i] = existingRow[i];
+            if (existingRow[i] !== undefined)
+                newRow[i] = existingRow[i];
         }
-
         // Update fields
         newRow[0] = agent.nombre;
         newRow[1] = agent.codigo !== undefined ? agent.codigo : newRow[1];
@@ -387,55 +393,50 @@ router.post('/roster', async (req, res) => {
         newRow[26] = agent.nombreOriginal !== undefined ? agent.nombreOriginal : newRow[26];
         newRow[27] = agent.departamento !== undefined ? agent.departamento : newRow[27];
         newRow[28] = agent.deptoId !== undefined ? agent.deptoId : newRow[28];
-
         if (rowIndex !== -1) {
             // Update existing
-            await writeSheet(MASTER_ROSTER_ID, `'Asociados Comerciales'!A${rowIndex}:AC${rowIndex}`, [newRow]);
-        } else {
-            // Append new
-            await appendSheet(MASTER_ROSTER_ID, "'Asociados Comerciales'!A:AC", [newRow]);
+            await (0, sheets_1.writeSheet)(MASTER_ROSTER_ID, `'Asociados Comerciales'!A${rowIndex}:AC${rowIndex}`, [newRow]);
         }
-
-        invalidateRosterCache();
+        else {
+            // Append new
+            await (0, sheets_1.appendSheet)(MASTER_ROSTER_ID, "'Asociados Comerciales'!A:AC", [newRow]);
+        }
+        (0, normalization_1.invalidateRosterCache)();
         res.json({ success: true });
-
-    } catch (e: any) {
+    }
+    catch (e) {
         console.error("Error guardando en Sheets:", e);
         res.status(500).json({ error: e.message });
     }
 });
-
 // API para generar un nuevo cierre a demanda
 router.post('/generate', async (req, res) => {
     const { year, month } = req.body;
-    if (!year || !month) return res.status(400).json({ error: "Falta año o mes" });
-    
+    if (!year || !month)
+        return res.status(400).json({ error: "Falta año o mes" });
     try {
         console.log(`Generando cierre dinámico para ${year}-${month}...`);
-        let results = await calculateDynamicMonth(Number(year), Number(month));
+        let results = await (0, engine_1.calculateDynamicMonth)(Number(year), Number(month));
         results = await saveSnapshotPreservingFrozen(Number(year), Number(month), results);
-        
         // Calcular retroactivos y guardarlos
         console.log(`Calculando retroactivos para ${year}-${month}...`);
-        const retros = await calculateRetroactiveAdjustments(Number(year), Number(month));
-        
+        const retros = await (0, engine_2.calculateRetroactiveAdjustments)(Number(year), Number(month));
         // Guardar retroactivos como JSON local (backup)
         try {
             const retroDir = SNAPSHOTS_DIR;
             const retroFile = path.join(retroDir, `retro_${year}_${String(month).padStart(2, '0')}.json`);
             fs.writeFileSync(retroFile, JSON.stringify(retros, null, 2));
             console.log(`[retro] Guardado ${retros.length} ajustes en ${retroFile}`);
-        } catch (writeErr: any) {
+        }
+        catch (writeErr) {
             console.warn(`[retro] ⚠️ No se pudo guardar retro local: ${writeErr.message}`);
         }
-        
         // === ESCRIBIR RETROACTIVOS AL SHEET ===
         const añoMes = `${year}${String(month).padStart(2, '0')}`;
-        
         // 1. Hoja Ajustes_Retro: resumen por agente
         const retroHeaders = [['Año', 'Mes', 'AñoMes', 'Asociado_Comercial', 'Mes_Ajustado', 'Año_Ajustado',
-            'Escala_Congelada', 'Resultado_Congelado', 'Resultado_Dinamico', 'Delta_Resultado',
-            'Ajuste_ComponenteP', 'Cant_Lotes_Cambiados']];
+                'Escala_Congelada', 'Resultado_Congelado', 'Resultado_Dinamico', 'Delta_Resultado',
+                'Ajuste_ComponenteP', 'Cant_Lotes_Cambiados']];
         const retroRows = retros.map(r => [
             r.año, r.mes, añoMes, r.comercial, r.mesAjustado, r.añoAjustado,
             Math.round(r.escalaCongelada * 10000) / 10000,
@@ -445,12 +446,11 @@ router.post('/generate', async (req, res) => {
             Math.round(r.ajusteComponenteP),
             r.detalleLotes.length
         ]);
-        
         // 2. Hoja Detalle_Retro: cada lote que cambió
         const detalleHeaders = [['Año', 'Mes', 'AñoMes', 'Asociado_Comercial', 'Mes_Negocio', 'Año_Negocio',
-            'ID_Lote', 'Tipo_Cambio', 'Cabezas_Antes', 'Cabezas_Despues',
-            'Resultado_Antes', 'Resultado_Despues', 'Soc_Vendedora', 'Soc_Compradora']];
-        const detalleRows: any[][] = [];
+                'ID_Lote', 'Tipo_Cambio', 'Cabezas_Antes', 'Cabezas_Despues',
+                'Resultado_Antes', 'Resultado_Despues', 'Soc_Vendedora', 'Soc_Compradora']];
+        const detalleRows = [];
         for (const r of retros) {
             for (const l of r.detalleLotes) {
                 detalleRows.push([
@@ -461,121 +461,109 @@ router.post('/generate', async (req, res) => {
                 ]);
             }
         }
-        
         try {
             // Leer datos existentes para no pisar otros meses
-            const existingRetro = await readSheet(config.HUB_CIERRES_ID, "'Ajustes_Retro'!A2:L10000").catch(() => []);
-            const existingDetalle = await readSheet(config.HUB_CIERRES_ID, "'Detalle_Retro'!A2:N50000").catch(() => []);
-            
+            const existingRetro = await (0, sheets_1.readSheet)(env_1.config.HUB_CIERRES_ID, "'Ajustes_Retro'!A2:L10000").catch(() => []);
+            const existingDetalle = await (0, sheets_1.readSheet)(env_1.config.HUB_CIERRES_ID, "'Detalle_Retro'!A2:N50000").catch(() => []);
             // Filtrar registros de OTROS meses (preservar), quitar los del mes actual (reemplazar)
             const otherRetro = existingRetro.filter(r => String(r[2]) !== añoMes);
             const otherDetalle = existingDetalle.filter(r => String(r[2]) !== añoMes);
-            
             // Escribir: headers + otros meses + nuevos del mes actual
             const allRetro = [...retroHeaders, ...otherRetro, ...retroRows];
             const allDetalle = [...detalleHeaders, ...otherDetalle, ...detalleRows];
-            
-            await writeSheet(config.HUB_CIERRES_ID, `'Ajustes_Retro'!A1:L${allRetro.length}`, allRetro);
-            await writeSheet(config.HUB_CIERRES_ID, `'Detalle_Retro'!A1:N${allDetalle.length}`, allDetalle);
-            
+            await (0, sheets_1.writeSheet)(env_1.config.HUB_CIERRES_ID, `'Ajustes_Retro'!A1:L${allRetro.length}`, allRetro);
+            await (0, sheets_1.writeSheet)(env_1.config.HUB_CIERRES_ID, `'Detalle_Retro'!A1:N${allDetalle.length}`, allDetalle);
             console.log(`[retro] ✅ Escrito al sheet: ${retroRows.length} ajustes + ${detalleRows.length} lotes detalle`);
-        } catch (sheetErr: any) {
+        }
+        catch (sheetErr) {
             console.warn(`[retro] ⚠️ No se pudo escribir al sheet retro: ${sheetErr.message}`);
         }
-        
         // === ESCRIBIR BAJADA ESTÁTICA (Q95 cruda de Metabase, 3 meses) ===
         // Al cerrar Abril, guardamos la Q95 cruda de Feb, Mar, Abr → base para retroactivos de Mayo
         try {
-            const rawQ95: any[] = await fetchQ95();
-            
+            const rawQ95 = await (0, metabase_1.fetchQ95)();
             // Determinar los 4 meses: M, M-1, M-2, M-3
-            const mesesIncluir: string[] = [];
+            const mesesIncluir = [];
             for (let i = 0; i <= 3; i++) {
                 let pastM = Number(month) - i;
                 let pastY = Number(year);
-                if (pastM <= 0) { pastM += 12; pastY -= 1; }
+                if (pastM <= 0) {
+                    pastM += 12;
+                    pastY -= 1;
+                }
                 mesesIncluir.push(`${pastY}-${String(pastM).padStart(2, '0')}`);
             }
-            
             // Filtrar Q95 a esos 3 meses por fecha_operacion
             const filteredOps = rawQ95.filter(op => {
-                if (!op.fecha_operacion) return false;
+                if (!op.fecha_operacion)
+                    return false;
                 const prefix = op.fecha_operacion.substring(0, 7); // "2026-04"
                 return mesesIncluir.includes(prefix);
             });
-            
             console.log(`[bajada] Q95 total: ${rawQ95.length} rows, filtrado a 4 meses (${mesesIncluir.join(', ')}): ${filteredOps.length} rows`);
-            
             // Tomar TODAS las columnas de la Q95 tal cual vienen
             if (filteredOps.length > 0) {
                 const allColumns = Object.keys(filteredOps[0]);
                 const bajadaHeaders = [allColumns];
-                
-                const bajadaRows = filteredOps.map(op => 
-                    allColumns.map(col => {
-                        const val = op[col];
-                        return val === null || val === undefined ? '' : val;
-                    })
-                );
-                
+                const bajadaRows = filteredOps.map(op => allColumns.map(col => {
+                    const val = op[col];
+                    return val === null || val === undefined ? '' : val;
+                }));
                 // Determinar AñoMes para cada fila (para filtrado futuro)
                 // Agregar columna AñoMes_Cierre al inicio para trackear a qué cierre pertenece
                 const fullHeaders = [['AñoMes_Cierre', ...allColumns]];
                 const fullRows = filteredOps.map(op => {
-                    const opYM = op.fecha_operacion ? 
+                    const opYM = op.fecha_operacion ?
                         op.fecha_operacion.substring(0, 4) + op.fecha_operacion.substring(5, 7) : '';
                     return [añoMes, ...allColumns.map(col => {
-                        const val = op[col];
-                        return val === null || val === undefined ? '' : val;
-                    })];
+                            const val = op[col];
+                            return val === null || val === undefined ? '' : val;
+                        })];
                 });
-                
                 // Leer existentes de otros cierres (preservar)
-                const existingBajada = await readSheet(config.HUB_CIERRES_ID, "'Bajada_Estatica'!A2:BZ50000").catch(() => []);
+                const existingBajada = await (0, sheets_1.readSheet)(env_1.config.HUB_CIERRES_ID, "'Bajada_Estatica'!A2:BZ50000").catch(() => []);
                 const otherBajada = existingBajada.filter(r => String(r[0]) !== añoMes);
-                
                 const allBajada = [...fullHeaders, ...otherBajada, ...fullRows];
                 const lastCol = String.fromCharCode(65 + Math.min(allColumns.length, 25)); // A-Z
-                await writeSheet(config.HUB_CIERRES_ID, `'Bajada_Estatica'!A1:BZ${allBajada.length}`, allBajada);
-                
+                await (0, sheets_1.writeSheet)(env_1.config.HUB_CIERRES_ID, `'Bajada_Estatica'!A1:BZ${allBajada.length}`, allBajada);
                 console.log(`[bajada] ✅ Q95 cruda al sheet: ${fullRows.length} operaciones, ${allColumns.length + 1} columnas (${mesesIncluir.join(', ')})`);
             }
-            
             // También actualizar snapshots locales de M-1 y M-2
             for (let i = 1; i <= 2; i++) {
                 let pastM = Number(month) - i;
                 let pastY = Number(year);
-                if (pastM <= 0) { pastM += 12; pastY -= 1; }
+                if (pastM <= 0) {
+                    pastM += 12;
+                    pastY -= 1;
+                }
                 console.log(`[bajada] Actualizando snapshot dinámico ${pastY}-${pastM}...`);
-                const dynResults = await calculateDynamicMonth(pastY, pastM);
+                const dynResults = await (0, engine_1.calculateDynamicMonth)(pastY, pastM);
                 const finalDynResults = await saveSnapshotPreservingFrozen(pastY, pastM, dynResults);
                 try {
-                    await updateDynamicSueldos(pastY, pastM, finalDynResults);
-                } catch (err: any) {
+                    await (0, writer_1.updateDynamicSueldos)(pastY, pastM, finalDynResults);
+                }
+                catch (err) {
                     console.warn(`[bajada] ⚠️ Error escribiendo pastMonth ${pastY}-${pastM} al Google Sheet: ${err.message}`);
                 }
             }
-        } catch (sheetErr: any) {
+        }
+        catch (sheetErr) {
             console.warn(`[bajada] ⚠️ No se pudo escribir bajada estática: ${sheetErr.message}`);
         }
-        
         // Sumar ajustes por agente y agregarlos al snapshot
-        const ajustesPorAgente = new Map<string, number>();
+        const ajustesPorAgente = new Map();
         for (const r of retros) {
             const key = r.comercial.toLowerCase();
             ajustesPorAgente.set(key, (ajustesPorAgente.get(key) || 0) + r.ajusteComponenteP);
         }
-        
         // Actualizar el snapshot con los ajustes sumados (manuales + retroactivos) y aplicar fórmula de cierreReal
         for (const res of results) {
             const agentRetros = retros.filter(r => r.comercial.toLowerCase() === res.asociadoComercial.toLowerCase());
             res.retroactivosDetalle = agentRetros.length > 0 ? agentRetros : undefined;
-
             const manuales = res.ajustesManuales !== undefined ? res.ajustesManuales : (res.ajustes || 0);
             res.ajustesManuales = manuales;
             const ajusteRetro = ajustesPorAgente.get(res.asociadoComercial.toLowerCase()) || 0;
             res.ajustes = Math.round(manuales + ajusteRetro);
-            
             let reintegroNeto = res.reintegroMovilidad || 0;
             const tieneAutoPropio = (res.reintegroMovilidad || 0) > 0;
             if (tieneAutoPropio) {
@@ -592,35 +580,33 @@ router.post('/generate', async (req, res) => {
                 : Math.max(res.minimo || 0, totalComponentes + res.ajustes);
             res.cierreReal = sueldoFinal + reintegroNeto - (res.amortizacioneDcac || 0) + ajusteEspecial;
         }
-        
         // Re-guardar snapshot con ajustes incluidos
         const finalResultsWithAjustes = await saveSnapshotPreservingFrozen(Number(year), Number(month), results);
         try {
-            await updateDynamicSueldos(Number(year), Number(month), finalResultsWithAjustes);
-        } catch (err: any) {
+            await (0, writer_1.updateDynamicSueldos)(Number(year), Number(month), finalResultsWithAjustes);
+        }
+        catch (err) {
             console.warn(`[generate] ⚠️ Error escribiendo cierre al Google Sheet: ${err.message}`);
         }
-        
-        res.json({ 
-            success: true, 
+        res.json({
+            success: true,
             message: "Cierre generado correctamente",
             retroactivos: retros.length,
             detalleLotes: detalleRows.length,
             totalAjuste: Math.round([...ajustesPorAgente.values()].reduce((a, b) => a + b, 0))
         });
-    } catch (error: any) {
+    }
+    catch (error) {
         console.error(error);
         res.status(500).json({ error: error.message });
     }
 });
-
 // API para generar o actualizar el cierre de un solo agente específico
 router.post('/generate/agent', async (req, res) => {
     const { year, month, agentName } = req.body;
     if (!year || !month || !agentName) {
         return res.status(400).json({ error: "Falta año, mes o nombre del asociado comercial" });
     }
-    
     try {
         const period = `${year}_${String(month).padStart(2, '0')}`;
         const frozenList = await getFrozenClosures();
@@ -628,66 +614,56 @@ router.post('/generate/agent', async (req, res) => {
         if (isFrozen) {
             return res.status(400).json({ error: "El comercial se encuentra congelado. Debe descongelarlo primero para poder recalcular." });
         }
-
         console.log(`Recalculando cierre específico para ${agentName} en ${year}-${month}...`);
-        
         // 1. Calcular mes dinámico completo (obtiene data fresca de Sheets/Metabase)
-        const freshResults = await calculateDynamicMonth(Number(year), Number(month));
+        const freshResults = await (0, engine_1.calculateDynamicMonth)(Number(year), Number(month));
         const agentFresh = freshResults.find(r => r.asociadoComercial.toLowerCase() === agentName.toLowerCase());
-        
         if (!agentFresh) {
             return res.status(404).json({ error: `No se encontró al asociado ${agentName} en los nuevos cálculos` });
         }
-        
         // 2. Cargar snapshot actual
-        const currentSnapshot = await loadMonthSnapshot(Number(year), Number(month)) || [];
-        
+        const currentSnapshot = await (0, snapshot_1.loadMonthSnapshot)(Number(year), Number(month)) || [];
         // Asegurar que cada registro en el snapshot tiene cargado ajustesManuales
         for (const r of currentSnapshot) {
             if (r.ajustesManuales === undefined) {
-                const prevRetroSum = (r.retroactivosDetalle || []).reduce((sum: number, ret: any) => sum + (ret.ajusteComponenteP || 0), 0);
+                const prevRetroSum = (r.retroactivosDetalle || []).reduce((sum, ret) => sum + (ret.ajusteComponenteP || 0), 0);
                 r.ajustesManuales = Math.round((r.ajustes || 0) - prevRetroSum);
             }
             r.retroactivosDetalle = undefined;
         }
-        
         // 3. Reemplazar o agregar el agente en el snapshot
-        const agentIndex = currentSnapshot.findIndex((r: any) => r.asociadoComercial.toLowerCase() === agentName.toLowerCase());
+        const agentIndex = currentSnapshot.findIndex((r) => r.asociadoComercial.toLowerCase() === agentName.toLowerCase());
         if (agentIndex !== -1) {
             currentSnapshot[agentIndex] = agentFresh;
-        } else {
+        }
+        else {
             currentSnapshot.push(agentFresh);
         }
-        
         // 4. Recalcular retroactivos (necesario ya que cambios de este agente pueden impactar en la red)
         console.log(`Recalculando retroactivos tras actualización de ${agentName}...`);
-        const retros = await calculateRetroactiveAdjustments(Number(year), Number(month));
-        
+        const retros = await (0, engine_2.calculateRetroactiveAdjustments)(Number(year), Number(month));
         // Guardar retroactivos como JSON local (backup)
         try {
             const retroFile = path.join(SNAPSHOTS_DIR, `retro_${year}_${String(month).padStart(2, '0')}.json`);
             fs.writeFileSync(retroFile, JSON.stringify(retros, null, 2));
-        } catch (writeErr: any) {
+        }
+        catch (writeErr) {
             console.warn(`[retro] ⚠️ No se pudo guardar retro local: ${writeErr.message}`);
         }
-        
         // Sumar ajustes por agente
-        const ajustesPorAgente = new Map<string, number>();
+        const ajustesPorAgente = new Map();
         for (const r of retros) {
             const key = r.comercial.toLowerCase();
             ajustesPorAgente.set(key, (ajustesPorAgente.get(key) || 0) + r.ajusteComponenteP);
         }
-        
         // Consolidar ajustes manuales + retroactivos para todos en el snapshot
         for (const r of currentSnapshot) {
             const agentRetros = retros.filter(ret => ret.comercial.toLowerCase() === r.asociadoComercial.toLowerCase());
             r.retroactivosDetalle = agentRetros.length > 0 ? agentRetros : undefined;
-
             const manuales = r.ajustesManuales !== undefined ? r.ajustesManuales : (r.ajustes || 0);
             r.ajustesManuales = manuales;
             const ajusteRetro = ajustesPorAgente.get(r.asociadoComercial.toLowerCase()) || 0;
             r.ajustes = Math.round(manuales + ajusteRetro);
-            
             let reintegroNeto = r.reintegroMovilidad || 0;
             const tieneAutoPropio = (r.reintegroMovilidad || 0) > 0;
             if (tieneAutoPropio) {
@@ -704,15 +680,14 @@ router.post('/generate/agent', async (req, res) => {
                 : Math.max(r.minimo || 0, totalComponentes + r.ajustes);
             r.cierreReal = sueldoFinal + reintegroNeto - (r.amortizacioneDcac || 0) + ajusteEspecial;
         }
-        
         // 5. Guardar el snapshot consolidado final en el disco
         const finalSnapshot = await saveSnapshotPreservingFrozen(Number(year), Number(month), currentSnapshot);
         try {
-            await updateDynamicSueldos(Number(year), Number(month), finalSnapshot);
-        } catch (err: any) {
+            await (0, writer_1.updateDynamicSueldos)(Number(year), Number(month), finalSnapshot);
+        }
+        catch (err) {
             console.warn(`[generate/agent] ⚠️ Error escribiendo cierre del agente al Google Sheet: ${err.message}`);
         }
-        
         res.json({
             success: true,
             message: `Cierre para ${agentName} recalculado y guardado correctamente`,
@@ -725,47 +700,43 @@ router.post('/generate/agent', async (req, res) => {
                 cierreReal: agentFresh.cierreReal
             }
         });
-        
-    } catch (e: any) {
+    }
+    catch (e) {
         console.error('Error recalculando agente:', e);
         res.status(500).json({ error: e.message });
     }
 });
-
 // Endpoint para consultar retroactivos de un mes
 router.get('/retroactivos', async (req, res) => {
     const { year, month } = req.query;
-    if (!year || !month) return res.status(400).json({ error: "Falta year y month" });
-    
+    if (!year || !month)
+        return res.status(400).json({ error: "Falta year y month" });
     try {
         const retroFile = path.join(SNAPSHOTS_DIR, `retro_${year}_${String(Number(month)).padStart(2, '0')}.json`);
-        
         if (fs.existsSync(retroFile)) {
             // Devolver retroactivos pre-calculados
             const data = JSON.parse(fs.readFileSync(retroFile, 'utf8'));
             return res.json(data);
         }
-        
         // Si no existen, calcularlos en vivo
-        const retros = await calculateRetroactiveAdjustments(Number(year), Number(month));
+        const retros = await (0, engine_2.calculateRetroactiveAdjustments)(Number(year), Number(month));
         res.json(retros);
-    } catch (e: any) {
+    }
+    catch (e) {
         res.status(500).json({ error: e.message });
     }
 });
-
 const CUENTAS_FILE_BUNDLED = path.join(__dirname, '../core/data/cuentas.json');
 const CUENTAS_FILE_TMP = '/tmp/cuentas.json';
-
-function getCuentasFile(): string {
+function getCuentasFile() {
     // En Vercel: intentar /tmp primero (si fue actualizado), luego el bundled
     if (IS_VERCEL) {
-        if (fs.existsSync(CUENTAS_FILE_TMP)) return CUENTAS_FILE_TMP;
+        if (fs.existsSync(CUENTAS_FILE_TMP))
+            return CUENTAS_FILE_TMP;
         return CUENTAS_FILE_BUNDLED;
     }
     return CUENTAS_FILE_BUNDLED;
 }
-
 // API para Cuentas Especiales
 router.get('/cuentas', (req, res) => {
     const cuentasFile = getCuentasFile();
@@ -775,46 +746,45 @@ router.get('/cuentas', (req, res) => {
     try {
         const data = fs.readFileSync(cuentasFile, 'utf8');
         res.json(JSON.parse(data));
-    } catch(e) {
+    }
+    catch (e) {
         res.status(500).json({ error: "Error leyendo cuentas.json" });
     }
 });
-
 router.post('/cuentas', (req, res) => {
     try {
         const target = IS_VERCEL ? CUENTAS_FILE_TMP : CUENTAS_FILE_BUNDLED;
         fs.writeFileSync(target, JSON.stringify(req.body, null, 2), 'utf8');
         res.json({ success: true });
-    } catch(e: any) {
+    }
+    catch (e) {
         res.status(500).json({ error: `Error guardando cuentas: ${e.message}` });
     }
 });
-
 router.get('/mendel', async (req, res) => {
     try {
-        const mendelData = await fetchMendelGastos();
+        const mendelData = await (0, inputs_1.fetchMendelGastos)();
         res.json(mendelData);
-    } catch(e: any) {
+    }
+    catch (e) {
         res.status(500).json({ error: "Error leyendo Mendel: " + e.message });
     }
 });
-
 router.get('/kms-prices', async (req, res) => {
     try {
-        const prices = await fetchPreciosKm();
+        const prices = await (0, inputs_1.fetchPreciosKm)();
         const obj = Object.fromEntries(prices);
         res.json(obj);
-    } catch (e: any) {
+    }
+    catch (e) {
         res.status(500).json({ error: e.message });
     }
 });
-
-
 // ── Ajustes Manuales (CRUD en Google Sheets) ──
 router.get('/ajustes-manuales', async (req, res) => {
     try {
-        const raw = await readSheet(config.HUB_CONFIGURACIONES_ID, "'Ajustes'!A2:F");
-        const data: any[] = [];
+        const raw = await (0, sheets_1.readSheet)(env_1.config.HUB_CONFIGURACIONES_ID, "'Ajustes'!A2:F");
+        const data = [];
         raw.forEach((row, idx) => {
             const año = Number(row[0]);
             const comercial = String(row[3] || '').trim();
@@ -826,16 +796,16 @@ router.get('/ajustes-manuales', async (req, res) => {
                     añoMes: String(row[2] || ''),
                     comercial,
                     motivo: String(row[4] || '').trim(),
-                    monto: cleanSheetsNumber(row[5])
+                    monto: (0, inputs_1.cleanSheetsNumber)(row[5])
                 });
             }
         });
         res.json(data);
-    } catch (e: any) {
+    }
+    catch (e) {
         res.status(500).json({ error: e.message });
     }
 });
-
 router.post('/ajustes-manuales', async (req, res) => {
     try {
         const { año, mes, comercial, motivo, monto } = req.body;
@@ -844,13 +814,13 @@ router.post('/ajustes-manuales', async (req, res) => {
         }
         const añoMes = `${año}${String(mes).padStart(2, '0')}`;
         const row = [Number(año), Number(mes), añoMes, String(comercial).trim(), String(motivo).trim(), Number(monto)];
-        await appendSheet(config.HUB_CONFIGURACIONES_ID, "'Ajustes'!A:F", [row]);
+        await (0, sheets_1.appendSheet)(env_1.config.HUB_CONFIGURACIONES_ID, "'Ajustes'!A:F", [row]);
         res.json({ success: true });
-    } catch (e: any) {
+    }
+    catch (e) {
         res.status(500).json({ error: e.message });
     }
 });
-
 router.put('/ajustes-manuales/:id', async (req, res) => {
     try {
         const id = parseInt(req.params.id, 10);
@@ -863,153 +833,144 @@ router.put('/ajustes-manuales/:id', async (req, res) => {
         }
         const añoMes = `${año}${String(mes).padStart(2, '0')}`;
         const row = [Number(año), Number(mes), añoMes, String(comercial).trim(), String(motivo).trim(), Number(monto)];
-        
         const sheetRow = id + 2;
         const range = `'Ajustes'!A${sheetRow}:F${sheetRow}`;
-        await writeSheet(config.HUB_CONFIGURACIONES_ID, range, [row]);
+        await (0, sheets_1.writeSheet)(env_1.config.HUB_CONFIGURACIONES_ID, range, [row]);
         res.json({ success: true });
-    } catch (e: any) {
+    }
+    catch (e) {
         res.status(500).json({ error: e.message });
     }
 });
-
 router.delete('/ajustes-manuales/:id', async (req, res) => {
     try {
         const id = parseInt(req.params.id, 10);
         if (isNaN(id) || id < 0) {
             return res.status(400).json({ error: 'ID inválido' });
         }
-        const raw = await readSheet(config.HUB_CONFIGURACIONES_ID, "'Ajustes'!A2:F");
+        const raw = await (0, sheets_1.readSheet)(env_1.config.HUB_CONFIGURACIONES_ID, "'Ajustes'!A2:F");
         if (id >= raw.length) {
             return res.status(404).json({ error: 'Ajuste no encontrado' });
         }
-        
         raw.splice(id, 1);
-        
-        await clearSheetRange(config.HUB_CONFIGURACIONES_ID, "'Ajustes'!A2:F2000");
-        
+        await (0, sheets_1.clearSheetRange)(env_1.config.HUB_CONFIGURACIONES_ID, "'Ajustes'!A2:F2000");
         if (raw.length > 0) {
-            await writeSheet(config.HUB_CONFIGURACIONES_ID, `'Ajustes'!A2:F${raw.length + 1}`, raw);
+            await (0, sheets_1.writeSheet)(env_1.config.HUB_CONFIGURACIONES_ID, `'Ajustes'!A2:F${raw.length + 1}`, raw);
         }
-        
         res.json({ success: true });
-    } catch (e: any) {
+    }
+    catch (e) {
         res.status(500).json({ error: e.message });
     }
 });
-
 router.get('/revision/sociedad-sin-legajo', async (req, res) => {
     try {
         const year = parseInt(String(req.query.year), 10);
         const month = parseInt(String(req.query.month), 10);
-        if (!year || !month) return res.status(400).json({ error: 'year y month requeridos' });
-
-        const rawOps = await fetchQ95();
-        const roster = await getRoster();
-        const assignmentDates = await fetchAcAssignmentDates();
-
+        if (!year || !month)
+            return res.status(400).json({ error: 'year y month requeridos' });
+        const rawOps = await (0, metabase_1.fetchQ95)();
+        const roster = await (0, normalization_1.getRoster)();
+        const assignmentDates = await (0, metabase_1.fetchAcAssignmentDates)();
         // A helper function to normalize name comparison
-        const cleanName = (name: string | null | undefined): string => {
-            if (!name) return '';
+        const cleanName = (name) => {
+            if (!name)
+                return '';
             return name.toLowerCase()
                 .normalize("NFD")
                 .replace(/[\u0300-\u036f]/g, "")
                 .replace(/[^a-z0-9]/g, '')
                 .trim();
         };
-
-        const ops = rawOps.filter((op: any) => {
-            if (!op.fecha_operacion) return false;
+        const ops = rawOps.filter((op) => {
+            if (!op.fecha_operacion)
+                return false;
             const opYear = parseInt(op.fecha_operacion.substring(0, 4), 10);
             const opMonth = parseInt(op.fecha_operacion.substring(5, 7), 10);
             return opYear === year && opMonth === month;
         });
-
-        const items: any[] = [];
+        const items = [];
         for (const op of ops) {
             const acIdVend = op.asociado_comercial_id_vend || op.AC_Vend || '';
             const acSocVend = op.asociado_comercial_soc_vend || '';
             const repreVend = op.RepreVendedor || op.repre_vendedor || '';
             const legajoVend = acIdVend || repreVend || '';
-
             const acIdComp = op.asociado_comercial_id_comp || op.AC_Comp || '';
             const acSocComp = op.asociado_comercial_soc_comp || '';
             const repreComp = op.RepreComprador || op.repre_comprador || '';
             const legajoComp = acIdComp || repreComp || '';
-
-            const resolvedVend = acSocVend ? await normalizeName(String(acSocVend)) : null;
-            const resolvedComp = acSocComp ? await normalizeName(String(acSocComp)) : null;
-
+            const resolvedVend = acSocVend ? await (0, normalization_1.normalizeName)(String(acSocVend)) : null;
+            const resolvedComp = acSocComp ? await (0, normalization_1.normalizeName)(String(acSocComp)) : null;
             // Discrepancy is when society has a resolved AC, but it differs from the transaction legajo
             const isVendDiff = resolvedVend !== null && cleanName(legajoVend) !== cleanName(resolvedVend);
             const isCompDiff = resolvedComp !== null && cleanName(legajoComp) !== cleanName(resolvedComp);
-
             if (isVendDiff || isCompDiff) {
                 const vendRosterEntry = resolvedVend ? roster.get(resolvedVend.toLowerCase()) : null;
                 const compRosterEntry = resolvedComp ? roster.get(resolvedComp.toLowerCase()) : null;
-
                 const vendRosterName = resolvedVend ? (vendRosterEntry?.nombre || resolvedVend) : '';
                 const compRosterName = resolvedComp ? (compRosterEntry?.nombre || resolvedComp) : '';
-
                 const ac_vendedor_activo = vendRosterEntry ? (vendRosterEntry.activo ? 'Sí' : 'No') : '—';
                 const ac_vendedor_tipo = vendRosterEntry ? vendRosterEntry.tipo : '—';
-
                 const ac_comprador_activo = compRosterEntry ? (compRosterEntry.activo ? 'Sí' : 'No') : '—';
                 const ac_comprador_tipo = compRosterEntry ? compRosterEntry.tipo : '—';
-
                 // Look up assignment dates
                 const cuitVend = String(op.cuit_vendedor || '').trim();
                 const cuitComp = String(op.cuit_comprador || '').trim();
-
                 const fechaAsigVend = cuitVend ? assignmentDates[cuitVend] : null;
                 const fechaAsigComp = cuitComp ? assignmentDates[cuitComp] : null;
-
                 const opDateStr = op.fecha_operacion ? op.fecha_operacion.substring(0, 10) : '';
-
                 let reasignar_venta_valido = false;
                 let reasignar_venta_motivo = '—';
                 if (isVendDiff) {
                     if (!vendRosterEntry) {
                         reasignar_venta_motivo = 'No encontrado en Roster';
-                    } else if (!vendRosterEntry.activo) {
+                    }
+                    else if (!vendRosterEntry.activo) {
                         reasignar_venta_motivo = 'Agente Inactivo';
-                    } else if (vendRosterEntry.tipo === 'Corporate') {
+                    }
+                    else if (vendRosterEntry.tipo === 'Corporate') {
                         reasignar_venta_motivo = 'Cuenta Corporativa';
-                    } else if (fechaAsigVend) {
+                    }
+                    else if (fechaAsigVend) {
                         const asigDateOnly = fechaAsigVend.substring(0, 10);
                         if (opDateStr < asigDateOnly) {
                             reasignar_venta_valido = true;
                             reasignar_venta_motivo = `Válido (Reasignación posterior: ${asigDateOnly})`;
-                        } else {
+                        }
+                        else {
                             reasignar_venta_motivo = `Discrepancia (Operación posterior a asignación: ${asigDateOnly})`;
                         }
-                    } else {
+                    }
+                    else {
                         reasignar_venta_motivo = 'Discrepancia (Sin fecha de asignación)';
                     }
                 }
-
                 let reasignar_compra_valido = false;
                 let reasignar_compra_motivo = '—';
                 if (isCompDiff) {
                     if (!compRosterEntry) {
                         reasignar_compra_motivo = 'No encontrado en Roster';
-                    } else if (!compRosterEntry.activo) {
+                    }
+                    else if (!compRosterEntry.activo) {
                         reasignar_compra_motivo = 'Agente Inactivo';
-                    } else if (compRosterEntry.tipo === 'Corporate') {
+                    }
+                    else if (compRosterEntry.tipo === 'Corporate') {
                         reasignar_compra_motivo = 'Cuenta Corporativa';
-                    } else if (fechaAsigComp) {
+                    }
+                    else if (fechaAsigComp) {
                         const asigDateOnly = fechaAsigComp.substring(0, 10);
                         if (opDateStr < asigDateOnly) {
                             reasignar_compra_valido = true;
                             reasignar_compra_motivo = `Válido (Reasignación posterior: ${asigDateOnly})`;
-                        } else {
+                        }
+                        else {
                             reasignar_compra_motivo = `Discrepancia (Operación posterior a asignación: ${asigDateOnly})`;
                         }
-                    } else {
+                    }
+                    else {
                         reasignar_compra_motivo = 'Discrepancia (Sin fecha de asignación)';
                     }
                 }
-
                 items.push({
                     lote: op.id_lote || op.id,
                     fecha: opDateStr || '—',
@@ -1039,56 +1000,49 @@ router.get('/revision/sociedad-sin-legajo', async (req, res) => {
                 });
             }
         }
-
         res.json(items);
-    } catch (e: any) {
+    }
+    catch (e) {
         res.status(500).json({ error: e.message });
     }
 });
-
 router.get('/revision/concretadas-sin-cierre', async (req, res) => {
     try {
         const year = parseInt(String(req.query.year), 10);
         const month = parseInt(String(req.query.month), 10);
-        if (!year || !month) return res.status(400).json({ error: 'year y month requeridos' });
-
-        const rawOps = await fetchQ95();
-        const roster = await getRoster();
-
-        const ops = rawOps.filter((op: any) => {
-            if (!op.fecha_operacion) return false;
+        if (!year || !month)
+            return res.status(400).json({ error: 'year y month requeridos' });
+        const rawOps = await (0, metabase_1.fetchQ95)();
+        const roster = await (0, normalization_1.getRoster)();
+        const ops = rawOps.filter((op) => {
+            if (!op.fecha_operacion)
+                return false;
             const opYear = parseInt(op.fecha_operacion.substring(0, 4), 10);
             const opMonth = parseInt(op.fecha_operacion.substring(5, 7), 10);
-            if (opYear !== year || opMonth !== month) return false;
-
+            if (opYear !== year || opMonth !== month)
+                return false;
             const estado = String(op.ESTADO || '').toUpperCase();
             const estadoTrop = String(op.Estado_Trop || '').toUpperCase();
-
             const isConcretada = (estado.includes('CONCRETADA') && !estado.includes('NO CONCRETADA')) ||
-                                 (estadoTrop.includes('CONCRETADA') && !estadoTrop.includes('NO CONCRETADA'));
+                (estadoTrop.includes('CONCRETADA') && !estadoTrop.includes('NO CONCRETADA'));
             const invalidStates = ['PUBLICADO', 'NO CONCRETADAS', 'OFRECIMIENTOS', 'BAJA', 'REVISAR', 'PUBLICADAS', 'DADAS DE BAJA', 'PUBLICADO OCULTO'];
-
             const isInvalidState = invalidStates.includes(estado) || invalidStates.includes(estadoTrop);
-
             return isConcretada && isInvalidState;
         });
-
-        const items: any[] = [];
+        const items = [];
         for (const op of ops) {
             const acIdVend = op.asociado_comercial_id_vend || op.AC_Vend || '';
             const acSocVend = op.asociado_comercial_soc_vend || '';
             const repreVend = op.RepreVendedor || op.repre_vendedor || '';
             let vendRaw = acIdVend || acSocVend || repreVend || op.operador_nombre || '';
-            const resolvedVend = vendRaw ? await normalizeName(String(vendRaw)) : null;
+            const resolvedVend = vendRaw ? await (0, normalization_1.normalizeName)(String(vendRaw)) : null;
             const acVendedorName = resolvedVend ? (roster.get(resolvedVend)?.nombre || resolvedVend) : '—';
-
             const acIdComp = op.asociado_comercial_id_comp || op.AC_Comp || '';
             const acSocComp = op.asociado_comercial_soc_comp || '';
             const repreComp = op.RepreComprador || op.repre_comprador || '';
             let compRaw = acIdComp || acSocComp || repreComp || op.operador_nombre || '';
-            const resolvedComp = compRaw ? await normalizeName(String(compRaw)) : null;
+            const resolvedComp = compRaw ? await (0, normalization_1.normalizeName)(String(compRaw)) : null;
             const acCompradorName = resolvedComp ? (roster.get(resolvedComp)?.nombre || resolvedComp) : '—';
-
             items.push({
                 lote: op.id_lote || op.id,
                 fecha: op.fecha_operacion ? op.fecha_operacion.substring(0, 10) : '—',
@@ -1103,64 +1057,65 @@ router.get('/revision/concretadas-sin-cierre', async (req, res) => {
                 importe: Number(op.importe_vendedor || op.importe_comprador || 0)
             });
         }
-
         res.json(items);
-    } catch (e: any) {
+    }
+    catch (e) {
         res.status(500).json({ error: e.message });
     }
 });
-
-
 // ─── Market Metrics: real rendimientos from Metabase lotes ───
-
 router.get('/market-metrics', async (req, res) => {
     try {
         const year = parseInt(String(req.query.year), 10);
         const month = parseInt(String(req.query.month), 10);
-        if (!year || !month) return res.status(400).json({ error: 'year & month required' });
-
-        const rawOps = await fetchQ95();
-
+        if (!year || !month)
+            return res.status(400).json({ error: 'year & month required' });
+        const rawOps = await (0, metabase_1.fetchQ95)();
         // Filter by month/year and concretadas (same filter as engine)
         const invalidStates = ['PUBLICADO', 'NO CONCRETADAS', 'OFRECIMIENTOS', 'BAJA', 'REVISAR', 'PUBLICADAS', 'DADAS DE BAJA', 'PUBLICADO OCULTO'];
         const ops = rawOps.filter(op => {
-            if (!op.fecha_operacion) return false;
+            if (!op.fecha_operacion)
+                return false;
             const opYear = parseInt(op.fecha_operacion.substring(0, 4), 10);
             const opMonth = parseInt(op.fecha_operacion.substring(5, 7), 10);
-            if (opYear !== year || opMonth !== month) return false;
+            if (opYear !== year || opMonth !== month)
+                return false;
             const estado = String(op.ESTADO || '').toUpperCase();
             const estadoTrop = String(op.Estado_Trop || '').toUpperCase();
-            if (invalidStates.includes(estado) || invalidStates.includes(estadoTrop)) return false;
+            if (invalidStates.includes(estado) || invalidStates.includes(estadoTrop))
+                return false;
             return true;
         });
-
         // Deduplicate by id_lote to avoid double-counting compra/venta
-        const lotesMap = new Map<string, { cab: number; tipo: string; impVend: number; res: number }>();
+        const lotesMap = new Map();
         for (const op of ops) {
             const lid = String(op.id_lote || op.id);
-            if (lotesMap.has(lid)) continue;
+            if (lotesMap.has(lid))
+                continue;
             const cab = Number(op.Cabezas || op.cantidad) || 0;
             const impVend = Number(op.importe_vendedor) || 0;
             const res = Number(op.resultado_final || op.resultado_total_proyectado) || 0;
             const tipoOp = String(op.Tipo || op.tipo_negocio || '').toUpperCase();
             let un = 'INV';
-            if (tipoOp.includes('MAG') || String(op.feria || '').toUpperCase() === 'MAG') un = 'MAG';
-            else if (tipoOp.includes('FAENA')) un = 'FAENA';
-            else if (tipoOp.includes('CRIA') || tipoOp.includes('REPRODUCTOR')) un = 'CRIA';
+            if (tipoOp.includes('MAG') || String(op.feria || '').toUpperCase() === 'MAG')
+                un = 'MAG';
+            else if (tipoOp.includes('FAENA'))
+                un = 'FAENA';
+            else if (tipoOp.includes('CRIA') || tipoOp.includes('REPRODUCTOR'))
+                un = 'CRIA';
             lotesMap.set(lid, { cab, tipo: un, impVend, res });
         }
-
         // Compute rend = total resultado / total importe * 100 (per UN and total)
-        const metrics: Record<string, { sumRes: number; sumCab: number; sumImp: number }> = {
+        const metrics = {
             INV: { sumRes: 0, sumCab: 0, sumImp: 0 },
             FAENA: { sumRes: 0, sumCab: 0, sumImp: 0 },
             CRIA: { sumRes: 0, sumCab: 0, sumImp: 0 },
             MAG: { sumRes: 0, sumCab: 0, sumImp: 0 },
             TOTAL: { sumRes: 0, sumCab: 0, sumImp: 0 },
         };
-
         for (const l of lotesMap.values()) {
-            if (l.cab <= 0) continue;
+            if (l.cab <= 0)
+                continue;
             const m = metrics[l.tipo];
             m.sumRes += l.res;
             m.sumCab += l.cab;
@@ -1169,8 +1124,7 @@ router.get('/market-metrics', async (req, res) => {
             metrics.TOTAL.sumCab += l.cab;
             metrics.TOTAL.sumImp += l.impVend;
         }
-
-        const result: Record<string, { rend: number; dollarPerCab: number; cab: number }> = {};
+        const result = {};
         for (const [key, m] of Object.entries(metrics)) {
             result[key] = {
                 rend: m.sumImp > 0 ? Math.round(m.sumRes / m.sumImp * 10000) / 100 : 0,
@@ -1178,82 +1132,86 @@ router.get('/market-metrics', async (req, res) => {
                 cab: m.sumCab,
             };
         }
-
         res.json({ year, month, lotes: lotesMap.size, metrics: result });
-    } catch (e: any) {
+    }
+    catch (e) {
         console.error('market-metrics error:', e);
         res.status(500).json({ error: e.message });
     }
 });
-
-
-// ─── Validation: V3 (BDSUELDO_REAL) vs V4 (engine snapshots) ───
-import { CommercialResult } from '../core/types';
-
 // ── Cache offline: guarda datos de Google Sheets a disco para funcionar sin WiFi ──
 const OFFLINE_CACHE_DIR = IS_VERCEL ? '/tmp/cache' : path.join(__dirname, '../core/cache');
-try { if (!fs.existsSync(OFFLINE_CACHE_DIR)) fs.mkdirSync(OFFLINE_CACHE_DIR, { recursive: true }); } catch (e) {}
-
-function saveOfflineCache(name: string, data: any) {
+try {
+    if (!fs.existsSync(OFFLINE_CACHE_DIR))
+        fs.mkdirSync(OFFLINE_CACHE_DIR, { recursive: true });
+}
+catch (e) { }
+function saveOfflineCache(name, data) {
     try {
         fs.writeFileSync(path.join(OFFLINE_CACHE_DIR, `${name}.json`), JSON.stringify(data));
         console.log(`[cache] Guardado offline: ${name}.json`);
-    } catch (e: any) { console.warn(`[cache] Error guardando ${name}:`, e.message); }
+    }
+    catch (e) {
+        console.warn(`[cache] Error guardando ${name}:`, e.message);
+    }
 }
-
-function loadOfflineCache(name: string): any | null {
+function loadOfflineCache(name) {
     const filePath = path.join(OFFLINE_CACHE_DIR, `${name}.json`);
-    if (!fs.existsSync(filePath)) return null;
+    if (!fs.existsSync(filePath))
+        return null;
     try {
         const data = JSON.parse(fs.readFileSync(filePath, 'utf8'));
         const stat = fs.statSync(filePath);
         console.log(`[cache] Cargado offline: ${name}.json (guardado: ${stat.mtime.toISOString().split('T')[0]})`);
         return data;
-    } catch (e: any) { console.warn(`[cache] Error leyendo ${name}:`, e.message); return null; }
+    }
+    catch (e) {
+        console.warn(`[cache] Error leyendo ${name}:`, e.message);
+        return null;
+    }
 }
-
-let cachedValidateV3: any[] | null = null;
+let cachedValidateV3 = null;
 let lastValidateV3Fetch = 0;
-// Cache del roster completo (Asociados Comerciales) para filtrar ACs activos
-interface RosterInfo { nombre: string; codigo: string; tipo: string; activo: boolean; oficina: string; modalidad: string; categoria: number }
-let cachedFullRoster: Map<string, RosterInfo> | null = null;
-let cachedRosterByCodigo: Map<string, RosterInfo> | null = null;
+let cachedFullRoster = null;
+let cachedRosterByCodigo = null;
 let lastRosterFetch = 0;
-
 router.get('/validate', async (req, res) => {
     try {
         const year = parseInt(String(req.query.year), 10);
         const month = parseInt(String(req.query.month), 10);
-        if (!year || !month) return res.status(400).json({ error: 'year & month required' });
-
+        if (!year || !month)
+            return res.status(400).json({ error: 'year & month required' });
         const now = Date.now();
-
         // ── Roster: leer 'Asociados Comerciales' completo para saber tipo + activo + codigo ──
         if (!cachedFullRoster || (now - lastRosterFetch > 1000 * 60 * 60)) {
-            const MASTER_ROSTER_ID = config.MASTER_ROSTER_ID;
-            let rosterRaw: any[] | null = null;
+            const MASTER_ROSTER_ID = env_1.config.MASTER_ROSTER_ID;
+            let rosterRaw = null;
             try {
-                rosterRaw = await readSheet(MASTER_ROSTER_ID, "'Asociados Comerciales'!A2:AC");
+                rosterRaw = await (0, sheets_1.readSheet)(MASTER_ROSTER_ID, "'Asociados Comerciales'!A2:AC");
                 saveOfflineCache('roster_ac', rosterRaw);
-            } catch (e: any) {
+            }
+            catch (e) {
                 console.warn(`[validate] Sin conexión para roster: ${e.message}. Buscando cache offline...`);
                 rosterRaw = loadOfflineCache('roster_ac');
-                if (!rosterRaw) throw new Error('Sin conexión y sin cache offline del roster');
+                if (!rosterRaw)
+                    throw new Error('Sin conexión y sin cache offline del roster');
             }
             cachedFullRoster = new Map();
             cachedRosterByCodigo = new Map();
             for (const row of rosterRaw) {
                 const nombre = String(row[0] || '').trim();
-                if (!nombre) continue;
-                const codigo = String(row[1] || '').trim();     // Col B = Código / ID Usuario
-                const tipo = String(row[5] || '').trim();       // Col F = Tipo
+                if (!nombre)
+                    continue;
+                const codigo = String(row[1] || '').trim(); // Col B = Código / ID Usuario
+                const tipo = String(row[5] || '').trim(); // Col F = Tipo
                 const activo = String(row[9] || '').trim().toLowerCase() === 'si'; // Col J = Activo
-                const oficina = String(row[4] || '').trim();    // Col E = Oficina
-                const modalidad = String(row[6] || '').trim();  // Col G = Modalidad
-                const categoria = Number(row[22]) || 0;         // Col W = Categoria
-                const entry: RosterInfo = { nombre, codigo, tipo, activo, oficina, modalidad, categoria };
+                const oficina = String(row[4] || '').trim(); // Col E = Oficina
+                const modalidad = String(row[6] || '').trim(); // Col G = Modalidad
+                const categoria = Number(row[22]) || 0; // Col W = Categoria
+                const entry = { nombre, codigo, tipo, activo, oficina, modalidad, categoria };
                 cachedFullRoster.set(nombre.toLowerCase(), entry);
-                if (codigo) cachedRosterByCodigo.set(codigo, entry);
+                if (codigo)
+                    cachedRosterByCodigo.set(codigo, entry);
             }
             lastRosterFetch = now;
             // Log tipos encontrados para debugging
@@ -1262,60 +1220,48 @@ router.get('/validate', async (req, res) => {
             const activeCount = [...cachedFullRoster.values()].filter(r => r.activo && ['Regional', 'City Manager', 'Corporate', 'Representante'].includes(r.tipo)).length;
             console.log(`[validate] ACs activos (Regional/CityManager/Corporate/Representante): ${activeCount}`);
         }
-
         // Filtrar Asociados Comerciales activos — todos los tipos que son personas reales
         // Tipos: Regional (AC estándar), City Manager (Híbrido), Corporate (KAM), Representante
         const AC_TIPOS = ['Regional', 'City Manager', 'Corporate', 'Representante'];
-        const activeACsByName = new Set<string>();
-        const activeACsByCodigo = new Set<string>();
+        const activeACsByName = new Set();
+        const activeACsByCodigo = new Set();
         for (const [key, entry] of cachedFullRoster) {
             if (entry.activo && AC_TIPOS.includes(entry.tipo)) {
                 activeACsByName.add(key);
-                if (entry.codigo) activeACsByCodigo.add(entry.codigo);
+                if (entry.codigo)
+                    activeACsByCodigo.add(entry.codigo);
             }
         }
-
         // ── V3: leer datos de la hoja BDSUELDO_REAL (con cache de 1h) ──
         if (!cachedValidateV3 || (now - lastValidateV3Fetch > 1000 * 60 * 60)) {
             try {
-                const raw = await readSheet(config.TARGET_SPREADSHEET_ID, "'BDSUELDO_REAL'!A2:Z");
+                const raw = await (0, sheets_1.readSheet)(env_1.config.TARGET_SPREADSHEET_ID, "'BDSUELDO_REAL'!A2:Z");
                 cachedValidateV3 = raw;
                 saveOfflineCache('v3_bdsueldo_real', raw);
-            } catch (e: any) {
+            }
+            catch (e) {
                 console.warn(`[validate] Sin conexión para V3: ${e.message}. Buscando cache offline...`);
                 const cached = loadOfflineCache('v3_bdsueldo_real');
-                if (!cached) throw new Error('Sin conexión y sin cache offline de V3');
+                if (!cached)
+                    throw new Error('Sin conexión y sin cache offline de V3');
                 cachedValidateV3 = cached;
             }
             lastValidateV3Fetch = now;
         }
-
         const anioMesTarget = year * 100 + month; // e.g. 202604
         const v3Rows = (cachedValidateV3 || []).filter(r => Number(r[3]) === anioMesTarget);
-
-        // Parsear cada fila V3 a un objeto comparable
-        interface V3Agent {
-            nombre: string;
-            codigo: string;
-            tropas: number;
-            cabezas: number;
-            resultado: number;
-            escala: number;
-            componenteP: number;
-            sueldo: number;
-            cierreReal: number;
-            minimo: number;
-        }
-        const v3Map = new Map<string, V3Agent>();
-        const v3ByCodigo = new Map<string, V3Agent>();
+        const v3Map = new Map();
+        const v3ByCodigo = new Map();
         for (const row of v3Rows) {
             const nombre = String(row[4] || '').trim();
-            const codigo = String(row[5] || '').trim();   // Col F = Codigo
-            if (!nombre) continue;
+            const codigo = String(row[5] || '').trim(); // Col F = Codigo
+            if (!nombre)
+                continue;
             const key = nombre.toLowerCase();
             // Solo incluir si es un AC activo (match por nombre O codigo)
-            if (!activeACsByName.has(key) && !(codigo && activeACsByCodigo.has(codigo))) continue;
-            const agent: V3Agent = {
+            if (!activeACsByName.has(key) && !(codigo && activeACsByCodigo.has(codigo)))
+                continue;
+            const agent = {
                 nombre,
                 codigo,
                 tropas: Number(row[17]) || 0,
@@ -1328,26 +1274,28 @@ router.get('/validate', async (req, res) => {
                 minimo: Number(row[15]) || 0,
             };
             v3Map.set(key, agent);
-            if (codigo) v3ByCodigo.set(codigo, agent);
+            if (codigo)
+                v3ByCodigo.set(codigo, agent);
         }
-
         // ── V4: leer snapshot del engine (desde Sheets, no filesystem) ──
-        let v4List: CommercialResult[] = [];
+        let v4List = [];
         try {
-            const snapshotData = await loadMonthSnapshot(Number(year), Number(month));
-            if (snapshotData) v4List = snapshotData;
-        } catch (snapErr: any) {
+            const snapshotData = await (0, snapshot_1.loadMonthSnapshot)(Number(year), Number(month));
+            if (snapshotData)
+                v4List = snapshotData;
+        }
+        catch (snapErr) {
             console.warn(`[validate] Error leyendo snapshot de Sheets: ${snapErr.message}`);
         }
-
-        const v4Map = new Map<string, CommercialResult>();
-        const v4ByCodigo = new Map<string, CommercialResult>();
+        const v4Map = new Map();
+        const v4ByCodigo = new Map();
         for (const entry of v4List) {
             const key = String(entry.asociadoComercial || '').trim().toLowerCase();
             const cod = String(entry.codigo || '').trim();
             // Solo incluir si es un AC activo (match por nombre O codigo)
             const isActive = (key && activeACsByName.has(key)) || (cod && activeACsByCodigo.has(cod));
-            if (!isActive) continue;
+            if (!isActive)
+                continue;
             // Si ya existe un entry para este key, quedarnos con el que tiene más datos
             if (key) {
                 const existing = v4Map.get(key);
@@ -1362,36 +1310,19 @@ router.get('/validate', async (req, res) => {
                 }
             }
         }
-
-        // ── Comparar V3 ↔ V4 (dual-key: nombre + codigo) ──
-        type CompFields = { tropas: number; cabezas: number; escala: number; resultado: number; componenteP: number; sueldo: number; cierreReal: number; minimo: number };
-        type DiffFields = { tropas: number; cabezas: number; escala: number; resultado: number; componenteP: number };
-        type AgentComparison = {
-            nombre: string;
-            codigo: string;
-            oficina: string;
-            modalidad: string;
-            categoria: number;
-            v3: CompFields | null;
-            v4: CompFields | null;
-            diff: DiffFields | null;
-            status: 'ok' | 'minor' | 'major';
-        };
-
-        const agents: AgentComparison[] = [];
-        const processedV4Keys = new Set<string>();
-
+        const agents = [];
+        const processedV4Keys = new Set();
         // Recorrer todos los agentes de V3 (solo ACs activos)
         for (const [key, v3] of v3Map) {
             // Dual-key match: primero por nombre, si no, por codigo
             let v4Entry = v4Map.get(key) || null;
-            if (!v4Entry && v3.codigo) v4Entry = v4ByCodigo.get(v3.codigo) || null;
-            if (v4Entry) processedV4Keys.add(String(v4Entry.asociadoComercial || '').trim().toLowerCase());
-
+            if (!v4Entry && v3.codigo)
+                v4Entry = v4ByCodigo.get(v3.codigo) || null;
+            if (v4Entry)
+                processedV4Keys.add(String(v4Entry.asociadoComercial || '').trim().toLowerCase());
             // Buscar info del roster (por nombre o codigo)
-            const rosterInfo = cachedFullRoster!.get(key) || (v3.codigo ? cachedRosterByCodigo!.get(v3.codigo) : undefined);
-
-            const v4Fields: CompFields | null = v4Entry ? {
+            const rosterInfo = cachedFullRoster.get(key) || (v3.codigo ? cachedRosterByCodigo.get(v3.codigo) : undefined);
+            const v4Fields = v4Entry ? {
                 tropas: v4Entry.tropasGeneral,
                 cabezas: v4Entry.cabezasGeneral,
                 escala: v4Entry.escalaGen,
@@ -1401,25 +1332,25 @@ router.get('/validate', async (req, res) => {
                 cierreReal: v4Entry.cierreReal,
                 minimo: v4Entry.minimo,
             } : null;
-
-            const diff: DiffFields | null = v4Fields ? {
+            const diff = v4Fields ? {
                 tropas: v4Fields.tropas - v3.tropas,
                 cabezas: v4Fields.cabezas - v3.cabezas,
                 escala: v4Fields.escala - v3.escala,
                 resultado: v4Fields.resultado - v3.resultado,
                 componenteP: v4Fields.componenteP - v3.componenteP,
             } : null;
-
             // Clasificar según diferencia absoluta en componenteP
-            let status: 'ok' | 'minor' | 'major' = 'ok';
+            let status = 'ok';
             if (diff) {
                 const absDiff = Math.abs(diff.componenteP);
-                if (absDiff >= 50000) status = 'major';
-                else if (absDiff >= 1000) status = 'minor';
-            } else {
+                if (absDiff >= 50000)
+                    status = 'major';
+                else if (absDiff >= 1000)
+                    status = 'minor';
+            }
+            else {
                 status = 'major';
             }
-
             agents.push({
                 nombre: v3.nombre,
                 codigo: v3.codigo || v4Entry?.codigo || rosterInfo?.codigo || '',
@@ -1436,10 +1367,10 @@ router.get('/validate', async (req, res) => {
                 status,
             });
         }
-
         // Agentes AC activos que están SOLO en V4 (no en V3)
         for (const [key, v4Entry] of v4Map) {
-            if (processedV4Keys.has(key)) continue;
+            if (processedV4Keys.has(key))
+                continue;
             const rosterInfo = cachedFullRoster.get(key);
             agents.push({
                 nombre: v4Entry.asociadoComercial,
@@ -1462,11 +1393,9 @@ router.get('/validate', async (req, res) => {
                 status: 'major',
             });
         }
-
         // Ordenar: major primero, luego minor, luego ok
-        const statusOrder: Record<string, number> = { major: 0, minor: 1, ok: 2 };
+        const statusOrder = { major: 0, minor: 1, ok: 2 };
         agents.sort((a, b) => statusOrder[a.status] - statusOrder[b.status]);
-
         // ── Resumen ──
         const total = agents.length;
         const okCount = agents.filter(a => a.status === 'ok').length;
@@ -1475,31 +1404,30 @@ router.get('/validate', async (req, res) => {
         const v3Total = v3Map.size;
         const matched = [...v3Map.keys()].filter(k => v4Map.has(k)).length;
         const matchRate = v3Total > 0 ? Math.round(matched / v3Total * 100) : 0;
-
         res.json({
             year,
             month,
             summary: { total, ok: okCount, minor: minorCount, major: majorCount, matchRate, activeACs: activeACsByName.size },
             agents,
         });
-    } catch (e: any) {
+    }
+    catch (e) {
         console.error('validate error:', e);
         res.status(500).json({ error: e.message });
     }
 });
-
 // ─── Historical data per agent: V3 + Drive PDF links ───
-import { getCierreLinks } from './drive';
-
+const drive_1 = require("./drive");
 router.get('/historico/:agente', async (req, res) => {
     try {
         const agentName = decodeURIComponent(req.params.agente);
-        const roster = await getRoster();
-
-        const normalizeNameSync = (rawName: string | null | undefined) => {
-            if (!rawName) return null;
+        const roster = await (0, normalization_1.getRoster)();
+        const normalizeNameSync = (rawName) => {
+            if (!rawName)
+                return null;
             let name = rawName.trim();
-            if (!name) return null;
+            if (!name)
+                return null;
             const match = roster.get(name.toLowerCase());
             const AC_TIPOS = ['Regional', 'City Manager', 'Corporate', 'Representante', 'Oficina'];
             if (match && AC_TIPOS.includes(match.tipo)) {
@@ -1507,11 +1435,10 @@ router.get('/historico/:agente', async (req, res) => {
             }
             return null;
         };
-
         // 1. Get V3 data (all months for this agent)
         const now = Date.now();
         if (!cachedV3Data || (now - lastV3Fetch > 1000 * 60 * 60)) {
-            const data = await readSheet(config.TARGET_SPREADSHEET_ID, "'BDSUELDO_REAL'!A2:Z");
+            const data = await (0, sheets_1.readSheet)(env_1.config.TARGET_SPREADSHEET_ID, "'BDSUELDO_REAL'!A2:Z");
             cachedV3Data = data.map(r => ({
                 anioMes: Number(r[3]),
                 asociadoComercial: r[4],
@@ -1527,15 +1454,10 @@ router.get('/historico/:agente', async (req, res) => {
             }));
             lastV3Fetch = now;
         }
-
-        const agentV3Data = cachedV3Data.filter((r: any) => 
-            r.asociadoComercial && r.asociadoComercial.toLowerCase() === agentName.toLowerCase()
-        );
-
+        const agentV3Data = cachedV3Data.filter((r) => r.asociadoComercial && r.asociadoComercial.toLowerCase() === agentName.toLowerCase());
         // Map to store combined history entries
-        const historyMap = new Map<number, any>();
-        const MONTHS_ES = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
-
+        const historyMap = new Map();
+        const MONTHS_ES = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'];
         // Add V3 entries
         for (const r of agentV3Data) {
             const am = r.anioMes;
@@ -1559,18 +1481,15 @@ router.get('/historico/:agente', async (req, res) => {
                 hasSnapshot: false,
             });
         }
-
         // 2. Read V4 data (from local snapshots)
         try {
-            const allSnaps = await loadAllSnapshots();
+            const allSnaps = await (0, snapshot_1.loadAllSnapshots)();
             for (const [period, snapshotData] of Object.entries(allSnaps)) {
                 const parts = period.split('_');
                 const year = parseInt(parts[0], 10);
                 const month = parseInt(parts[1], 10);
                 const am = year * 100 + month;
-
-                const agentSnap = snapshotData.find((s: any) => s.asociadoComercial && s.asociadoComercial.toLowerCase() === agentName.toLowerCase());
-
+                const agentSnap = snapshotData.find((s) => s.asociadoComercial && s.asociadoComercial.toLowerCase() === agentName.toLowerCase());
                 if (agentSnap) {
                     historyMap.set(am, {
                         anioMes: am,
@@ -1591,73 +1510,63 @@ router.get('/historico/:agente', async (req, res) => {
                     });
                 }
             }
-        } catch (e: any) {
+        }
+        catch (e) {
             console.warn('[historico] Error al cargar los snapshots:', e.message);
         }
-
         // 3. Load Drive links
-        let driveLinks = new Map<string, string>();
+        let driveLinks = new Map();
         try {
-            driveLinks = await getCierreLinks();
+            driveLinks = await (0, drive_1.getCierreLinks)();
             for (const [am, entry] of historyMap.entries()) {
                 const linkKey = `${agentName.toLowerCase()}_${am}`;
                 if (driveLinks.has(linkKey)) {
                     entry.driveLink = driveLinks.get(linkKey);
                 }
             }
-        } catch (e: any) {
+        }
+        catch (e) {
             console.warn('[historico] No se pudieron obtener links de Drive:', e.message);
         }
-
         // 4. Load Metabase Q95 operations and aggregate cabezas & bonificación oculta
         try {
-            const rawOps = await fetchQ95();
-            
+            const rawOps = await (0, metabase_1.fetchQ95)();
             // Temporary map for Metabase aggregates
-            const metabaseAggregates = new Map<number, { cabezas: number, bonif: number, tropas: number }>();
-
-            const cleanName = (n: string) => (n || '').toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9]/gi, '').trim();
+            const metabaseAggregates = new Map();
+            const cleanName = (n) => (n || '').toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9]/gi, '').trim();
             const targetAgentClean = cleanName(agentName);
-
             for (const op of rawOps) {
-                if (!op.fecha_operacion) continue;
-                
+                if (!op.fecha_operacion)
+                    continue;
                 // State filters
                 const estado = String(op.ESTADO || '').toUpperCase();
                 const estadoTrop = String(op.Estado_Trop || '').toUpperCase();
                 const invalidStates = ['PUBLICADO', 'NO CONCRETADAS', 'OFRECIMIENTOS', 'BAJA', 'REVISAR', 'PUBLICADAS', 'DADAS DE BAJA', 'PUBLICADO OCULTO'];
-                if (invalidStates.includes(estado) || invalidStates.includes(estadoTrop)) continue;
-
+                if (invalidStates.includes(estado) || invalidStates.includes(estadoTrop))
+                    continue;
                 // Resolve commercial names
                 const acIdVend = op.asociado_comercial_id_vend || op.AC_Vend || '';
                 const acSocVend = op.asociado_comercial_soc_vend || '';
                 const repreVend = op.RepreVendedor || op.repre_vendedor || '';
                 const vendRaw = acIdVend || acSocVend || repreVend || op.operador_nombre || '';
-
                 const acIdComp = op.asociado_comercial_id_comp || op.AC_Comp || '';
                 const acSocComp = op.asociado_comercial_soc_comp || '';
                 const repreComp = op.RepreComprador || op.repre_comprador || '';
                 const compRaw = acIdComp || acSocComp || repreComp || op.operador_nombre || '';
-
                 const acVendClean = cleanName(normalizeNameSync(String(vendRaw)) || '');
                 const acCompClean = cleanName(normalizeNameSync(String(compRaw)) || '');
-
                 const isSeller = acVendClean === targetAgentClean;
                 const isBuyer = acCompClean === targetAgentClean;
-
                 if (isSeller || isBuyer) {
                     const opYear = parseInt(op.fecha_operacion.substring(0, 4), 10);
                     const opMonth = parseInt(op.fecha_operacion.substring(5, 7), 10);
                     const am = opYear * 100 + opMonth;
-
                     if (!metabaseAggregates.has(am)) {
                         metabaseAggregates.set(am, { cabezas: 0, bonif: 0, tropas: 0 });
                     }
-                    const agg = metabaseAggregates.get(am)!;
-                    
+                    const agg = metabaseAggregates.get(am);
                     agg.tropas += 1;
                     agg.cabezas += Number(op.Cabezas || op.cantidad) || 0;
-                    
                     if (isSeller) {
                         agg.bonif += Number(op.bonificacion_vendedor) || 0;
                     }
@@ -1666,7 +1575,6 @@ router.get('/historico/:agente', async (req, res) => {
                     }
                 }
             }
-
             // Merge Metabase aggregates into historyMap
             for (const [am, agg] of metabaseAggregates.entries()) {
                 if (historyMap.has(am)) {
@@ -1674,7 +1582,8 @@ router.get('/historico/:agente', async (req, res) => {
                     entry.cabezas = agg.cabezas;
                     entry.bonificacionOculta = Math.round(agg.bonif);
                     entry.tropas = agg.tropas;
-                } else {
+                }
+                else {
                     const year = Math.floor(am / 100);
                     const month = am % 100;
                     historyMap.set(am, {
@@ -1696,139 +1605,131 @@ router.get('/historico/:agente', async (req, res) => {
                     });
                 }
             }
-
-        } catch (mbErr: any) {
+        }
+        catch (mbErr) {
             console.error('[historico] Error aggregating Metabase data:', mbErr.message);
         }
-
         const history = Array.from(historyMap.values());
-        history.sort((a: any, b: any) => b.anioMes - a.anioMes);
-        
+        history.sort((a, b) => b.anioMes - a.anioMes);
         res.json({ agente: agentName, history });
-    } catch (e: any) {
+    }
+    catch (e) {
         res.status(500).json({ error: e.message });
     }
 });
-
 // Métricas de la Red Regional — deduplicadas por id_lote
 // Trae operaciones concretadas del Q95, filtradas por fecha server-side
 router.get('/metricas-red', async (req, res) => {
     try {
-        const MONTHS_ES = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
-
+        const MONTHS_ES = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'];
         // Parámetros opcionales de fecha (del filtro principal)
         const qYear = req.query.year ? parseInt(String(req.query.year)) : undefined;
         const qMonth = req.query.month ? parseInt(String(req.query.month)) : undefined;
-        
         if (qYear) {
             console.log(`[metricas-red] Filtro: year=${qYear} month=${qMonth || 'all'}`);
         }
-
         // --- Cargar roster y Q95 ---
-        const roster = await getRoster();
-        const q95Raw = await fetchQ95();
-
+        const roster = await (0, normalization_1.getRoster)();
+        const q95Raw = await (0, metabase_1.fetchQ95)();
         // Filtro de estados inválidos (mismo que engine.ts)
         const invalidStates = ['PUBLICADO', 'NO CONCRETADAS', 'OFRECIMIENTOS', 'BAJA', 'REVISAR', 'PUBLICADAS', 'DADAS DE BAJA', 'PUBLICADO OCULTO'];
-
         // Resolve both sides of an operation to channel names using
         // the exact same logic as engine.ts (normalizeName → classifyChannel)
-        const resolveOpChannels = async (op: any): Promise<{ cVenta: string; cCompra: string; acVendRaw: string; acCompRaw: string }> => {
+        const resolveOpChannels = async (op) => {
             // Venta: legajo → sociedad → repre (same priority as engine)
             const acIdVend = op.asociado_comercial_id_vend || op.AC_Vend || '';
             const acSocVend = op.asociado_comercial_soc_vend || '';
             const repreVend = op.RepreVendedor || op.repre_vendedor || '';
             const vendRaw = acIdVend || acSocVend || repreVend || '';
-            
             // Compra: legajo → sociedad → repre
             const acIdComp = op.asociado_comercial_id_comp || op.AC_Comp || '';
             const acSocComp = op.asociado_comercial_soc_comp || '';
             const repreComp = op.RepreComprador || op.repre_comprador || '';
             const compRaw = acIdComp || acSocComp || repreComp || '';
-            
-            const acVend = vendRaw ? await normalizeName(String(vendRaw)) : null;
-            const acComp = compRaw ? await normalizeName(String(compRaw)) : null;
-            
-            const cVenta = classifyChannel(acVend, repreVend, op.Canal_Venta, roster).toUpperCase();
-            const cCompra = classifyChannel(acComp, repreComp, op.Canal_compra, roster).toUpperCase();
-            
+            const acVend = vendRaw ? await (0, normalization_1.normalizeName)(String(vendRaw)) : null;
+            const acComp = compRaw ? await (0, normalization_1.normalizeName)(String(compRaw)) : null;
+            const cVenta = (0, engine_1.classifyChannel)(acVend, repreVend, op.Canal_Venta, roster).toUpperCase();
+            const cCompra = (0, engine_1.classifyChannel)(acComp, repreComp, op.Canal_compra, roster).toUpperCase();
             return { cVenta, cCompra, acVendRaw: vendRaw, acCompRaw: compRaw };
         };
-
         // --- Agrupar operaciones del Q95 por año-mes ---
-        const opsByMonth = new Map<string, any[]>();
-        
+        const opsByMonth = new Map();
         for (const op of q95Raw) {
-            if (!op.fecha_operacion) continue;
+            if (!op.fecha_operacion)
+                continue;
             const opYear = parseInt(op.fecha_operacion.substring(0, 4), 10);
             const opMonth = parseInt(op.fecha_operacion.substring(5, 7), 10);
-            if (isNaN(opYear) || isNaN(opMonth)) continue;
-            
+            if (isNaN(opYear) || isNaN(opMonth))
+                continue;
             // Filtro por año: solo el año solicitado + el anterior (para YoY)
-            if (qYear && opYear !== qYear && opYear !== qYear - 1) continue;
-            
+            if (qYear && opYear !== qYear && opYear !== qYear - 1)
+                continue;
             // Filtro de concretadas
             const estado = String(op.ESTADO || '').toUpperCase();
             const estadoTrop = String(op.Estado_Trop || '').toUpperCase();
-            if (invalidStates.includes(estado) || invalidStates.includes(estadoTrop)) continue;
-            
+            if (invalidStates.includes(estado) || invalidStates.includes(estadoTrop))
+                continue;
             const key = `${opYear}_${String(opMonth).padStart(2, '0')}`;
-            if (!opsByMonth.has(key)) opsByMonth.set(key, []);
-            opsByMonth.get(key)!.push(op);
+            if (!opsByMonth.has(key))
+                opsByMonth.set(key, []);
+            opsByMonth.get(key).push(op);
         }
-
         // Segundo agrupamiento: Concretadas + No Concretadas (para CCC = concretada / total en venta)
         // Excluye: PUBLICADO, OFRECIMIENTOS, BAJA, DADAS DE BAJA, PUBLICADAS, PUBLICADO OCULTO, REVISAR
         const cccExcludeStates = ['PUBLICADO', 'OFRECIMIENTOS', 'BAJA', 'REVISAR', 'PUBLICADAS', 'DADAS DE BAJA', 'PUBLICADO OCULTO'];
-        const allOpsByMonth = new Map<string, any[]>();
+        const allOpsByMonth = new Map();
         for (const op of q95Raw) {
-            if (!op.fecha_operacion) continue;
+            if (!op.fecha_operacion)
+                continue;
             const opYear = parseInt(op.fecha_operacion.substring(0, 4), 10);
             const opMonth = parseInt(op.fecha_operacion.substring(5, 7), 10);
-            if (isNaN(opYear) || isNaN(opMonth)) continue;
-            if (qYear && opYear !== qYear && opYear !== qYear - 1) continue;
-            
+            if (isNaN(opYear) || isNaN(opMonth))
+                continue;
+            if (qYear && opYear !== qYear && opYear !== qYear - 1)
+                continue;
             // Excluir bajas, publicadas, ofrecimientos — pero DEJAR pasar "NO CONCRETADAS"
             const estado = String(op.ESTADO || '').toUpperCase();
             const estadoTrop = String(op.Estado_Trop || '').toUpperCase();
-            if (cccExcludeStates.includes(estado) || cccExcludeStates.includes(estadoTrop)) continue;
-            
+            if (cccExcludeStates.includes(estado) || cccExcludeStates.includes(estadoTrop))
+                continue;
             const key = `${opYear}_${String(opMonth).padStart(2, '0')}`;
-            if (!allOpsByMonth.has(key)) allOpsByMonth.set(key, []);
-            allOpsByMonth.get(key)!.push(op);
+            if (!allOpsByMonth.has(key))
+                allOpsByMonth.set(key, []);
+            allOpsByMonth.get(key).push(op);
         }
-
         // --- Cargar gastos Mendel del sheet ---
-        let mendelData: any[] = [];
+        let mendelData = [];
         try {
-            mendelData = await fetchMendelGastos();
-        } catch (e: any) {
+            mendelData = await (0, inputs_1.fetchMendelGastos)();
+        }
+        catch (e) {
             console.warn('[metricas-red] No se pudo cargar Mendel:', e.message);
         }
         // Agrupar Mendel por periodo + usuario normalizado
-        const mendelByPeriodoUser = new Map<string, number>();
+        const mendelByPeriodoUser = new Map();
         for (const mg of mendelData) {
-            if (!mg.periodo || !mg.usuario) continue;
+            if (!mg.periodo || !mg.usuario)
+                continue;
             const userNorm = String(mg.usuario).trim().toLowerCase();
             const key = `${mg.periodo}_${userNorm}`;
             mendelByPeriodoUser.set(key, (mendelByPeriodoUser.get(key) || 0) + (mg.importe || 0));
         }
-
         // --- Cargar costos de los snapshots ---
-        const snapshotCosts = new Map<string, { costoRed: number; agentes: number; acDetail: any[] }>();
-        
+        const snapshotCosts = new Map();
         try {
-            const allSnaps = await loadAllSnapshots();
+            const allSnaps = await (0, snapshot_1.loadAllSnapshots)();
             for (const [periodCode, raw] of Object.entries(allSnaps)) {
                 const match = periodCode.match(/^(\d{4})_(\d{2})$/);
-                if (!match) continue;
+                if (!match)
+                    continue;
                 const key = `${match[1]}_${match[2]}`;
                 const periodo = `${match[1]}${match[2]}`; // e.g. "202605"
                 let costoRed = 0;
-                const agentesSet = new Set<string>();
-                const acDetail: any[] = [];
+                const agentesSet = new Set();
+                const acDetail = [];
                 for (const agent of raw) {
-                    if (agent.asociadoComercial) agentesSet.add(agent.asociadoComercial);
+                    if (agent.asociadoComercial)
+                        agentesSet.add(agent.asociadoComercial);
                     const sueldoBruto = agent.sueldoBruto || 0;
                     // Buscar gastos Mendel para este AC en este período
                     const acNameNorm = String(agent.asociadoComercial || '').trim().toLowerCase();
@@ -1862,48 +1763,39 @@ router.get('/metricas-red', async (req, res) => {
                 }
                 snapshotCosts.set(key, { costoRed, agentes: agentesSet.size, acDetail });
             }
-        } catch (e: any) {
+        }
+        catch (e) {
             console.warn('[metricas-red] Error al cargar los snapshots:', e.message);
         }
-
         // --- Procesar cada mes ---
-        const months: any[] = [];
-        
+        const months = [];
         for (const [monthKey, ops] of opsByMonth.entries()) {
             const [yearStr, monthStr] = monthKey.split('_');
             const year = parseInt(yearStr);
             const month = parseInt(monthStr);
-            
             // Deduplicar por id_lote
-            const unique = new Map<number, any>();
+            const unique = new Map();
             for (const op of ops) {
                 const id = op.id_lote || op.id;
                 if (id && !unique.has(id)) {
                     unique.set(id, op);
                 }
             }
-            
             const canalKeys = ['REGIONAL', 'REPRESENTANTE', 'COMISIONISTA', 'DIRECTO'];
             let cabezas = 0, importe = 0, resultado = 0, bonificaciones = 0;
-            const categorias: Record<string, number> = {};
-            const canales: Record<string, { cabezas: number; tropas: number; importe: number; bonificaciones: number; reps: number; ccc: number; bonifPct: number }> = {
+            const categorias = {};
+            const canales = {
                 REGIONAL: { cabezas: 0, tropas: 0, importe: 0, bonificaciones: 0, reps: 0, ccc: 0, bonifPct: 0 },
                 REPRESENTANTE: { cabezas: 0, tropas: 0, importe: 0, bonificaciones: 0, reps: 0, ccc: 0, bonifPct: 0 },
                 COMISIONISTA: { cabezas: 0, tropas: 0, importe: 0, bonificaciones: 0, reps: 0, ccc: 0, bonifPct: 0 },
                 DIRECTO: { cabezas: 0, tropas: 0, importe: 0, bonificaciones: 0, reps: 0, ccc: 0, bonifPct: 0 }
             };
-            const canalReps: Record<string, Set<string>> = {
+            const canalReps = {
                 REGIONAL: new Set(), REPRESENTANTE: new Set(), COMISIONISTA: new Set(), DIRECTO: new Set()
             };
-            const canalCabzVenta: Record<string, number> = { REGIONAL: 0, REPRESENTANTE: 0, COMISIONISTA: 0, DIRECTO: 0 };
-            const canalCabzCompra: Record<string, number> = { REGIONAL: 0, REPRESENTANTE: 0, COMISIONISTA: 0, DIRECTO: 0 };
-            const categoriasDetalle: Record<string, {
-                totalCabezas: number;
-                venta: Record<string, number>;
-                compra: Record<string, number>;
-                cruces: Record<string, number>;
-            }> = {};
-
+            const canalCabzVenta = { REGIONAL: 0, REPRESENTANTE: 0, COMISIONISTA: 0, DIRECTO: 0 };
+            const canalCabzCompra = { REGIONAL: 0, REPRESENTANTE: 0, COMISIONISTA: 0, DIRECTO: 0 };
+            const categoriasDetalle = {};
             for (const op of unique.values()) {
                 const qty = Number(op.Cabezas || op.cantidad) || 0;
                 const impVend = Number(op.importe_vendedor) || 0;
@@ -1911,19 +1803,15 @@ router.get('/metricas-red', async (req, res) => {
                 const bonVend = Number(op.bonificacion_vendedor) || 0;
                 const bonComp = Number(op.bonificacion_comprador) || 0;
                 const resId = Number(op.resultado_final || op.resultado_total_proyectado) || 0;
-                
                 cabezas += qty;
                 importe += impVend;
                 resultado += resId;
                 bonificaciones += bonVend + bonComp;
-                
                 const tipoOp = String(op.Tipo || op.tipo_negocio || '').toUpperCase().trim();
                 const cat = tipoOp || 'OTROS';
                 categorias[cat] = (categorias[cat] || 0) + qty;
-
                 // Clasificar canales (misma lógica que engine.ts)
                 const { cVenta, cCompra, acVendRaw, acCompRaw } = await resolveOpChannels(op);
-
                 // Cruces por categoría
                 [cat, 'OVERALL'].forEach(cName => {
                     if (!categoriasDetalle[cName]) {
@@ -1941,7 +1829,6 @@ router.get('/metricas-red', async (req, res) => {
                     const cruceKey = `${cVenta} - ${cCompra}`;
                     cd.cruces[cruceKey] = (cd.cruces[cruceKey] || 0) + qty;
                 });
-
                 // Asignación por canal
                 canalKeys.forEach(ck => {
                     const isV = cVenta === ck;
@@ -1954,29 +1841,30 @@ router.get('/metricas-red', async (req, res) => {
                             cData.importe += impVend;
                             cData.bonificaciones += bonVend;
                             canalCabzVenta[ck] += qty;
-                            if (acVendRaw) canalReps[ck].add(String(acVendRaw).trim());
+                            if (acVendRaw)
+                                canalReps[ck].add(String(acVendRaw).trim());
                         }
                         if (isC) {
                             cData.importe += impComp;
                             cData.bonificaciones += bonComp;
                             canalCabzCompra[ck] += qty;
-                            if (acCompRaw) canalReps[ck].add(String(acCompRaw).trim());
+                            if (acCompRaw)
+                                canalReps[ck].add(String(acCompRaw).trim());
                         }
                     }
                 });
             }
-
             // Calcular CCC real: Concretada / (Concretada + No Concretada) solo en VENTA
             // Contar cabezas de venta TOTALES (concretadas + no concretadas) por canal
             const allOpsForMonth = allOpsByMonth.get(monthKey) || [];
-            const allUniqueForCCC = new Map<number, any>();
+            const allUniqueForCCC = new Map();
             for (const op of allOpsForMonth) {
                 const id = op.id_lote || op.id;
                 if (id && !allUniqueForCCC.has(id)) {
                     allUniqueForCCC.set(id, op);
                 }
             }
-            const cccTotalVenta: Record<string, number> = { REGIONAL: 0, REPRESENTANTE: 0, COMISIONISTA: 0, DIRECTO: 0 };
+            const cccTotalVenta = { REGIONAL: 0, REPRESENTANTE: 0, COMISIONISTA: 0, DIRECTO: 0 };
             for (const op of allUniqueForCCC.values()) {
                 const qty = Number(op.Cabezas || op.cantidad) || 0;
                 const { cVenta } = await resolveOpChannels(op);
@@ -1984,7 +1872,6 @@ router.get('/metricas-red', async (req, res) => {
                     cccTotalVenta[cVenta] += qty;
                 }
             }
-
             // Calcular ratios por canal
             canalKeys.forEach(ck => {
                 const cData = canales[ck];
@@ -1993,10 +1880,8 @@ router.get('/metricas-red', async (req, res) => {
                 cData.ccc = cccTotalVenta[ck] > 0 ? (canalCabzVenta[ck] / cccTotalVenta[ck]) : 0;
                 cData.bonifPct = cData.importe > 0 ? (cData.bonificaciones / cData.importe) : 0;
             });
-
             const snap = snapshotCosts.get(monthKey) || { costoRed: 0, agentes: 0, acDetail: [] };
             const ratioCosto = (importe + bonificaciones) > 0 ? snap.costoRed / (importe + bonificaciones) : 0;
-            
             months.push({
                 year, month,
                 monthName: MONTHS_ES[month - 1] || '',
@@ -2015,14 +1900,13 @@ router.get('/metricas-red', async (req, res) => {
                 categoriasDetalle,
             });
         }
-        
         // Sort desc
         months.sort((a, b) => b.anioMes - a.anioMes);
-        
         // Calcular totales anuales
-        const yearTotals: Record<number, any> = {};
+        const yearTotals = {};
         for (const m of months) {
-            if (!yearTotals[m.year]) yearTotals[m.year] = { tropas: 0, cabezas: 0, importe: 0, resultado: 0, bonificaciones: 0, costoRed: 0, meses: 0 };
+            if (!yearTotals[m.year])
+                yearTotals[m.year] = { tropas: 0, cabezas: 0, importe: 0, resultado: 0, bonificaciones: 0, costoRed: 0, meses: 0 };
             yearTotals[m.year].tropas += m.tropas;
             yearTotals[m.year].cabezas += m.cabezas;
             yearTotals[m.year].importe += m.importe;
@@ -2032,45 +1916,39 @@ router.get('/metricas-red', async (req, res) => {
             yearTotals[m.year].meses += 1;
             yearTotals[m.year].ratioCosto = (yearTotals[m.year].importe + yearTotals[m.year].bonificaciones) > 0 ? yearTotals[m.year].costoRed / (yearTotals[m.year].importe + yearTotals[m.year].bonificaciones) : 0;
         }
-        
         res.json({ months, yearTotals });
-    } catch (e: any) {
+    }
+    catch (e) {
         console.error('[metricas-red] Error:', e.message);
         res.status(500).json({ error: e.message });
     }
 });
-
 // Endpoint para obtener las métricas de PLM (Share y Resultados regionales por UN)
 router.get('/metricas-plm', async (req, res) => {
     try {
-        const data = await fetchQ95();
+        const data = await (0, metabase_1.fetchQ95)();
         const UN_LIST = ['Faena', 'Invernada', 'Invernada Neo', 'Cria', 'MAG'];
-
         // Estructura: year_month -> UN -> metrics
-        const results: Record<string, Record<string, {
-            totalCabezas: number;
-            regionalCabezas: number;
-            resultadoFinal: number;
-            importeRegional: number;
-            importeTotal: number;
-        }>> = {};
-
-        const normalizeUn = (unRaw: string): string => {
+        const results = {};
+        const normalizeUn = (unRaw) => {
             const un = unRaw.toLowerCase().trim();
-            if (un.includes('faena')) return 'Faena';
-            if (un === 'invernada neo') return 'Invernada Neo';
-            if (un.includes('invernada')) return 'Invernada';
-            if (un.includes('cria') || un.includes('cría')) return 'Cria';
-            if (un.includes('mag')) return 'MAG';
+            if (un.includes('faena'))
+                return 'Faena';
+            if (un === 'invernada neo')
+                return 'Invernada Neo';
+            if (un.includes('invernada'))
+                return 'Invernada';
+            if (un.includes('cria') || un.includes('cría'))
+                return 'Cria';
+            if (un.includes('mag'))
+                return 'MAG';
             return 'Otros';
         };
-
         for (const row of data) {
             const estado = String(row.ESTADO || row.estado || '').trim().toUpperCase();
             if (estado !== 'CONCRETADA') {
                 continue;
             }
-
             let period = String(row.Fecha_op || '').trim();
             if (!period && row.fecha_operacion) {
                 const dateStr = String(row.fecha_operacion);
@@ -2078,11 +1956,11 @@ router.get('/metricas-plm', async (req, res) => {
                     period = dateStr.substring(0, 4) + dateStr.substring(5, 7);
                 }
             }
-            if (!period) continue;
-
+            if (!period)
+                continue;
             const mappedUn = normalizeUn(String(row.UN || row.un || ''));
-            if (!UN_LIST.includes(mappedUn)) continue;
-
+            if (!UN_LIST.includes(mappedUn))
+                continue;
             if (!results[period]) {
                 results[period] = {};
                 for (const un of UN_LIST) {
@@ -2095,33 +1973,27 @@ router.get('/metricas-plm', async (req, res) => {
                     };
                 }
             }
-
             const cabezas = Number(row.Cabezas || row.cantidad) || 0;
             const canalVenta = String(row.Canal_Venta || row.canal_venta || '').trim().toUpperCase();
             const importeVendedor = Number(row.importe_vendedor || 0);
             const resultado = Number(row.resultado_final || row.resultado_final_ajustado || 0);
             const isRegionalVenta = canalVenta === 'REGIONAL';
-
             const unData = results[period][mappedUn];
-            
             unData.totalCabezas += cabezas;
             unData.importeTotal += importeVendedor;
-            
             if (isRegionalVenta) {
                 unData.regionalCabezas += cabezas;
                 unData.importeRegional += importeVendedor;
                 unData.resultadoFinal += resultado;
             }
         }
-
-        const monthsData: any[] = [];
-        const MONTHS_ES = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
-
+        const monthsData = [];
+        const MONTHS_ES = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'];
         for (const [period, unMap] of Object.entries(results)) {
             const year = parseInt(period.substring(0, 4));
             const month = parseInt(period.substring(4, 6));
-            if (isNaN(year) || isNaN(month)) continue;
-
+            if (isNaN(year) || isNaN(month))
+                continue;
             monthsData.push({
                 year,
                 month,
@@ -2130,54 +2002,42 @@ router.get('/metricas-plm', async (req, res) => {
                 unData: unMap
             });
         }
-
         monthsData.sort((a, b) => parseInt(b.periodId) - parseInt(a.periodId));
-
         res.json({
             unList: UN_LIST,
             months: monthsData
         });
-    } catch (e: any) {
+    }
+    catch (e) {
         console.error('[metricas-plm] Error:', e.message);
         res.status(500).json({ error: e.message });
     }
 });
-
 // 🔴 Costo de mínimos garantizados en toda la red 🔴
 router.get('/minimos-red', async (req, res) => {
     try {
-        const MONTHS_ES = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
-        const months: any[] = [];
-
+        const MONTHS_ES = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'];
+        const months = [];
         try {
-            const allSnaps = await loadAllSnapshots();
+            const allSnaps = await (0, snapshot_1.loadAllSnapshots)();
             for (const [periodCode, agents] of Object.entries(allSnaps)) {
                 try {
                     const parts = periodCode.split('_');
                     const year = parseInt(parts[0], 10);
                     const month = parseInt(parts[1], 10);
-
                     // Filtrar agentes (excluir tipo Oficina)
                     const agentesRed = agents.filter(a => a.tipo !== 'Oficina');
-
                     // Agentes que cayeron al mínimo: variable_personal === 0, modalidad no es 'Sin minimo' ni 'Fijo'
-                    const enMinimo = agentesRed.filter(a =>
-                        a.variable_personal === 0 &&
+                    const enMinimo = agentesRed.filter(a => a.variable_personal === 0 &&
                         a.modalidad !== 'Sin minimo' &&
-                        a.modalidad !== 'Fijo'
-                    );
-
+                        a.modalidad !== 'Fijo');
                     const agentesEnMinimo = enMinimo.length;
                     const totalAgentes = agentesRed.length;
-
                     const subsidioTotal = enMinimo.reduce((sum, a) => {
                         return sum + Math.max(0, (a.minimo || 0) - (a.componenteP || 0));
                     }, 0);
-
                     const sueldoBrutoTotal = agentesRed.reduce((sum, a) => sum + (a.sueldoBruto || 0), 0);
-
                     const pctEnMinimo = totalAgentes > 0 ? Math.round((agentesEnMinimo / totalAgentes) * 1000) / 1000 : 0;
-
                     const detalle = enMinimo.map(a => ({
                         nombre: a.asociadoComercial,
                         codigo: a.codigo,
@@ -2190,7 +2050,6 @@ router.get('/minimos-red', async (req, res) => {
                         subsidio: Math.max(0, (a.minimo || 0) - (a.componenteP || 0)),
                         cierreReal: a.cierreReal || 0
                     }));
-
                     months.push({
                         year,
                         month,
@@ -2202,25 +2061,24 @@ router.get('/minimos-red', async (req, res) => {
                         pctEnMinimo,
                         detalle
                     });
-                } catch (fileErr: any) {
+                }
+                catch (fileErr) {
                     console.warn(`[minimos-red] Error procesando ${periodCode}:`, fileErr.message);
                 }
             }
-        } catch (e: any) {
+        }
+        catch (e) {
             console.error('[minimos-red] Error:', e.message);
             res.status(500).json({ error: e.message });
             return;
         }
-
         // Ordenar descendente por año+mes
         months.sort((a, b) => (b.year * 100 + b.month) - (a.year * 100 + a.month));
-
         res.json({ months });
-    } catch (e: any) {
+    }
+    catch (e) {
         console.error('[minimos-red] Error:', e.message);
         res.status(500).json({ error: e.message });
     }
 });
-
-
-export default router;
+exports.default = router;

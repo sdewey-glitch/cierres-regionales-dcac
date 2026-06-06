@@ -909,13 +909,19 @@ const AcGroupAccordion: React.FC<{ acName: string; list: any[] }> = ({ acName, l
       color: 'from-rose-500 to-red-600',
       badge: 'COSTOS',
       badgeColor: 'bg-rose-500/10 text-rose-600 border-rose-500/15',
-      action: () => setKpiModal({
-        title: 'Análisis de Mínimos Garantizados',
-        items: [],
-        columns: [],
-        cardId: 'minimos',
-        type: 'grouped' as any
-      }),
+      action: async () => {
+        setKpiModal({
+          title: 'Análisis de Mínimos Garantizados',
+          items: [],
+          columns: [],
+          cardId: 'minimos',
+          type: 'grouped' as any
+        });
+        if (minimosData.months.length === 0) {
+          const r = await fetch(`${API_URL}/minimos-red`).catch(() => null);
+          if (r && r.ok) setMinimosData(await r.json());
+        }
+      },
     },
     {
       id: 'roster_card',
@@ -1373,7 +1379,7 @@ const AcGroupAccordion: React.FC<{ acName: string; list: any[] }> = ({ acName, l
                         const chartData = sortedMonths.map(m => ({
                           name: `${MONTHS_ES_SHORT[m.month - 1]} ${String(m.year).slice(2)}`,
                           subsidio: Math.round(m.subsidioTotal),
-                          agentesEnMin: m.agentesEnMinimo,
+                          agentesEnMinimo: m.agentesEnMinimo,
                           totalAgentes: m.totalAgentes,
                           pct: Math.round(m.pctEnMinimo * 100),
                           year: m.year,
@@ -1404,14 +1410,31 @@ const AcGroupAccordion: React.FC<{ acName: string; list: any[] }> = ({ acName, l
                                 </div>
                               </div>
                             )}
-                            {/* Gráfico de evolución mensual */}
-                            {chartData.length > 1 && (
+                            {/* Gráfico de evolución mensual - CSS puro, sin Recharts */}
+                            {chartData.length > 0 && (
                               <div>
                                 <h4 className="text-xs font-extrabold text-slate-700 uppercase tracking-wider mb-3">📊 Evolución Mensual del Subsidio por Mínimos</h4>
-                                <ChartContainer chartData={chartData.map(d => ({ name: d.name, cabezas: d.subsidio, bonif: d.agentesEnMin * 100000 }))} />
-                                <div className="flex gap-4 mt-2 justify-center">
-                                  <span className="text-[10px] font-bold text-blue-500">■ Subsidio ($)</span>
-                                  <span className="text-[10px] font-bold text-emerald-500">■ Agentes en mín. (×100k)</span>
+                                <div className="flex items-end gap-2 h-32 px-2 pb-1">
+                                  {(() => {
+                                    const maxSub = Math.max(...chartData.map(d => d.subsidio), 1);
+                                    return chartData.map((d, i) => (
+                                      <div key={i} className="flex-1 flex flex-col items-center gap-1">
+                                        <span className="text-[8px] font-bold text-rose-600">{new Intl.NumberFormat('es-AR', { notation: 'compact', maximumFractionDigits: 1 }).format(d.subsidio)}</span>
+                                        <div
+                                          className="w-full rounded-t-md bg-gradient-to-t from-rose-600 to-rose-400 transition-all duration-500"
+                                          style={{ height: `${Math.max(4, (d.subsidio / maxSub) * 90)}px` }}
+                                        />
+                                        <div className="flex flex-col items-center gap-0.5">
+                                          <span className="text-[8px] font-black text-slate-500">{d.name}</span>
+                                          <span className="text-[7px] font-bold text-sky-500">{d.agentesEnMinimo}/{d.totalAgentes}</span>
+                                        </div>
+                                      </div>
+                                    ));
+                                  })()}
+                                </div>
+                                <div className="flex gap-4 mt-1 justify-center">
+                                  <span className="text-[9px] font-bold text-rose-500">■ Subsidio total</span>
+                                  <span className="text-[9px] font-bold text-sky-500">● Agentes en mín./total</span>
                                 </div>
                               </div>
                             )}

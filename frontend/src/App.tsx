@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ArrowLeft, Search, Download, Calculator, FileText, CheckCircle, UploadCloud, TrendingUp, BarChart3, Users, Save, ShieldAlert, LayoutDashboard, Database, UserCheck, Check, Edit2, Loader2, PlayCircle, RefreshCw, AlertTriangle, Layers, Plus, Edit, X, ChevronDown, ChevronUp, ChevronsUpDown, Play, BookOpen, Mail, Settings } from 'lucide-react';
+import { ArrowLeft, Search, Download, Calculator, FileText, CheckCircle, UploadCloud, TrendingUp, BarChart3, Users, Save, ShieldAlert, LayoutDashboard, Database, UserCheck, Check, Edit2, Loader2, PlayCircle, RefreshCw, AlertTriangle, Layers, Plus, Edit, X, ChevronDown, ChevronUp, ChevronsUpDown, Play, BookOpen, Mail, Settings, Snowflake, Unlock } from 'lucide-react';
 // @ts-ignore
 import '@fontsource/lato';
 import Simulator from './components/Simulator';
@@ -13,7 +13,7 @@ import Envios from './components/Envios';
 import ConfigPanel from './components/ConfigPanel';
 import { MONTHS } from './constants';
 
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:4000/api';
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:4001/api';
 
 const getUnBadgeClass = (tipo: string) => {
   const t = (tipo || '').toUpperCase().trim();
@@ -105,6 +105,8 @@ function App() {
   const [savingOverride, setSavingOverride] = useState(false);
   const [previewHtml, setPreviewHtml] = useState<string>('');
 
+  const [frozenClosures, setFrozenClosures] = useState<{ period: string, agentName: string, date: string }[]>([]);
+
   useEffect(() => {
     if (activeTab === 'cierre' && selectedAgent) {
       setPreviewHtml('Cargando previsualización...');
@@ -118,16 +120,92 @@ function App() {
   const expectedSnapshotName = `cierre_${activeYear}_${activeMonth.padStart(2, '0')}.json`;
   const isSnapshotAvailable = snapshots.includes(expectedSnapshotName);
 
+  const expectedPeriod = `${activeYear}_${activeMonth.padStart(2, '0')}`;
+  const isAgentFrozen = frozenClosures.some(f => f.period === expectedPeriod && f.agentName.toLowerCase() === selectedAgent?.toLowerCase());
+
+  const fetchFrozenClosures = () => {
+    fetch(`${API_URL}/snapshots/frozen`)
+      .then(res => res.json())
+      .then(data => {
+        if (Array.isArray(data)) {
+          setFrozenClosures(data);
+        }
+      })
+      .catch(e => console.error("Error fetching frozen closures", e));
+  };
+
+  const handleFreeze = async () => {
+    if (!selectedAgent) return;
+    if (!window.confirm(`¿Está seguro de que desea congelar el cierre de ${selectedAgent} para ${MONTHS[Number(activeMonth)-1]} ${activeYear}? Esto fijará las tropas y el resultado en el histórico de ajustes.`)) {
+      return;
+    }
+    try {
+      const res = await fetch(`${API_URL}/snapshots/freeze`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ year: parseInt(activeYear), month: parseInt(activeMonth), agentName: selectedAgent })
+      });
+      if (res.ok) {
+        alert(`Cierre de ${selectedAgent} congelado correctamente.`);
+        fetchFrozenClosures();
+      } else {
+        const text = await res.text();
+        alert(`Error al congelar: ${text}`);
+      }
+    } catch (e) {
+      alert("Error de conexión al congelar cierre.");
+    }
+  };
+
+  const handleUnfreeze = async () => {
+    if (!selectedAgent) return;
+    if (!window.confirm(`¿Está seguro de que desea descongelar el cierre de ${selectedAgent} para ${MONTHS[Number(activeMonth)-1]} ${activeYear}? Volverá a recalcularse de forma dinámica.`)) {
+      return;
+    }
+    try {
+      const res = await fetch(`${API_URL}/snapshots/unfreeze`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ year: parseInt(activeYear), month: parseInt(activeMonth), agentName: selectedAgent })
+      });
+      if (res.ok) {
+        alert(`Cierre de ${selectedAgent} descongelado correctamente.`);
+        fetchFrozenClosures();
+      } else {
+        const text = await res.text();
+        alert(`Error al descongelar: ${text}`);
+      }
+    } catch (e) {
+      alert("Error de conexión al descongelar cierre.");
+    }
+  };
+
   const fetchSnapshots = () => {
     return fetch(`${API_URL}/snapshots`)
       .then(res => res.json())
       .then(files => {
-        setSnapshots(files);
+        const safeFiles = Array.isArray(files) ? files : [];
+        setSnapshots(safeFiles);
+        // Auto-select the most recent available snapshot if no shared month/year
+        if (!sharedYear && !sharedMonth && safeFiles.length > 0) {
+          // files look like 'cierre_2026_05.json' — sort descending and pick first
+          const sorted = [...safeFiles].sort().reverse();
+          const match = sorted[0].match(/^cierre_(\d{4})_(\d{2})\.json$/);
+          if (match) {
+            setActiveYear(match[1]);
+            setActiveMonth(String(parseInt(match[2], 10)));
+          }
+        }
+      })
+      .catch(e => {
+        console.error('Error fetching snapshots:', e);
+        setSnapshots([]);
       });
   };
 
   useEffect(() => {
     fetchSnapshots();
+    fetchFrozenClosures();
     fetch(`${API_URL}/roster`)
       .then(res => res.json())
       .then(data => setRosterData(data))
@@ -151,8 +229,9 @@ function App() {
       fetch(`${API_URL}/snapshots/${expectedSnapshotName}`)
         .then(res => res.json())
         .then(jsonData => {
-          setData(jsonData);
-          const activeAgents = jsonData
+          const safeData = Array.isArray(jsonData) ? jsonData : [];
+          setData(safeData);
+          const activeAgents = safeData
             .map((d: any) => d.asociadoComercial)
             .sort();
           setAgents(activeAgents);
@@ -161,6 +240,10 @@ function App() {
           } else if (activeAgents.length > 0 && !activeAgents.includes(selectedAgent)) {
             setSelectedAgent(activeAgents[0]);
           }
+        })
+        .catch(e => {
+          console.error('Error loading snapshot:', e);
+          setData([]);
         });
     } else {
       setData([]);
@@ -258,7 +341,7 @@ function App() {
     }
   };
 
-  const activeData = data.find(d => d.asociadoComercial === selectedAgent);
+  const activeData = Array.isArray(data) ? data.find(d => d.asociadoComercial === selectedAgent) : undefined;
 
   const fmt = new Intl.NumberFormat('es-AR', { style: 'currency', currency: 'ARS', maximumFractionDigits: 0 });
   const fmtPct = new Intl.NumberFormat('es-AR', { style: 'percent', maximumFractionDigits: 2 });
@@ -512,8 +595,9 @@ function App() {
 
             <button 
               onClick={handleGenerate}
-              disabled={isGenerating}
+              disabled={isGenerating || (activeTab === 'cierre' && isAgentFrozen)}
               className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 shadow-sm disabled:opacity-50 active:scale-95 ${isSnapshotAvailable ? 'bg-white border border-slate-200 text-slate-700 hover:bg-slate-50' : 'bg-[#ff3b30] hover:bg-[#e02b20] text-white'}`}
+              title={activeTab === 'cierre' && isAgentFrozen ? "El cierre de este comercial está congelado. Descongelalo para recalcular." : undefined}
             >
               {isGenerating ? <Loader2 size={12} className="animate-spin" /> : (isSnapshotAvailable ? <RefreshCw size={12}/> : null)}
               <span>{isSnapshotAvailable ? 'Actualizar' : 'Calcular'}</span>
@@ -1001,7 +1085,22 @@ function App() {
                       </div>
                     </div>
 
-                    <div className="ml-auto flex items-center w-full justify-end">
+                    <div className="ml-auto flex items-center w-full justify-end gap-2">
+                      {isAgentFrozen ? (
+                        <button
+                          onClick={handleUnfreeze}
+                          className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-amber-500 text-white text-xs font-bold hover:bg-amber-600 transition-colors shadow-sm active:scale-95"
+                        >
+                          <Unlock size={14} /> Descongelar Cierre
+                        </button>
+                      ) : (
+                        <button
+                          onClick={handleFreeze}
+                          className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-sky-600 text-white text-xs font-bold hover:bg-sky-700 transition-colors shadow-sm active:scale-95"
+                        >
+                          <Snowflake size={14} /> Congelar Cierre
+                        </button>
+                      )}
                       <button 
                         onClick={async () => {
                           if (isGeneratingPdf) return;
@@ -1065,6 +1164,20 @@ function App() {
                       </button>
                     </div>
                   </div>
+
+                  {isAgentFrozen && (
+                    <div className="bg-gradient-to-r from-sky-50 to-blue-50 border border-sky-200 rounded-xl p-4 mb-4 flex items-start gap-3 shadow-sm">
+                      <div className="p-2 bg-sky-100 rounded-lg text-sky-700">
+                        <Snowflake size={20} className="animate-pulse" />
+                      </div>
+                      <div className="flex-1">
+                        <h4 className="text-sm font-bold text-sky-950">Cierre Congelado</h4>
+                        <p className="text-xs text-sky-850 mt-0.5">
+                          Este cierre se encuentra congelado. Los recálculos automáticos del mes no afectarán a este comercial hasta que sea descongelado.
+                        </p>
+                      </div>
+                    </div>
+                  )}
 
                   <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden w-full mt-2 transition-all duration-300">
                     <div className="bg-gray-100 px-6 py-3 border-b border-gray-200 flex justify-between items-center">

@@ -74,8 +74,22 @@ Tienen un salario de subsistencia fuertemente asegurado, clasificados en **Categ
 - **Regional:** **No aplica (0%).**
 - **Oficina:** **No aplica (0%).**
 
-#### Condiciones
-Están blindados financieramente ante las bajas estacionalidades. Cobran su mínimo fijo garantizado todos los meses en los que el 10% de sus pesajes no alcance a cubrir la categoría.
+#### Condiciones — ⚠️ Regla crítica (diferente a todos los demás modelos)
+
+El modelo Operario de Carga **NO usa la lógica de piso/mínimo** que aplica al resto de la red. En los ACs regulares, el mínimo es un "piso": si el variable supera al mínimo, cobra solo el variable; si no llega, cobra solo el mínimo.
+
+En cambio, para los Operarios de Carga:
+
+```
+Total = Mínimo Fijo (base) + Variable Personal (10% del resultado)
+```
+
+Ambos conceptos **siempre se acumulan**. El mínimo es un salario base fijo garantizado todos los meses, y el 10% del resultado es un bono que se agrega encima sin importar el monto. Nunca se elige el mayor entre los dos — siempre se suman.
+
+**Ejemplo (Alejo Broggi, Mayo 2026):**
+- Base fija (Categoría 10): $1.456.000
+- Variable (10% × $12.157.240): $1.215.724
+- **Total a facturar: $2.671.724**
 
 ### Modelo Especial: KAM (Key Account Manager)
 
@@ -113,5 +127,5 @@ Para evitar solapamientos con la red regional, aplican dos reglas excluyentes:
 | **Híbrido (City Manager)** | Escala Completa (100%) | **50%** | - | Categorías 4 y 5 |
 | **Simple** | Escala Simple (100%) | - | - | Varios Mínimos |
 | **Variable** | Escala Completa (100%) | - | - | Categoría 6 ($0) |
-| **Operario Carga** | Fija (10%) | - | - | Categorías 7 a 10 |
+| **Operario Carga** | Fija (10%) | - | - | Cat. 7-10 (base + variable, SIEMPRE sumados) |
 | **Corporate** | Customizada | Excepción Directiva | Excepción Directiva | Categoría 2 |

@@ -1,3 +1,4 @@
+const origExit = process.exit; process.exit = function(code?: number) { console.trace('PROCESS EXIT CALLED WITH CODE', code); return origExit(code); } as any;
 import express from 'express';
 import cors from 'cors';
 import * as path from 'path';
@@ -25,7 +26,7 @@ app.use('/api', apiRoutes);
 app.use('/api/config', configRouter);
 app.use('/api/config-models', configModelsRouter);
 
-const PORT = 4000;
+const PORT = 4001;
 app.listen(PORT, async () => {
     console.log(`=========================================`);
     console.log(`Dashboard Regionales corriendo localmente`);

@@ -35,22 +35,22 @@ var __importStar = (this && this.__importStar) || (function () {
 Object.defineProperty(exports, "__esModule", { value: true });
 const fs = __importStar(require("fs"));
 const path = __importStar(require("path"));
-async function main() {
-    const cacheFile = path.resolve(__dirname, '../src/core/cache/q95_raw.json');
-    if (!fs.existsSync(cacheFile)) {
-        console.log("No q95_raw.json found at:", cacheFile);
-        return;
+const engine_1 = require("../src/core/engine");
+const dotenv = __importStar(require("dotenv"));
+dotenv.config();
+async function rebuildPastMonths() {
+    console.log("Rebuilding closures from Jan 2026 to May 2026 to include all active roster members...");
+    const year = 2026;
+    for (let month = 1; month <= 5; month++) {
+        console.log(`Building ${year}-${month.toString().padStart(2, '0')}...`);
+        const results = await (0, engine_1.calculateDynamicMonth)(year, month);
+        const dir = path.join(__dirname, '../src/core/snapshots');
+        if (!fs.existsSync(dir))
+            fs.mkdirSync(dir, { recursive: true });
+        const file = path.join(dir, `cierre_${year}_${month.toString().padStart(2, '0')}.json`);
+        fs.writeFileSync(file, JSON.stringify(results, null, 2), 'utf8');
+        console.log(`Saved ${results.length} commercials to ${file}`);
     }
-    const data = JSON.parse(fs.readFileSync(cacheFile, 'utf8'));
-    console.log("Q95 dataset rows count:", data.length);
-    if (data.length > 0) {
-        console.log("Sample row keys:", Object.keys(data[0]));
-        console.log("Sample row values:", data[0]);
-        const keyMap = new Map();
-        for (const k of Object.keys(data[0])) {
-            keyMap.set(k.toLowerCase(), k);
-        }
-        console.log("Lowercased keys map:", Array.from(keyMap.entries()));
-    }
+    console.log("Finished rebuilding closures!");
 }
-main().catch(console.error);
+rebuildPastMonths().catch(console.error);

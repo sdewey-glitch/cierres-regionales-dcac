@@ -28,5 +28,7 @@ Los operarios tienen escalas de mínimos distintas que se actualizan mensualment
 *   **Categoría 9 (Operario Carga 3):** Nivel avanzado.
 *   **Categoría 10 (Operario Carga 4):** Nivel superior.
 
+> **⚠️ Regla crítica (diferencia con ACs):** Para los Operarios de Carga, el mínimo garantizado **NO funciona como piso** (como sí ocurre con los ACs regulares). En cambio, funciona como un **salario base fijo siempre pagado**, al que se le **suma** el 10% del resultado variable. Es decir: `Total = Mínimo Fijo + Variable (10%)`. Ambos conceptos siempre coexisten y se acumulan.
+
 ---
 *Nota Operativa:* Cuando se contrata a un nuevo comercial bajo un "Acuerdo Especial", se debe cargar su monto fijo mensual en la columna de "Acuerdo" o "Híbrido" de la solapa `ESCALAS RAC AC`, y asignarle la Categoría 4 o 5 en el Roster. El sistema automáticamente le leerá ese mínimo todos los meses sin necesidad de modificar el código.
