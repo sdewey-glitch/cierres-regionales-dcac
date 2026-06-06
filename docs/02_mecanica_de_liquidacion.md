@@ -44,3 +44,14 @@ Para que un comercial cobre las tres componentes de comisión, su **Componente P
 
 - **Si SUPERA el mínimo:** El sistema liquida normalmente. El comercial cobra su Mínimo (como un básico) + la diferencia de su Componente Personal (lo que superó el mínimo) + el Componente Regional + el Componente Oficina.
 - **Si NO SUPERA el mínimo:** La empresa inyecta capital para asegurar el salario piso del comercial. Sin embargo, como castigo por sub-rendimiento, **el comercial pierde automáticamente el derecho a cobrar el Componente Regional y el Componente Oficina ese mes**. En el recibo de liquidación, estas componentes simplemente no figurarán o aparecerán en $0, y solo verá su "Fijo" (Mínimo).
+
+**⚠️ EXCEPCIÓN — Modelo Operario de Carga** (`tipo = "Operario de carga"` + `modalidad = "Fijo"`):
+
+Esta modalidad funciona de forma completamente diferente. El mínimo **no es un piso competitivo** sino un **salario base siempre pagado**, y el variable se **suma** encima — nunca compite.
+
+- El comercial **siempre** cobra su Mínimo Garantizado completo (Base).
+- El comercial **siempre** cobra el 10% de comisión de su resultado personal (Variable).
+- **Total = Base + Variable** (independientemente de cuál sea mayor).
+- No aplica la Condición Excluyente: nunca pierde el variable ni el base por sub-rendimiento.
+- Categorías disponibles: Cat7 a Cat10 (ver `ESCALAS RAC AC`).
+
