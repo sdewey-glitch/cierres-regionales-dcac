@@ -1,3 +1,13 @@
+const origExit = process.exit; process.exit = function(code?: number) { console.trace('PROCESS EXIT CALLED WITH CODE', code); return origExit(code); } as any;
+
+// ── Prevent silent crashes from unhandled promise rejections ──
+process.on('uncaughtException', (err) => {
+    console.error('[CRASH] uncaughtException — el servidor NO se reinicia solo:', err);
+});
+process.on('unhandledRejection', (reason) => {
+    console.error('[CRASH] unhandledRejection — promesa rechazada sin catch:', reason);
+});
+
 import express from 'express';
 import cors from 'cors';
 import * as path from 'path';
@@ -16,16 +26,18 @@ import apiRoutes from './api/routes';
 import dispatchRouter from './api/dispatch';
 import configRouter from './routes/config';
 import configModelsRouter from './routes/config_models';
+import bajadaRouter from './api/bajada';
 import { createSheetIfNotExists } from './api/sheets';
 import { config } from './config/env';
 
 app.use(express.json({ limit: '50mb' }));
+app.use('/api', bajadaRouter);
 app.use('/api', dispatchRouter);
 app.use('/api', apiRoutes);
 app.use('/api/config', configRouter);
 app.use('/api/config-models', configModelsRouter);
 
-const PORT = 4000;
+const PORT = 4001;
 app.listen(PORT, async () => {
     console.log(`=========================================`);
     console.log(`Dashboard Regionales corriendo localmente`);

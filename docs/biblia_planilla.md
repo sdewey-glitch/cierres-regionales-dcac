@@ -55,6 +55,13 @@ El motor divide las ganancias "extra" en dos componentes muy específicos:
 *   Los mínimos no están duros en el código. El motor cruza la "Categoría" del comercial en el `BDROSTER` (Ej: Top AC, General, etc.) con los mínimos vigentes cargados en la solapa `ESCALAS RAC AC` del Google Sheet.
 *   *Sueldo Bruto = Max(Total Variable, Mínimo de Planilla)* (Salvo que tengan modalidad "Sin mínimo").
 
+**⚠️ EXCEPCIÓN — Operario de Carga** (`tipo = "Operario de carga"` + `modalidad = "Fijo"`):
+*   Su mínimo es un **salario base siempre garantizado**, no un piso competitivo.
+*   El 10% de comisión personal se **SUMA** encima del base — no compite con él.
+*   *Sueldo Bruto = Mínimo Base + ComponenteP* (siempre, independientemente de si ComponenteP supera o no el mínimo).
+*   **Ejemplo (Alejo Broggi, Mayo 2026):** Base Cat10 $1.456.000 + Variable 10% $1.215.724 = **$2.671.724**.
+
+
 ## 6. Motor de Retroactivos (Ajustes y Snapshots)
 
 Para que la matemática no sufra fugas y sea auditable, el motor guarda una "foto" (Snapshot JSON) en la carpeta `snapshots` del servidor cada vez que se cierra un mes con el detalle lote por lote.

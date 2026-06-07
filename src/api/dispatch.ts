@@ -8,6 +8,10 @@ import { CommercialResult } from '../core/types';
 import { calculateDynamicMonth, calculateRetroactiveAdjustments } from '../core/engine';
 import { saveMonthSnapshot, loadMonthSnapshot } from '../core/snapshot';
 import { updateDynamicSueldos } from '../core/writer';
+import { loadHistoricCierre, saveHistoricCierre, initHistoricSheets } from '../core/historico-cierres';
+import { loadAgentDataFromBajada } from './bajada';
+import { getExactScale } from '../core/calculator';
+
 
 const router = express.Router();
 
@@ -23,10 +27,97 @@ if (false) {
 }
 const OVERRIDE_DIR = IS_VERCEL ? '/tmp/overrides' : path.join(__dirname, '..', '..', 'data', 'overrides');
 const MONTHS = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
-const TEST_EMAIL = 'sdewey@decampoacampo.com';
+const TEST_EMAIL = 'jsineriz@decampoacampo.com';
 const APPS_SCRIPT_URL = process.env.APPS_SCRIPT_MAIL_URL || '';
 const ENVIO_SHEET = 'Envio_Reportes';
 const HISTORIAL_SHEET = 'Historial_Envios';
+
+/**
+ * Auto-congela el cierre de un agente si no está ya congelado.
+ * Llamado automáticamente al enviar mail de test o mail real.
+ */
+async function autoFreezeAgent(year: number, month: number, agentName: string): Promise<void> {
+    try {
+        const period = `${year}_${String(month).padStart(2, '0')}`;
+        const añoMesCierre = `${year}${String(month).padStart(2, '0')}`;
+
+        await createSheetIfNotExists(config.HUB_CIERRES_ID, 'Cierres_Congelados');
+        await createSheetIfNotExists(config.HUB_CIERRES_ID, 'Ajustes Historico');
+
+        // Verificar si ya está congelado
+        const existingRows = await readSheet(config.HUB_CIERRES_ID, "'Cierres_Congelados'!A2:C10000").catch(() => []);
+        const alreadyFrozen = existingRows.some(r =>
+            String(r[0]) === period && String(r[1]).toLowerCase() === agentName.toLowerCase()
+        );
+        if (alreadyFrozen) {
+            console.log(`[auto-freeze] ❄️ ${agentName} ya estaba congelado para ${period}, skip`);
+            return;
+        }
+
+        // 1. Registrar en Cierres_Congelados
+        await appendSheet(config.HUB_CIERRES_ID, "'Cierres_Congelados'!A:C", [
+            [period, agentName, new Date().toISOString()]
+        ]);
+
+        // 2. Guardar tropas del mes actual + últimos 3 meses en Ajustes Historico
+        const monthsToProcess: { y: number, m: number }[] = [];
+        for (let i = 0; i <= 3; i++) {
+            let targetMonth = month - i;
+            let targetYear = year;
+            while (targetMonth <= 0) { targetMonth += 12; targetYear -= 1; }
+            monthsToProcess.push({ y: targetYear, m: targetMonth });
+        }
+
+        const allTropaRows: any[][] = [];
+        for (const { y, m } of monthsToProcess) {
+            const snap = await loadMonthSnapshot(y, m);
+            if (!snap) continue;
+            const agentResult = snap.find((r: any) => r.asociadoComercial.toLowerCase() === agentName.toLowerCase());
+            if (!agentResult?.operacionesDetalle) continue;
+
+            for (const op of agentResult.operacionesDetalle) {
+                const opYearMonth = op.fecha_operacion
+                    ? op.fecha_operacion.substring(0, 4) + op.fecha_operacion.substring(5, 7)
+                    : `${y}${String(m).padStart(2, '0')}`;
+                const totalResultado = (op.resultado_topeado_venta || 0) + (op.resultado_topeado_compra || 0);
+                let ganancia = 0;
+                if (op.comercial_venta?.toLowerCase() === agentName.toLowerCase()) ganancia += op.ganancia_personal_venta || 0;
+                if (op.comercial_compra?.toLowerCase() === agentName.toLowerCase()) ganancia += op.ganancia_personal_compra || 0;
+
+                allTropaRows.push([
+                    añoMesCierre,
+                    opYearMonth,
+                    op.id_lote,
+                    totalResultado,
+                    ganancia,
+                    op.comercial_venta || '',
+                    op.comercial_compra || '',
+                    agentName
+                ]);
+            }
+        }
+
+        if (allTropaRows.length > 0) {
+            await appendSheet(config.HUB_CIERRES_ID, "'Ajustes Historico'!A:H", allTropaRows);
+        }
+
+        // Guardar también en Historico_Cierres para edición desde Sheets
+        const snapFull = await loadMonthSnapshot(year, month);
+        const agentFull = snapFull?.find((r: any) => r.asociadoComercial.toLowerCase() === agentName.toLowerCase());
+        if (agentFull) {
+            await initHistoricSheets().catch(() => {});
+            await saveHistoricCierre(year, month, agentFull).catch((e: any) =>
+                console.warn('[auto-freeze] ⚠️ Error en Historico_Cierres:', e.message)
+            );
+        }
+
+        console.log(`[auto-freeze] ✅ Cierre de ${agentName} congelado automáticamente tras envío (${allTropaRows.length} tropas en ${monthsToProcess.length} meses)`);
+    } catch (e: any) {
+        console.warn(`[auto-freeze] ⚠️ Error al auto-congelar ${agentName}:`, e.message);
+        // No tiramos error — el envio ya fue exitoso, no queremos rollbackear por esto
+    }
+}
+
 
 // ═══════════════════════════════════════════════
 //  HELPERS
@@ -48,11 +139,104 @@ function getLocalTimestamp(): string {
     return formatter.format(now).replace(',', '');
 }
 
-/** Lee el snapshot del mes y busca un agente por nombre */
+/** Lee el snapshot del mes y busca un agente por nombre.
+ *  Si el agente está congelado, intenta leer desde Historico_Cierres (Sheets).
+ *  Si no lo encuentra ahí (agentes congelados antes de esta feature), usa el snapshot JSON.
+ */
 async function getAgentData(year: number, month: number, agentName: string): Promise<CommercialResult | null> {
+    // Verificar si está congelado
+    let isFrozen = false;
+    const period = `${year}_${String(month).padStart(2, '0')}`;
+    try {
+        const frozenRows = await readSheet(config.HUB_CIERRES_ID, "'Cierres_Congelados'!A2:C10000");
+        isFrozen = (frozenRows || []).some(r =>
+            String(r[0]) === period && String(r[1]).toLowerCase() === agentName.trim().toLowerCase()
+        );
+    } catch { isFrozen = false; }
+
+    if (isFrozen) {
+        // Intentar leer desde Historico_Cierres (nueva fuente de verdad)
+        try {
+            const historicData = await loadHistoricCierre(year, month, agentName);
+            if (historicData) {
+                console.log(`[getAgentData] ❄️ Leyendo cierre congelado de Historico_Cierres: ${agentName} ${year}-${month}`);
+                return historicData;
+            }
+        } catch (e: any) {
+            console.warn(`[getAgentData] ⚠️ Error leyendo Historico_Cierres, fallback a snapshot JSON:`, e.message);
+        }
+        // Fallback: snapshot JSON (para cierres congelados antes de esta feature)
+        console.log(`[getAgentData] 📦 Fallback a snapshot JSON para ${agentName} (no está en Historico_Cierres)`);
+    }
+
     const data = await loadMonthSnapshot(year, month);
     if (!data) return null;
     return data.find(d => d.asociadoComercial?.toString().trim().toLowerCase() === agentName.trim().toLowerCase()) || null;
+}
+
+/**
+ * Recalcula escalaGen, componenteP y cierreReal para un agente
+ * basándose en las cabezas ACTIVAS (excluye las tropas con excluida=true).
+ * Llama después de aplicar cualquier exclusión o adición manual de tropas.
+ */
+async function recalcularEscalaAgente(agentData: CommercialResult, year: number, month: number): Promise<void> {
+    if (!agentData) return;
+
+    // Recalcular cabezas y resultado sólo con las tropas activas
+    const opsActivas = (agentData.operacionesDetalle || []).filter((op: any) => !op.excluida);
+    
+    let cabezasActivas = 0;
+    let resultadoActivo = 0;
+    const lotesSeen = new Set<number>();
+    for (const op of opsActivas as any[]) {
+        const id = Number(op.id_lote);
+        if (!lotesSeen.has(id)) {
+            lotesSeen.add(id);
+            cabezasActivas += Number(op.cantidad) || 0;
+        }
+        resultadoActivo += (op.resultado_topeado_venta || 0) + (op.resultado_topeado_compra || 0);
+    }
+
+    // Determinar tipo de escala
+    const esOperario = (agentData.tipo || '').toLowerCase().includes('operario');
+    const esFijo     = (agentData.modalidad || '').toLowerCase() === 'fijo';
+    let nuevaEscala: number;
+    if (esOperario || esFijo) {
+        nuevaEscala = 0.10;
+    } else if ((agentData.escalasTexto || '') === 'Oficina') {
+        nuevaEscala = await getExactScale(cabezasActivas, 'escalaPersonal', year, month);
+    } else {
+        nuevaEscala = await getExactScale(cabezasActivas, 'escalaAC', year, month);
+    }
+
+    agentData.cabezasGeneral  = cabezasActivas;
+    agentData.tropasGeneral   = lotesSeen.size;
+    agentData.resultado_final_ajustado = resultadoActivo;
+    agentData.escalaGen       = nuevaEscala;
+    agentData.componenteP     = Math.round(resultadoActivo * nuevaEscala);
+    agentData.componentePAju  = agentData.componenteP;
+    agentData.variable_personal = agentData.componenteP;
+
+    // Actualizar ganancia_personal por tropa
+    for (const op of opsActivas as any[]) {
+        op.escala_aplicada        = nuevaEscala;
+        op.ganancia_personal_venta  = Math.round((op.resultado_topeado_venta  || 0) * nuevaEscala);
+        op.ganancia_personal_compra = Math.round((op.resultado_topeado_compra || 0) * nuevaEscala);
+    }
+
+    // Recalcular cierreReal
+    const totalComponentes = (agentData.componenteP || 0) + (agentData.componenteR || 0) + (agentData.componenteO || 0);
+    const isOperarioCarga = (agentData.tipo || '').toLowerCase().includes('operario');
+    const sueldoFinal = isOperarioCarga
+        ? (agentData.minimo || 0) + (agentData.componenteP || 0) + (agentData.ajustes || 0)
+        : Math.max(agentData.minimo || 0, totalComponentes + (agentData.ajustes || 0));
+    let reintegroNeto = agentData.reintegroMovilidad || 0;
+    if (reintegroNeto > 0) reintegroNeto -= (agentData.gastosMendelMovilidad || 0);
+    let ajusteEspecial = 0;
+    if (agentData.asociadoComercial.toLowerCase() === 'pablo cieri') {
+        ajusteEspecial = (agentData.componenteP || 0) * -0.20;
+    }
+    agentData.cierreReal = Math.round(sueldoFinal + reintegroNeto - (agentData.amortizacioneDcac || 0) + ajusteEspecial);
 }
 
 /** Obtiene la configuración de envío para un agente específico, incluyendo ajustes manuales customizados */
@@ -103,7 +287,10 @@ function adjustAgentDataWithConfig(agentData: CommercialResult, c: any) {
     }
 
     const totalComponentes = agentData.componenteP + agentData.componenteR + agentData.componenteO;
-    const sueldoFinal = Math.max(agentData.minimo, totalComponentes + agentData.ajustes);
+    const isOperario = (agentData.tipo || '').toLowerCase().includes('operario');
+    const sueldoFinal = isOperario
+        ? (agentData.minimo || 0) + (agentData.componenteP || 0) + agentData.ajustes
+        : Math.max(agentData.minimo, totalComponentes + agentData.ajustes);
     
     let reintegroNeto = agentData.reintegroMovilidad || 0;
     const tieneAutoPropio = (agentData.reintegroMovilidad || 0) > 0;
@@ -498,7 +685,10 @@ router.post('/dispatch/config', async (req, res) => {
                         ajusteEspecial = (res.componenteP || 0) * -0.20;
                     }
                     const totalComponentes = (res.componenteP || 0) + (res.componenteR || 0) + (res.componenteO || 0);
-                    const sueldoFinal = Math.max(res.minimo || 0, totalComponentes + res.ajustes);
+                    const isOperarioCarga = (res.tipo || '').toLowerCase().includes('operario');
+                    const sueldoFinal = isOperarioCarga
+                        ? (res.minimo || 0) + (res.componenteP || 0) + res.ajustes
+                        : Math.max(res.minimo || 0, totalComponentes + res.ajustes);
                     res.cierreReal = sueldoFinal + reintegroNeto - (res.amortizacioneDcac || 0) + ajusteEspecial;
                 }
 
@@ -529,8 +719,16 @@ router.get('/dispatch/preview-pdf/:agent', async (req, res) => {
         const { year, month } = req.query;
         if (!year || !month) return res.status(400).json({ error: 'year y month requeridos' });
 
-        const agentData = await getAgentData(Number(year), Number(month), agentName);
+        const src = String(req.query.source || '');
+        const agentData = src === 'bajada' || src === 'bajada2'
+            ? await loadAgentDataFromBajada(Number(year), Number(month), agentName, src === 'bajada2' ? 'Bajada 2' : 'Bajada')
+            : await getAgentData(Number(year), Number(month), agentName);
         if (!agentData) return res.status(404).json({ error: `No se encontró datos para ${agentName}` });
+
+        // Si es Metabase, recalcular escala según cabezas activas (considera exclusiones)
+        if (src !== 'bajada' && src !== 'bajada2') {
+            await recalcularEscalaAgente(agentData, Number(year), Number(month));
+        }
 
         const c = await getAgentConfig(Number(year), Number(month), agentName);
         if (c) {
@@ -588,10 +786,19 @@ router.get('/dispatch/preview', async (req, res) => {
         const { year, month } = req.query;
         if (!year || !month) return res.status(400).json({ error: 'year y month requeridos' });
 
-        const agentData = await getAgentData(Number(year), Number(month), agentName);
+        const src = String(req.query.source || '');
+        const agentData = src === 'bajada' || src === 'bajada2'
+            ? await loadAgentDataFromBajada(Number(year), Number(month), agentName, src === 'bajada2' ? 'Bajada 2' : 'Bajada')
+            : await getAgentData(Number(year), Number(month), agentName);
         if (!agentData) return res.status(404).json({ error: `No se encontró datos para ${agentName}` });
 
-        const c = await getAgentConfig(Number(year), Number(month), agentName);
+        // Si es Metabase, recalcular escala según cabezas activas (considera exclusiones)
+        if (src !== 'bajada' && src !== 'bajada2') {
+            await recalcularEscalaAgente(agentData, Number(year), Number(month));
+        }
+
+        let c = null;
+        try { c = await getAgentConfig(Number(year), Number(month), agentName); } catch (configErr: any) { console.warn('[preview] getAgentConfig falló, usando datos del snapshot:', configErr.message); }
         if (c) {
             adjustAgentDataWithConfig(agentData, c);
         }
@@ -621,12 +828,21 @@ router.get('/dispatch/preview-html/:agent', async (req, res) => {
         const { year, month } = req.query;
         if (!year || !month) return res.status(400).json({ error: 'year y month requeridos' });
 
-        const agentData = await getAgentData(Number(year), Number(month), agentName);
-        if (!agentData) return res.status(404).json({ error: `No se encontró datos para ${agentName}` });
+        const src = String(req.query.source || '');
+        const agentData = src === 'bajada' || src === 'bajada2'
+            ? await loadAgentDataFromBajada(Number(year), Number(month), agentName, src === 'bajada2' ? 'Bajada 2' : 'Bajada')
+            : await getAgentData(Number(year), Number(month), agentName);
+        if (!agentData) return res.status(404).send(`<html><body style="font-family:sans-serif;padding:24px;color:#c0392b"><h3>⚠️ No se encontraron datos para ${agentName}</h3><p>El agente no está en el snapshot del período ${year}-${month}. Hacé clic en <strong>Actualizar</strong> para regenerar el cierre.</p></body></html>`);
 
-        const c = await getAgentConfig(Number(year), Number(month), agentName);
-        if (c) {
-            adjustAgentDataWithConfig(agentData, c);
+        // Si es Metabase, recalcular escala según cabezas activas (considera exclusiones)
+        if (src !== 'bajada' && src !== 'bajada2') {
+            await recalcularEscalaAgente(agentData, Number(year), Number(month));
+        }
+
+        let c2 = null;
+        try { c2 = await getAgentConfig(Number(year), Number(month), agentName); } catch (configErr: any) { console.warn('[preview-html] getAgentConfig falló, usando datos del snapshot:', configErr.message); }
+        if (c2) {
+            adjustAgentDataWithConfig(agentData, c2);
         }
 
         let finalHtml = '';
@@ -720,7 +936,10 @@ router.post('/dispatch/test', async (req, res) => {
 
         console.log(`[dispatch/test] Resultado:`, result.success ? '✅' : '❌', result.error || '');
 
-        // 3. Registrar en historial
+        // 3. Auto-congelar tras envío exitoso
+        await autoFreezeAgent(Number(year), Number(month), agent);
+
+        // 4. Registrar en historial
         const timestamp = getLocalTimestamp();
         const añoMes = `${year}${String(month).padStart(2, '0')}`;
         try {
@@ -810,7 +1029,12 @@ router.post('/dispatch/send', async (req, res) => {
             sender: sender || '',
         });
 
-        // 3. Registrar en historial
+        // 3. Auto-congelar tras envío exitoso (solo si el mail se envió bien)
+        if (result.success) {
+            await autoFreezeAgent(Number(year), Number(month), agent);
+        }
+
+        // 4. Registrar en historial
         const timestamp = getLocalTimestamp();
         const añoMes = `${year}${String(month).padStart(2, '0')}`;
         const estado = result.success ? 'Enviado' : 'Error';

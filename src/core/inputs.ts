@@ -177,22 +177,80 @@ export async function fetchKms(): Promise<KmsEntry[]> {
     }
 }
 
-export async function fetchPreciosKm(): Promise<Map<string, number>> {
+/** Normaliza nombres de tipo de vehículo entre distintas fuentes */
+function normalizeTipoVehiculo(tipo: string): string {
+    const t = tipo.trim().toLowerCase();
+    if (t === 'camioneta') return 'chata';
+    if (t === 'sedan') return 'auto';
+    return t; // suv, chata, auto
+}
+
+export async function fetchPreciosKm(year?: number, month?: number): Promise<Map<string, number>> {
+    const KMS_STOCK_ID = config.KMS_STOCK_ID;
+
+    // ── Fuente nueva: Stock Autos - Kms → pestaña $xKMs ──
+    // Formato: Año | Mes | $ x km | Tipo (suv/chata/auto)
+    if (KMS_STOCK_ID && year && month) {
+        try {
+            const data = await readSheet(KMS_STOCK_ID, "'$xKMs'!A2:D");
+            const prices = new Map<string, number>();
+
+            // Buscar fila exacta para el año/mes pedido
+            const exactRows = data.filter(row =>
+                Number(row[0]) === year && Number(row[1]) === month && row[2] && row[3]
+            );
+
+            let rowsToUse = exactRows;
+
+            // Si no hay datos exactos, usar el mes anterior más cercano disponible
+            if (exactRows.length === 0) {
+                const targetYM = year * 100 + month;
+                const candidates = data.filter(row => {
+                    const ym = Number(row[0]) * 100 + Number(row[1]);
+                    return ym < targetYM && row[2] && row[3];
+                });
+                if (candidates.length > 0) {
+                    const latestYM = Math.max(...candidates.map(r => Number(r[0]) * 100 + Number(r[1])));
+                    const latestYear = Math.floor(latestYM / 100);
+                    const latestMonth = latestYM % 100;
+                    rowsToUse = candidates.filter(row =>
+                        Number(row[0]) === latestYear && Number(row[1]) === latestMonth
+                    );
+                    console.log(`[fetchPreciosKm] Sin datos para ${year}-${month}, usando ${latestYear}-${latestMonth} como fallback`);
+                }
+            }
+
+            for (const row of rowsToUse) {
+                const precio = cleanSheetsNumber(row[2]);
+                const tipo = normalizeTipoVehiculo(String(row[3] || ''));
+                if (tipo && precio > 0) {
+                    prices.set(tipo, precio);
+                }
+            }
+
+            if (prices.size > 0) {
+                console.log(`[fetchPreciosKm] ✅ Precios desde Stock Autos ${year}-${month}:`, Object.fromEntries(prices));
+                return prices;
+            }
+        } catch (e: any) {
+            console.warn('[fetchPreciosKm] No se pudo leer $xKMs de Stock Autos:', e.message);
+        }
+    }
+
+    // ── Fallback: fuente vieja Kms & $ (formato horizontal por columna-mes) ──
     try {
-        // Kms & $: Row 2+ = tipo vehiculo | blank | prices by month...
-        // We use the latest price column (column J = index 9 for 202601)
-        const data = await readSheet(GASTOS_ID, "'Kms & $'!A2:J10");
+        const data = await readSheet(GASTOS_ID, "'Kms & $'!A2:Z10");
         const prices = new Map<string, number>();
         for (const row of data) {
-            const tipo = String(row[0] || '').trim().toLowerCase();
-            if (!tipo || tipo === 'comercial') break; // Stop at the second section
-            // Get the latest price (last non-empty column)
+            const tipo = normalizeTipoVehiculo(String(row[0] || ''));
+            if (!tipo || tipo === 'comercial') break;
             let precio = 0;
             for (let i = row.length - 1; i >= 2; i--) {
                 if (Number(row[i]) > 0) { precio = Number(row[i]); break; }
             }
-            prices.set(tipo, precio);
+            if (tipo && precio > 0) prices.set(tipo, precio);
         }
+        console.log('[fetchPreciosKm] ⚠️ Usando fuente fallback Kms & $:', Object.fromEntries(prices));
         return prices;
     } catch (e: any) {
         console.warn("No se pudo leer Kms & $.", e.message);
@@ -200,24 +258,53 @@ export async function fetchPreciosKm(): Promise<Map<string, number>> {
     }
 }
 
+
 export async function fetchVehicleMap(): Promise<Map<string, string>> {
+    const KMS_STOCK_ID = config.KMS_STOCK_ID;
+    const map = new Map<string, string>();
+    const normalizeKey = (s: string) => s.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
+
+    // ── Fuente primaria: solapa 'Comerciales' del sheet Stock Autos - Kms ──
+    // Columnas: A=Mail | B=Comercial | C=Tipo (dcac/propio) | D=Patente | E=Vehículo (suv/chata/auto) | F=CC
+    if (KMS_STOCK_ID) {
+        try {
+            const data = await readSheet(KMS_STOCK_ID, "'Comerciales'!A2:F");
+            for (const row of data) {
+                const comercialRaw = String(row[1] || '').trim();
+                const vehiculo = normalizeTipoVehiculo(String(row[4] || '').trim());
+                if (comercialRaw && vehiculo) {
+                    map.set(comercialRaw.toLowerCase(), vehiculo);
+                    map.set(normalizeKey(comercialRaw), vehiculo); // sin acentos
+                }
+            }
+            if (map.size > 0) {
+                console.log(`[fetchVehicleMap] ✅ ${Math.round(map.size / 2)} vehículos desde Stock Autos Comerciales`);
+                return map;
+            }
+        } catch (e: any) {
+            console.warn('[fetchVehicleMap] No se pudo leer Comerciales de Stock Autos:', e.message);
+        }
+    }
+
+    // ── Fallback: solapa vieja 'Kms & $' del HUB_GASTOS_ID ──
     try {
-        // The second section of 'Kms & $' (starting at row 6) maps Comercial → Vehículo
         const data = await readSheet(GASTOS_ID, "'Kms & $'!A6:B30");
-        const map = new Map<string, string>();
         for (const row of data) {
-            const comercial = String(row[0] || '').trim().toLowerCase();
-            const vehiculo = String(row[1] || '').trim().toLowerCase();
-            if (comercial && vehiculo && comercial !== 'comercial') {
-                map.set(comercial, vehiculo);
+            const comercialRaw = String(row[0] || '').trim();
+            const vehiculo = normalizeTipoVehiculo(String(row[1] || '').trim());
+            if (comercialRaw && vehiculo && comercialRaw.toLowerCase() !== 'comercial') {
+                map.set(comercialRaw.toLowerCase(), vehiculo);
+                map.set(normalizeKey(comercialRaw), vehiculo);
             }
         }
+        console.log(`[fetchVehicleMap] ⚠️ Usando fallback Kms & $: ${Math.round(map.size / 2)} entradas`);
         return map;
     } catch (e: any) {
         console.warn("No se pudo leer mapeo vehículos.", e.message);
         return new Map();
     }
 }
+
 
 export async function fetchAmortDcac(): Promise<AmortEntry[]> {
     try {
@@ -245,7 +332,7 @@ export async function fetchMendelGastos(): Promise<MendelGasto[]> {
         const rawMendel = await readSheet(spreadsheetId, "'Base Mendel'!A2:BC");
         
         // 2. Read Copia de Correlaciones usuarios Mendel
-        const rawCorr = await readSheet(spreadsheetId, "'Copia de Correlaciones usuarios Mendel'!A2:B");
+        const rawCorr = await readSheet(spreadsheetId, "'Correlaciones usuarios Mendel'!A2:B");
         
         // 3. Get Roster
         const roster = await getRoster();

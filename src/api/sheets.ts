@@ -10,70 +10,127 @@ function getSheetsClient() {
     return google.sheets({ version: 'v4', auth });
 }
 
+/**
+ * Ejecuta una función con reintentos y backoff exponencial.
+ * Reintenta en errores 429 (Quota exceeded) y 500/503 transitorios.
+ */
+async function withRetry<T>(fn: () => Promise<T>, maxRetries = 4, label = 'sheets'): Promise<T> {
+    let lastError: any;
+    for (let attempt = 0; attempt <= maxRetries; attempt++) {
+        try {
+            return await fn();
+        } catch (e: any) {
+            lastError = e;
+            const status = e?.status || e?.code || e?.response?.status;
+            const isQuota = status === 429 || status === 'RESOURCE_EXHAUSTED' ||
+                (e?.message || '').includes('Quota exceeded') ||
+                (e?.message || '').includes('quota');
+            const isTransient = status === 500 || status === 503 || status === 'UNAVAILABLE';
+
+            if ((isQuota || isTransient) && attempt < maxRetries) {
+                const waitMs = Math.pow(2, attempt + 1) * 1000 + Math.random() * 500;
+                console.warn(`[${label}] ⏳ Quota/error (intento ${attempt + 1}/${maxRetries}), esperando ${Math.round(waitMs)}ms...`);
+                await new Promise(r => setTimeout(r, waitMs));
+                continue;
+            }
+            throw e;
+        }
+    }
+    throw lastError;
+}
+
+/**
+ * Cache in-memory de hojas conocidas para evitar múltiples spreadsheets.get() por minuto.
+ * Clave: `${spreadsheetId}::${sheetName}` → true si existe confirmado
+ */
+const knownSheets = new Map<string, boolean>();
+
 export async function readSheet(spreadsheetId: string, range: string): Promise<any[][]> {
-    const sheets = getSheetsClient();
-    const res = await sheets.spreadsheets.values.get({
-        spreadsheetId,
-        range,
-        valueRenderOption: 'UNFORMATTED_VALUE',
-    });
-    return res.data.values || [];
+    return withRetry(async () => {
+        const sheets = getSheetsClient();
+        const res = await sheets.spreadsheets.values.get({
+            spreadsheetId,
+            range,
+            valueRenderOption: 'UNFORMATTED_VALUE',
+        });
+        return res.data.values || [];
+    }, 4, `readSheet(${range})`);
 }
 
 export async function writeSheet(spreadsheetId: string, range: string, values: any[][]): Promise<void> {
-    const sheets = getSheetsClient();
-    await sheets.spreadsheets.values.update({
-        spreadsheetId,
-        range,
-        valueInputOption: 'USER_ENTERED',
-        requestBody: { values },
-    });
+    return withRetry(async () => {
+        const sheets = getSheetsClient();
+        await sheets.spreadsheets.values.update({
+            spreadsheetId,
+            range,
+            valueInputOption: 'USER_ENTERED',
+            requestBody: { values },
+        });
+    }, 4, `writeSheet(${range})`);
 }
 
 export async function appendSheet(spreadsheetId: string, range: string, values: any[][]): Promise<void> {
-    const sheets = getSheetsClient();
-    await sheets.spreadsheets.values.append({
-        spreadsheetId,
-        range,
-        valueInputOption: 'USER_ENTERED',
-        insertDataOption: 'INSERT_ROWS',
-        requestBody: { values },
-    });
+    return withRetry(async () => {
+        const sheets = getSheetsClient();
+        await sheets.spreadsheets.values.append({
+            spreadsheetId,
+            range,
+            valueInputOption: 'USER_ENTERED',
+            insertDataOption: 'INSERT_ROWS',
+            requestBody: { values },
+        });
+    }, 4, `appendSheet(${range})`);
 }
 
 export async function clearSheetRange(spreadsheetId: string, range: string): Promise<void> {
-    const sheets = getSheetsClient();
-    await sheets.spreadsheets.values.clear({
-        spreadsheetId,
-        range,
-    });
+    return withRetry(async () => {
+        const sheets = getSheetsClient();
+        await sheets.spreadsheets.values.clear({
+            spreadsheetId,
+            range,
+        });
+    }, 4, `clearSheet(${range})`);
 }
 
-
 export async function createSheetIfNotExists(spreadsheetId: string, sheetName: string): Promise<void> {
-    const sheets = getSheetsClient();
-    
-    // Check if sheet already exists
-    const metadata = await sheets.spreadsheets.get({ spreadsheetId });
-    const exists = metadata.data.sheets?.some(s => s.properties?.title === sheetName);
-    
-    if (exists) {
-        console.log(`[sheets] Hoja '${sheetName}' ya existe`);
+    const cacheKey = `${spreadsheetId}::${sheetName}`;
+
+    // Si ya sabemos que existe, skip sin ningún request a la API
+    if (knownSheets.get(cacheKey)) {
         return;
     }
-    
-    await sheets.spreadsheets.batchUpdate({
-        spreadsheetId,
-        requestBody: {
-            requests: [{
-                addSheet: {
-                    properties: {
-                        title: sheetName
-                    }
-                }
-            }]
+
+    return withRetry(async () => {
+        const sheets = getSheetsClient();
+
+        const metadata = await sheets.spreadsheets.get({ spreadsheetId });
+        const sheetList = metadata.data.sheets || [];
+
+        // Poblar cache con todas las hojas conocidas de este spreadsheet
+        for (const s of sheetList) {
+            if (s.properties?.title) {
+                knownSheets.set(`${spreadsheetId}::${s.properties.title}`, true);
+            }
         }
-    });
-    
-    console.log(`[sheets] ✅ Hoja '${sheetName}' creada`);
+
+        if (knownSheets.get(cacheKey)) {
+            console.log(`[sheets] Hoja '${sheetName}' ya existe`);
+            return;
+        }
+
+        await sheets.spreadsheets.batchUpdate({
+            spreadsheetId,
+            requestBody: {
+                requests: [{
+                    addSheet: {
+                        properties: { title: sheetName }
+                    }
+                }]
+            }
+        });
+
+        // Marcar como existente en cache
+        knownSheets.set(cacheKey, true);
+        console.log(`[sheets] ✅ Hoja '${sheetName}' creada`);
+    }, 3, `createSheet(${sheetName})`);
 }

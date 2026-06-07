@@ -189,6 +189,7 @@ Oficinas elegibles: Río 4to, Entre Ríos, Bavio, Córdoba.
 
 #### F11. Sueldo Bruto
 ```
+// Caso estándar (ACs regulares):
 Si componenteP < mínimo:
   variable_personal = 0
   componenteR = 0  (excepto David Menghi)
@@ -196,8 +197,15 @@ Si componenteP < mínimo:
 Sino:
   variable_personal = componenteP - mínimo
 
-sueldoBruto = mínimo + variable_personal + componenteR + componenteO
+// EXCEPCIÓN — Operario de Carga (tipo="Operario de carga" + modalidad="Fijo"):
+// El mínimo es un SALARIO BASE siempre pagado.
+// El variable (10%) se SUMA encima, no compite con el base.
+variable_personal = componenteP   // siempre
+fijo = mínimo                    // siempre
+Total = mínimo + componenteP     // ambos siempre presentes
 ```
+
+> **Ejemplo Broggi (Mayo 2026):** Base Cat10=$1.456.000 + Variable 10%=$1.215.724 → **Total=$2.671.724**
 
 #### F12. Amortización DCAC
 ```

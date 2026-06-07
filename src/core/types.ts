@@ -124,7 +124,10 @@ export interface CommercialResult {
     resultado: number; // Suma de todos los componentes de este mes
     minimo: number;
     cierreReal: number;
+    sueldoFinal?: number;       // Base antes de movilidad y ajuste especial
+    ajusteEspecial?: number;    // Ajuste especial por agente (ej: -20% Pablo Cieri)
     retroactivosDetalle?: RetroactiveAdjustment[];
+
     // Detalles de Operaciones
     operacionesIds: number[];
     operacionesDetalle: OperacionDetalle[];

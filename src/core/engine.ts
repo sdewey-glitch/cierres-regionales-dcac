@@ -66,7 +66,7 @@ export async function calculateDynamicMonth(year: number, month: number): Promis
 
     // Fetch gastos data sources and config
     const [kmsData, preciosKm, amortData, mendelData, vehicleMap, gastos, manualAdjustments, tajadaData, historicalSalaries, viajesPropios] = await Promise.all([
-        fetchKms(), fetchPreciosKm(), fetchAmortDcac(), fetchMendelGastos(), fetchVehicleMap(), fetchGastos(), fetchAjustesManuales(), fetchTajada(), fetchHistoricalSalaries(), fetchViajesPropios()
+        fetchKms(), fetchPreciosKm(year, month), fetchAmortDcac(), fetchMendelGastos(), fetchVehicleMap(), fetchGastos(), fetchAjustesManuales(), fetchTajada(), fetchHistoricalSalaries(), fetchViajesPropios()
     ]);
     const añoMes = `${year}${String(month).padStart(2, '0')}`;
 
@@ -943,6 +943,11 @@ export async function calculateDynamicMonth(year: number, month: number): Promis
         if (hasNoMinimum) {
             res.fijo = 0;
             res.variable_personal = res.componenteP;
+        } else if (isOperario) {
+            // Operario de Carga: Fijo BASE siempre + variable siempre (se suman, no se comparan)
+            // El mínimo es un salario base fijo, y el 10% del resultado se agrega encima
+            res.fijo = res.minimo;
+            res.variable_personal = res.componenteP;
         } else {
             if (res.componenteP < res.minimo) {
                 res.variable_personal = 0;
@@ -975,8 +980,10 @@ export async function calculateDynamicMonth(year: number, month: number): Promis
         const kmsEntry = kmsData.find(k => k.año === year && k.mes === month && k.comercial.toLowerCase() === nameLC);
         if (kmsEntry) {
             res.kms = kmsEntry.kmsEmpresa;
-            // Resolve vehicle type: Kms & $ mapping > Amort_DCAC model inference > KMS raw type
-            const vehicleType = vehicleMap.get(nameLC) || '';
+            // Resolve vehicle type: Stock Autos Comerciales mapping > Amort_DCAC model inference > KMS raw type
+            // Normaliza acentos para matching robusto (ej: 'agustín' === 'agustin')
+            const normalizeKey = (s: string) => s.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
+            const vehicleType = vehicleMap.get(nameLC) || vehicleMap.get(normalizeKey(res.asociadoComercial)) || '';
             // If no direct mapping, infer from Amort_DCAC model name
             let resolvedType = vehicleType;
             if (!resolvedType && amortEntry) {
@@ -987,6 +994,7 @@ export async function calculateDynamicMonth(year: number, month: number): Promis
             }
             res.auto = resolvedType || kmsEntry.tipoVehiculo || 'auto';
             res.precioPorKm = preciosKm.get(res.auto) || preciosKm.get('auto') || 0;
+
             
             // Regla: vehículo empresa (dcac) → NO tiene reintegro de KMs (pero SÍ mantiene amortización)
             //         vehículo propio → SÍ tiene reintegro de KMs (kms × precioPorKm), NO tiene amortización
@@ -1043,8 +1051,15 @@ export async function calculateDynamicMonth(year: number, month: number): Promis
         const prevAñoMes = `${prevY}${String(prevM).padStart(2, '0')}`;
         
         const normalizeName = (n: string) => (n || '').toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim();
-        const mendelMes = mendelData.filter(m => m.periodo === prevAñoMes && normalizeName(m.usuario) === normalizeName(res.asociadoComercial));
+        const mendelMes = mendelData.filter(m => m.periodo === añoMes && normalizeName(m.usuario) === normalizeName(res.asociadoComercial));
+        if (res.asociadoComercial.toLowerCase().includes('sansot')) {
+            console.log(`[DEBUG Mendel] ${res.asociadoComercial} período=${añoMes} → ${mendelMes.length} registros, total=$${mendelMes.reduce((s,m)=>s+m.importe,0).toFixed(0)}`);
+            const byPeriod = new Map<string,number>();
+            mendelData.filter(m => normalizeName(m.usuario) === normalizeName(res.asociadoComercial)).forEach(m => byPeriod.set(m.periodo, (byPeriod.get(m.periodo)||0) + m.importe));
+            console.log(`[DEBUG Mendel] Períodos disponibles Sansot:`, Object.fromEntries(byPeriod));
+        }
         res.gastosMkt = mendelMes.reduce((sum, m) => sum + m.importe, 0);
+
         
         const catMap = new Map<string, number>();
         mendelMes.forEach(m => {
@@ -1137,8 +1152,13 @@ export async function calculateDynamicMonth(year: number, month: number): Promis
         }
         res.aguinaldo = aguinaldo;
 
-        const sueldoFinal = Math.max(res.minimo, totalComponentes + res.ajustes) + aguinaldo;
+        // Para Operario de Carga: fijo + variable siempre sumados (no se compara con máximo)
+        const sueldoFinal = isOperario
+            ? res.resultado + res.ajustes + aguinaldo
+            : Math.max(res.minimo, totalComponentes + res.ajustes) + aguinaldo;
         
+        res.sueldoFinal = sueldoFinal;
+        res.ajusteEspecial = ajusteEspecial;
         res.cierreReal = sueldoFinal + reintegroNeto - res.amortizacioneDcac + ajusteEspecial;
     }
 
