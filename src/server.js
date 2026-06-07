@@ -38,6 +38,13 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 Object.defineProperty(exports, "__esModule", { value: true });
 const origExit = process.exit;
 process.exit = function (code) { console.trace('PROCESS EXIT CALLED WITH CODE', code); return origExit(code); };
+// ── Prevent silent crashes from unhandled promise rejections ──
+process.on('uncaughtException', (err) => {
+    console.error('[CRASH] uncaughtException — el servidor NO se reinicia solo:', err);
+});
+process.on('unhandledRejection', (reason) => {
+    console.error('[CRASH] unhandledRejection — promesa rechazada sin catch:', reason);
+});
 const express_1 = __importDefault(require("express"));
 const cors_1 = __importDefault(require("cors"));
 const path = __importStar(require("path"));
@@ -50,9 +57,11 @@ const routes_1 = __importDefault(require("./api/routes"));
 const dispatch_1 = __importDefault(require("./api/dispatch"));
 const config_1 = __importDefault(require("./routes/config"));
 const config_models_1 = __importDefault(require("./routes/config_models"));
+const bajada_1 = __importDefault(require("./api/bajada"));
 const sheets_1 = require("./api/sheets");
 const env_1 = require("./config/env");
 app.use(express_1.default.json({ limit: '50mb' }));
+app.use('/api', bajada_1.default);
 app.use('/api', dispatch_1.default);
 app.use('/api', routes_1.default);
 app.use('/api/config', config_1.default);

@@ -11,7 +11,9 @@ import Comparator from './components/Comparator';
 import VariablesHub from './components/VariablesHub';
 import Envios from './components/Envios';
 import ConfigPanel from './components/ConfigPanel';
+import BajadaComparador from './components/BajadaComparador';
 import { MONTHS } from './constants';
+
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:4001/api';
 
@@ -47,7 +49,7 @@ function App() {
   const isSimulador = searchParams.get('simulador') === 'true';
   const isRestricted = !!sharedAgent || isReadonly || isSimulador;
 
-  const [activeTab, setActiveTab] = useState<'cierre' | 'simulador' | 'resumen' | 'roster' | 'cuentas' | 'hub' | 'comparador' | 'wizard' | 'manuales' | 'variables' | 'envios' | 'config'>((isReadonly || isSimulador) ? 'simulador' : 'hub');
+  const [activeTab, setActiveTab] = useState<'cierre' | 'simulador' | 'resumen' | 'roster' | 'cuentas' | 'hub' | 'comparador' | 'bajada' | 'wizard' | 'manuales' | 'variables' | 'envios' | 'config'>((isReadonly || isSimulador) ? 'simulador' : 'hub');
 
   useEffect(() => {
     // Inject print styles
@@ -104,18 +106,73 @@ function App() {
   const iframeRef = React.useRef<HTMLIFrameElement>(null);
   const [savingOverride, setSavingOverride] = useState(false);
   const [previewHtml, setPreviewHtml] = useState<string>('');
+  const [dataSource, setDataSource] = useState<'metabase' | 'bajada' | 'bajada2'>('metabase');
 
   const [frozenClosures, setFrozenClosures] = useState<{ period: string, agentName: string, date: string }[]>([]);
+  const [excludingLoteId, setExcludingLoteId] = useState<number | null>(null);
+  const [showLotesTable, setShowLotesTable] = useState(true);
+  const [previewRefreshKey, setPreviewRefreshKey] = useState(0);
+
+  // ── Agregar lote manualmente ──
+  const [addLoteInput, setAddLoteInput] = useState('');
+  const [addLotePreview, setAddLotePreview] = useState<any>(null);
+  const [addLoteLoading, setAddLoteLoading] = useState(false);
+  const [addLoteError, setAddLoteError] = useState('');
+
+  const handleBuscarLote = async () => {
+    const id = addLoteInput.trim();
+    if (!id) return;
+    setAddLoteLoading(true);
+    setAddLoteError('');
+    setAddLotePreview(null);
+    try {
+      const res = await fetch(`${API_URL}/lote/buscar/${id}`);
+      const json = await res.json();
+      if (!res.ok) { setAddLoteError(json.error || 'No encontrado'); }
+      else { setAddLotePreview(json); }
+    } catch { setAddLoteError('Error de conexión'); }
+    setAddLoteLoading(false);
+  };
+
+  const handleConfirmarAddLote = async (rol: 'venta' | 'compra' | 'ambos') => {
+    if (!addLotePreview || !selectedAgent) return;
+    setAddLoteLoading(true);
+    try {
+      const res = await fetch(`${API_URL}/snapshots/add-lote`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ year: parseInt(activeYear), month: parseInt(activeMonth), agentName: selectedAgent, loteId: addLotePreview.id_lote, rol }),
+      });
+      const json = await res.json();
+      if (!res.ok) { setAddLoteError(json.error || 'Error al agregar'); }
+      else {
+        // Refrescar datos
+        setAddLotePreview(null);
+        setAddLoteInput('');
+        setAddLoteError('');
+        setData(prev => prev.map((d: any) =>
+          d.asociadoComercial?.toLowerCase() === selectedAgent.toLowerCase()
+            ? { ...d, tropasGeneral: json.tropasGeneral, cabezasGeneral: json.cabezasGeneral, resultado_final_ajustado: json.resultado_final_ajustado, componenteP: json.componenteP, cierreReal: json.cierreReal,
+                // Filter out any stale entry for the same loteId, then append the new canonical one
+                operacionesDetalle: [...(d.operacionesDetalle || []).filter((op: any) => Number(op.id_lote) !== Number(json.operacion.id_lote)), json.operacion] }
+            : d
+        ));
+        setPreviewRefreshKey(k => k + 1);
+      }
+    } catch { setAddLoteError('Error de conexión'); }
+    setAddLoteLoading(false);
+  };
 
   useEffect(() => {
     if (activeTab === 'cierre' && selectedAgent) {
       setPreviewHtml('Cargando previsualización...');
-      fetch(`${API_URL}/dispatch/preview-html/${encodeURIComponent(selectedAgent)}?year=${activeYear}&month=${activeMonth}`)
+      const sourceParam = dataSource !== 'metabase' ? `&source=${dataSource}` : '';
+      fetch(`${API_URL}/dispatch/preview-html/${encodeURIComponent(selectedAgent)}?year=${activeYear}&month=${activeMonth}${sourceParam}`)
         .then(res => res.text())
         .then(html => setPreviewHtml(html))
         .catch(e => setPreviewHtml('Error al cargar la previsualización'));
     }
-  }, [activeTab, selectedAgent, activeYear, activeMonth]);
+  }, [activeTab, selectedAgent, activeYear, activeMonth, previewRefreshKey, dataSource]);
 
   const expectedSnapshotName = `cierre_${activeYear}_${activeMonth.padStart(2, '0')}.json`;
   const isSnapshotAvailable = snapshots.includes(expectedSnapshotName);
@@ -136,17 +193,19 @@ function App() {
 
   const handleFreeze = async () => {
     if (!selectedAgent) return;
-    if (!window.confirm(`¿Está seguro de que desea congelar el cierre de ${selectedAgent} para ${MONTHS[Number(activeMonth)-1]} ${activeYear}? Esto fijará las tropas y el resultado en el histórico de ajustes.`)) {
+    const sourceLabel = dataSource === 'bajada' ? ' (usando datos de Bajada)' : dataSource === 'bajada2' ? ' (usando datos de Bajada 2)' : '';
+
+    if (!window.confirm(`¿Está seguro de que desea congelar el cierre de ${selectedAgent} para ${MONTHS[Number(activeMonth)-1]} ${activeYear}${sourceLabel}? Esto fijará las tropas y el resultado en el histórico de ajustes.`)) {
       return;
     }
     try {
       const res = await fetch(`${API_URL}/snapshots/freeze`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ year: parseInt(activeYear), month: parseInt(activeMonth), agentName: selectedAgent })
+        body: JSON.stringify({ year: parseInt(activeYear), month: parseInt(activeMonth), agentName: selectedAgent, source: dataSource })
       });
       if (res.ok) {
-        alert(`Cierre de ${selectedAgent} congelado correctamente.`);
+        alert(`Cierre de ${selectedAgent} congelado correctamente${sourceLabel}.`);
         fetchFrozenClosures();
       } else {
         const text = await res.text();
@@ -179,6 +238,86 @@ function App() {
       alert("Error de conexión al descongelar cierre.");
     }
   };
+
+  const handleMigrateHistorico = async (agentName?: string) => {
+    const target = agentName || selectedAgent;
+    if (!target) return;
+    try {
+      const res = await fetch(`${API_URL}/snapshots/migrate-historico`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ agentName: target })
+      });
+      const data = await res.json();
+      if (res.ok) {
+        const msg = data.migrated?.length > 0
+          ? `✅ Sincronizado en Sheets: ${data.migrated.join(', ')}`
+          : data.skipped?.length > 0
+          ? 'ℹ️ Los datos ya estaban en Sheets (sin cambios).'
+          : '⚠️ No se encontraron datos para sincronizar.';
+        alert(msg);
+      } else {
+        alert(`Error al sincronizar: ${data.error}`);
+      }
+    } catch (e) {
+      alert('Error de conexión al sincronizar.');
+    }
+  };
+
+  const handleToggleLote = async (loteId: number, exclude: boolean) => {
+
+    if (!selectedAgent) return;
+    setExcludingLoteId(loteId);
+    try {
+      const res = await fetch(`${API_URL}/snapshots/toggle-lote`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          year: parseInt(activeYear),
+          month: parseInt(activeMonth),
+          agentName: selectedAgent,
+          loteId,
+          exclude
+        })
+      });
+        if (res.ok) {
+          const result = await res.json();
+          // Actualización optimista inmediata: parchear data local con los nuevos totales
+          setData((prev: any[]) => prev.map((agent: any) => {
+            if (agent.asociadoComercial !== selectedAgent) return agent;
+            return {
+              ...agent,
+              tropasGeneral: result.tropasGeneral ?? agent.tropasGeneral,
+              cabezasGeneral: result.cabezasGeneral ?? agent.cabezasGeneral,
+              resultado_final_ajustado: result.resultado_final_ajustado ?? agent.resultado_final_ajustado,
+              componenteP: result.componenteP ?? agent.componenteP,
+              operacionesDetalle: (agent.operacionesDetalle || []).map((op: any) =>
+                Number(op.id_lote) === loteId ? { ...op, excluida: exclude } : op
+              ),
+            };
+          }));
+          // Recargar snapshot completo para asegurar consistencia
+          const fresh = await fetch(`${API_URL}/snapshots/${expectedSnapshotName}`);
+          if (fresh.ok) {
+            const jsonData = await fresh.json();
+            if (Array.isArray(jsonData)) setData(jsonData);
+          }
+          // Forzar recarga del preview HTML con los nuevos totales
+          setPreviewRefreshKey(k => k + 1);
+
+      } else {
+        const text = await res.text();
+        console.error('[toggle-lote] Error:', text);
+        alert(`Error al ${exclude ? 'excluir' : 'restaurar'} la tropa: ${text}`);
+      }
+    } catch (e) {
+      console.error('[toggle-lote] Excepción:', e);
+      alert('Error de conexión al modificar la tropa.');
+    } finally {
+      setExcludingLoteId(null);
+    }
+  };
+
 
   const fetchSnapshots = () => {
     return fetch(`${API_URL}/snapshots`)
@@ -269,8 +408,12 @@ function App() {
         body: JSON.stringify({ year: parseInt(activeYear), month: parseInt(activeMonth) })
       });
       if (res.ok) {
-        // We do not have state setters for these constants, they are derived.
         fetchSnapshots();
+        // Recargar snapshot data y forzar recarga del preview HTML
+        const freshSnap = await fetch(`${API_URL}/snapshots/${expectedSnapshotName}`);
+        const jsonData = await freshSnap.json();
+        if (Array.isArray(jsonData)) setData(jsonData);
+        setPreviewRefreshKey(k => k + 1);
         alert("Cierre dinámico generado y guardado.");
       } else {
         const text = await res.text();
@@ -495,6 +638,7 @@ function App() {
     { id: 'resumen', label: 'Consolidado', icon: BarChart3 },
     { id: 'variables', label: 'Variables', icon: Layers },
     { id: 'comparador', label: 'Validador', icon: RefreshCw },
+    { id: 'bajada', label: 'Bajada vs Sistema', icon: Database },
     { id: 'cuentas', label: 'Cuentas', icon: Database },
     { id: 'simulador', label: 'Simulador', icon: Calculator },
     { id: 'manuales', label: 'Manuales', icon: BookOpen },
@@ -630,6 +774,7 @@ function App() {
         {activeTab === 'manuales' && <ModelsGuide setActiveTab={setActiveTab} API_URL={API_URL} />}
         {activeTab === 'envios' && <Envios API_URL={API_URL} activeYear={activeYear} activeMonth={activeMonth} data={data} onRefresh={refreshSnapshotData} />}
         {activeTab === 'config' && <ConfigPanel API_URL={API_URL} activeYear={activeYear} activeMonth={activeMonth} />}
+        {activeTab === 'bajada' && <BajadaComparador API_URL={API_URL} activeYear={activeYear} activeMonth={activeMonth} />}
 
         {activeTab === 'roster' && (
           <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="bg-white rounded-xl shadow-xl border border-gray-200 overflow-hidden w-full mt-2 relative transition-all duration-300 hover:shadow-2xl hover:-translate-y-1">
@@ -1086,13 +1231,57 @@ function App() {
                     </div>
 
                     <div className="ml-auto flex items-center w-full justify-end gap-2">
+                      {/* Selector de fuente: Metabase / Bajada / Bajada 2 */}
+                      {!isAgentFrozen && (
+                        <div className="flex items-center bg-slate-100 rounded-lg p-0.5 text-xs font-semibold">
+                          <button
+                            onClick={() => setDataSource('metabase')}
+                            className={`px-3 py-1.5 rounded-md transition-all ${
+                              dataSource === 'metabase'
+                                ? 'bg-white text-indigo-700 shadow-sm'
+                                : 'text-slate-500 hover:text-slate-700'
+                            }`}
+                          >
+                            📊 Metabase
+                          </button>
+                          <button
+                            onClick={() => setDataSource('bajada')}
+                            className={`px-3 py-1.5 rounded-md transition-all ${
+                              dataSource === 'bajada'
+                                ? 'bg-white text-emerald-700 shadow-sm'
+                                : 'text-slate-500 hover:text-slate-700'
+                            }`}
+                          >
+                            🗒️ Bajada
+                          </button>
+                          <button
+                            onClick={() => setDataSource('bajada2')}
+                            className={`px-3 py-1.5 rounded-md transition-all ${
+                              dataSource === 'bajada2'
+                                ? 'bg-white text-orange-700 shadow-sm'
+                                : 'text-slate-500 hover:text-slate-700'
+                            }`}
+                          >
+                            🗒️ Bajada 2
+                          </button>
+                        </div>
+                      )}
                       {isAgentFrozen ? (
-                        <button
-                          onClick={handleUnfreeze}
-                          className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-amber-500 text-white text-xs font-bold hover:bg-amber-600 transition-colors shadow-sm active:scale-95"
-                        >
-                          <Unlock size={14} /> Descongelar Cierre
-                        </button>
+                        <>
+                          <button
+                            onClick={() => handleMigrateHistorico()}
+                            title="Sincronizar datos de este cierre en Google Sheets para poder editarlos"
+                            className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl bg-emerald-600 text-white text-xs font-bold hover:bg-emerald-700 transition-colors shadow-sm active:scale-95"
+                          >
+                            🗒️ Sync Sheets
+                          </button>
+                          <button
+                            onClick={handleUnfreeze}
+                            className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-amber-500 text-white text-xs font-bold hover:bg-amber-600 transition-colors shadow-sm active:scale-95"
+                          >
+                            <Unlock size={14} /> Descongelar Cierre
+                          </button>
+                        </>
                       ) : (
                         <button
                           onClick={handleFreeze}
@@ -1106,7 +1295,8 @@ function App() {
                           if (isGeneratingPdf) return;
                           setIsGeneratingPdf(true);
                           try {
-                            const res = await fetch(`${API_URL}/dispatch/preview-pdf/${encodeURIComponent(selectedAgent)}?year=${activeYear}&month=${activeMonth}`);
+                            const sourceParam = dataSource !== 'metabase' ? `&source=${dataSource}` : '';
+                            const res = await fetch(`${API_URL}/dispatch/preview-pdf/${encodeURIComponent(selectedAgent)}?year=${activeYear}&month=${activeMonth}${sourceParam}`);
                             if (res.ok) {
                               const blob = await res.blob();
                               const url = URL.createObjectURL(blob);
@@ -1178,6 +1368,157 @@ function App() {
                       </div>
                     </div>
                   )}
+
+                  {/* ─── Tabla interactiva de Tropas ─── */}
+                  <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden w-full mt-4 print:hidden">
+                    {/* Buscador Agregar Lote */}
+                    <div className="px-5 py-3 border-b border-gray-100 bg-blue-50">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <span className="text-xs font-bold text-blue-700 uppercase tracking-wide whitespace-nowrap">➕ Agregar ID</span>
+                        <input
+                          id="add-lote-input"
+                          type="number"
+                          placeholder="ID de lote (ej: 31204)"
+                          value={addLoteInput}
+                          onChange={e => { setAddLoteInput(e.target.value); setAddLotePreview(null); setAddLoteError(''); }}
+                          onKeyDown={e => e.key === 'Enter' && handleBuscarLote()}
+                          className="border border-blue-300 rounded px-3 py-1 text-sm w-44 focus:outline-none focus:ring-2 focus:ring-blue-400"
+                        />
+                        <button
+                          id="add-lote-buscar-btn"
+                          onClick={handleBuscarLote}
+                          disabled={addLoteLoading || !addLoteInput.trim()}
+                          className="bg-blue-600 hover:bg-blue-700 disabled:opacity-40 text-white text-xs font-bold px-3 py-1.5 rounded transition"
+                        >{addLoteLoading ? '...' : 'Buscar en Metabase'}</button>
+                        {addLoteError && <span className="text-xs text-red-600 font-medium">{addLoteError}</span>}
+                      </div>
+                      {/* Preview del lote encontrado */}
+                      {addLotePreview && (
+                        <div className="mt-2 flex flex-wrap items-start gap-3 bg-white border border-blue-200 rounded p-3">
+                          <div className="flex-1 min-w-0">
+                            <div className="text-xs font-bold text-gray-800 mb-1">Lote #{addLotePreview.id_lote} — {addLotePreview.tipo} · {addLotePreview.fecha_operacion}</div>
+                            <div className="text-xs text-gray-500">{addLotePreview.sociedad_vendedora || '—'} → {addLotePreview.sociedad_compradora || '—'}</div>
+                            <div className="text-xs text-gray-500 mt-0.5">Venta: <b>{addLotePreview.comercial_venta || '—'}</b> · Compra: <b>{addLotePreview.comercial_compra || '—'}</b> · Cab: {addLotePreview.cantidad}</div>
+                            <div className="text-xs text-gray-600 mt-1">Resultado total: <b>${addLotePreview.resultado_ajustado?.toLocaleString('es-AR')}</b> · Parte venta (2/3): <b>${addLotePreview.resultado_venta?.toLocaleString('es-AR')}</b> · Parte compra (1/3): <b>${addLotePreview.resultado_compra?.toLocaleString('es-AR')}</b></div>
+                          </div>
+                          <div className="flex items-center gap-2 flex-shrink-0">
+                            <span className="text-xs font-bold text-gray-600">Agregar como:</span>
+                            <button id="add-lote-venta-btn" onClick={() => handleConfirmarAddLote('venta')} disabled={addLoteLoading} className="bg-green-600 hover:bg-green-700 disabled:opacity-40 text-white text-xs font-bold px-2 py-1 rounded">Venta</button>
+                            <button id="add-lote-compra-btn" onClick={() => handleConfirmarAddLote('compra')} disabled={addLoteLoading} className="bg-orange-500 hover:bg-orange-600 disabled:opacity-40 text-white text-xs font-bold px-2 py-1 rounded">Compra</button>
+                            <button id="add-lote-ambos-btn" onClick={() => handleConfirmarAddLote('ambos')} disabled={addLoteLoading} className="bg-blue-600 hover:bg-blue-700 disabled:opacity-40 text-white text-xs font-bold px-2 py-1 rounded">Ambos</button>
+                            <button onClick={() => { setAddLotePreview(null); setAddLoteInput(''); }} className="text-gray-400 hover:text-gray-600 text-xs px-1">✕</button>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                    <div
+                      className="bg-gray-100 px-6 py-3 border-b border-gray-200 flex justify-between items-center cursor-pointer select-none"
+                      onClick={() => setShowLotesTable(v => !v)}
+                    >
+                      <h3 className="text-sm font-black uppercase tracking-wider text-gray-800 flex items-center gap-2">
+                        <BarChart3 size={16} className="text-blue-500" />
+                        Tropas del Mes
+                        {activeData?.operacionesDetalle?.some((d: any) => d.marca === '⚑') && (
+                          <span className="bg-amber-100 text-amber-700 text-[10px] font-bold px-2 py-0.5 rounded-full border border-amber-300">
+                            ⚑ {activeData.operacionesDetalle.filter((d: any) => d.marca === '⚑').length} por sociedad
+                          </span>
+                        )}
+                        {activeData?.operacionesDetalle?.some((d: any) => d.excluida) && (
+                          <span className="bg-red-100 text-red-600 text-[10px] font-bold px-2 py-0.5 rounded-full border border-red-200">
+                            {activeData.operacionesDetalle.filter((d: any) => d.excluida).length} excluidas
+                          </span>
+                        )}
+                      </h3>
+                      <div className="flex items-center gap-2">
+                        <span className="text-xs text-gray-400">{sortedLotesData.filter((d: any) => !d.excluida).length} tropas</span>
+                        {showLotesTable ? <ChevronUp size={15} className="text-gray-400" /> : <ChevronDown size={15} className="text-gray-400" />}
+                      </div>
+                    </div>
+                    {showLotesTable && (
+                      <div className="w-full overflow-x-auto" style={{ maxHeight: '380px', overflowY: 'auto' }}>
+                        <table className="w-full text-left border-collapse whitespace-nowrap">
+                          <thead className="sticky top-0 z-10">
+                            <tr className="bg-gray-50 text-[10px] uppercase tracking-widest font-bold text-gray-500 border-b border-gray-200">
+                              <th className="py-2 px-3"><button className="flex items-center gap-1 hover:text-gray-800" onClick={e => { e.stopPropagation(); handleLotesSort('id_lote'); }}>ID <LotesSortIcon col="id_lote" /></button></th>
+                              <th className="py-2 px-3"><button className="flex items-center gap-1 hover:text-gray-800" onClick={e => { e.stopPropagation(); handleLotesSort('tipo'); }}>Tipo <LotesSortIcon col="tipo" /></button></th>
+                              <th className="py-2 px-3"><button className="flex items-center gap-1 hover:text-gray-800" onClick={e => { e.stopPropagation(); handleLotesSort('fecha_operacion'); }}>Fecha <LotesSortIcon col="fecha_operacion" /></button></th>
+                              <th className="py-2 px-3">Vendedora</th>
+                              <th className="py-2 px-3">Compradora</th>
+                              <th className="py-2 px-3 text-center"><button className="flex items-center gap-1 hover:text-gray-800" onClick={e => { e.stopPropagation(); handleLotesSort('cantidad'); }}>Cab. <LotesSortIcon col="cantidad" /></button></th>
+                              <th className="py-2 px-3 text-right">Resultado</th>
+                              <th className="py-2 px-3 text-right">Ganancia</th>
+                              <th className="py-2 px-3 text-center" title="Fuente de resolución del AC">Fuente AC</th>
+                              <th className="py-2 px-3 text-center">Acción</th>
+                            </tr>
+                          </thead>
+                          <tbody className="text-xs">
+                            {sortedLotesData.map((det: any) => {
+                              const isSociedad = det.marca === '⚑';
+                              const isCuentaEspecial = (det.marca || '').includes('Cta Especial');
+                              const isExcluida = !!det.excluida;
+                              const isLoading = excludingLoteId === det.id_lote;
+                              const ganancia = (det.ganancia_personal_venta || 0) + (det.ganancia_personal_compra || 0);
+                              const resultado = (det.resultado_topeado_venta || 0) + (det.resultado_topeado_compra || 0);
+                              return (
+                                <tr
+                                  key={det.id_lote}
+                                  className={`border-b border-gray-100 transition-colors ${
+                                    isExcluida
+                                      ? 'opacity-40 bg-red-50/30'
+                                      : isSociedad
+                                        ? 'bg-amber-50/60 hover:bg-amber-100/40'
+                                        : 'hover:bg-gray-50'
+                                  }`}
+                                >
+                                  <td className={`py-2 px-3 font-mono font-bold text-gray-600 ${isExcluida ? 'line-through' : ''}`}>{det.id_lote}</td>
+                                  <td className="py-2 px-3">
+                                    <span className={`px-1.5 py-0.5 rounded text-[10px] font-bold ${getUnBadgeClass(det.un || det.tipo)}`}>
+                                      {det.un || det.tipo || '--'}
+                                    </span>
+                                  </td>
+                                  <td className={`py-2 px-3 text-gray-500 ${isExcluida ? 'line-through' : ''}`}>{det.fecha_operacion?.substring(0, 10) || '--'}</td>
+                                  <td className={`py-2 px-3 text-gray-700 max-w-[130px] truncate ${isExcluida ? 'line-through' : ''}`} title={det.sociedad_vendedora}>{det.sociedad_vendedora || '--'}</td>
+                                  <td className={`py-2 px-3 text-gray-700 max-w-[130px] truncate ${isExcluida ? 'line-through' : ''}`} title={det.sociedad_compradora}>{det.sociedad_compradora || '--'}</td>
+                                  <td className={`py-2 px-3 text-center font-semibold ${isExcluida ? 'line-through' : ''}`}>{Number(det.cantidad || 0).toLocaleString('es-AR')}</td>
+                                  <td className={`py-2 px-3 text-right font-semibold ${isExcluida ? 'line-through text-gray-400' : 'text-gray-700'}`}>{fmt.format(resultado)}</td>
+                                  <td className={`py-2 px-3 text-right font-bold ${isExcluida ? 'line-through text-gray-400' : 'text-green-700'}`}>{fmt.format(ganancia)}</td>
+                                  <td className="py-2 px-3 text-center">
+                                    {isSociedad ? (
+                                      <span title="AC resuelto por la sociedad, no por el legajo. Verificar asignación manual." className="text-amber-500 font-bold text-base leading-none cursor-help select-none">⚑</span>
+                                    ) : isCuentaEspecial ? (
+                                      <span title="Cuenta especial (Frutos/Acuña)" className="text-blue-500 font-bold text-base leading-none cursor-help select-none">⚑</span>
+                                    ) : det.marca === '*' ? (
+                                      <span title="Sociedad propia — asignado al comprador" className="text-gray-400 text-sm leading-none select-none">*</span>
+                                    ) : det.marca === '†' ? (
+                                      <span title="Cross-AC (asignado por lado comprador)" className="text-purple-400 text-sm leading-none select-none">†</span>
+                                    ) : (
+                                      <span className="text-green-500 text-sm leading-none select-none" title="Resuelto por legajo">✓</span>
+                                    )}
+                                  </td>
+                                  <td className="py-2 px-3 text-center">
+                                    <button
+                                      onClick={() => handleToggleLote(det.id_lote, !isExcluida)}
+                                      disabled={isLoading}
+                                      title={isExcluida ? 'Restaurar tropa al cierre' : 'Excluir tropa del cierre (no suma al resultado)'}
+                                      className={`px-2.5 py-1 rounded-lg text-[10px] font-bold transition-all active:scale-95 disabled:opacity-50 whitespace-nowrap ${
+                                        isExcluida
+                                          ? 'bg-gray-100 hover:bg-green-100 text-gray-500 hover:text-green-700 border border-gray-200 hover:border-green-300'
+                                          : 'bg-red-50 hover:bg-red-100 text-red-500 hover:text-red-700 border border-red-100 hover:border-red-300'
+                                      }`}
+                                    >
+                                      {isLoading
+                                        ? <Loader2 size={10} className="animate-spin inline" />
+                                        : isExcluida ? '↩ Restaurar' : '× Excluir'}
+                                    </button>
+                                  </td>
+                                </tr>
+                              );
+                            })}
+                          </tbody>
+                        </table>
+                      </div>
+                    )}
+                  </div>
 
                   <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden w-full mt-2 transition-all duration-300">
                     <div className="bg-gray-100 px-6 py-3 border-b border-gray-200 flex justify-between items-center">

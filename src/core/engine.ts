@@ -943,8 +943,8 @@ export async function calculateDynamicMonth(year: number, month: number): Promis
         if (hasNoMinimum) {
             res.fijo = 0;
             res.variable_personal = res.componenteP;
-        } else if (isOperario && isFijo) {
-            // Operario de Carga: Fíjo BASE siempre + variable siempre (se suman, no se comparan)
+        } else if (isOperario) {
+            // Operario de Carga: Fijo BASE siempre + variable siempre (se suman, no se comparan)
             // El mínimo es un salario base fijo, y el 10% del resultado se agrega encima
             res.fijo = res.minimo;
             res.variable_personal = res.componenteP;
@@ -1153,10 +1153,12 @@ export async function calculateDynamicMonth(year: number, month: number): Promis
         res.aguinaldo = aguinaldo;
 
         // Para Operario de Carga: fijo + variable siempre sumados (no se compara con máximo)
-        const sueldoFinal = (isOperario && isFijo)
+        const sueldoFinal = isOperario
             ? res.resultado + res.ajustes + aguinaldo
             : Math.max(res.minimo, totalComponentes + res.ajustes) + aguinaldo;
         
+        res.sueldoFinal = sueldoFinal;
+        res.ajusteEspecial = ajusteEspecial;
         res.cierreReal = sueldoFinal + reintegroNeto - res.amortizacioneDcac + ajusteEspecial;
     }
 

@@ -50,23 +50,29 @@ function generateClosureHtml(data) {
     const now = new Date();
     const timestamp = now.toLocaleDateString('es-AR', { day: 'numeric', month: 'long', year: 'numeric', hour: '2-digit', minute: '2-digit' });
     const isFrutos = data.asociadoComercial.toLowerCase() === 'lucila frutos' || (data.modalidad && data.modalidad.toLowerCase().includes('kam')) || (data.modalidad && data.modalidad.toLowerCase().includes('frutos'));
+    const isOperario = (data.tipo || '').toLowerCase().includes('operario');
     const showRegional = (data.componenteR > 0 || data.modalidad === 'Completa') && !isFrutos;
     const showOficina = (data.componenteO > 0 || data.modalidad === 'Completa') && !isFrutos;
     const showMag = data.cabMag > 0;
     const showGastos = data.gastosDetalle && data.gastosDetalle.length > 0;
     const totalComponentes = (data.componenteP || 0) + (data.componenteR || 0) + (data.componenteO || 0);
-    const minimoActivo = (totalComponentes + data.ajustes) < data.minimo && data.minimo > 0;
+    // Para operario de carga, el mínimo nunca bloquea (siempre suma fijo + variable)
+    const minimoActivo = !isOperario && (totalComponentes + data.ajustes) < data.minimo && data.minimo > 0;
     const hasAjustesToShow = (data.ajustes !== 0) || (data.ajustesManuales !== undefined && data.ajustesManuales !== 0) || (data.retroactivosDetalle && data.retroactivosDetalle.length > 0);
     // Auto propio = tiene reintegro de movilidad (se le pagan KMs)
     const tieneAutoPropio = (data.reintegroMovilidad || 0) > 0;
     // Tiene vehículo DCAC (empresa) = tiene amortización DCAC o auto asignado y no es propio
     const tieneAutoDcac = (data.amortizacioneDcac || 0) > 0 || (!!(data.auto && data.auto.trim() !== '' && data.auto !== '-' && data.auto !== 'N/A') && !tieneAutoPropio);
+    // Si es DCAC pero amortización es $0, solo mostramos vehículo sin líneas de descuento
+    const dcacConAmortizacion = tieneAutoDcac && (data.amortizacioneDcac || 0) > 0;
+    // Total gastos = suma de gastosDetalle (no usar gastosMkt que puede ser 0)
+    const totalGastosDetalle = (data.gastosDetalle || []).reduce((s, g) => s + (Number(g.importe) || 0), 0);
     // Total rendiciones: si tiene auto propio, restamos gastosMendelMovilidad, restando amortización
     const totalRendiciones = tieneAutoPropio
         ? (data.reintegroMovilidad || 0) - (data.gastosMendelMovilidad || 0) - (data.amortizacioneDcac || 0)
         : (data.reintegroMovilidad || 0) - (data.amortizacioneDcac || 0);
     // Operaciones (ordenadas por fecha descendente por defecto)
-    const operaciones = [...(data.operacionesDetalle || [])].sort((a, b) => (b.fecha_operacion || '').localeCompare(a.fecha_operacion || ''));
+    const operaciones = [...(data.operacionesDetalle || [])].filter((op) => !op.excluida).sort((a, b) => (b.fecha_operacion || '').localeCompare(a.fecha_operacion || ''));
     const hasOps = operaciones.length > 0;
     const totalPages = 1 + (hasOps ? 1 : 0);
     const bolsa = data.bolsaRegion || 0;
@@ -147,10 +153,11 @@ function generateClosureHtml(data) {
             <div style="font-size:8px;font-weight:700;color:${B.textMuted};text-transform:uppercase;letter-spacing:1.5px;margin-bottom:2px">Provincia</div>
             <div style="font-size:12px;font-weight:600;color:${B.text}">${data.provincia}</div>
         </div>
+        ${(data.oficina && data.oficina.trim() !== '' && data.oficina.toLowerCase() !== 'desconocida') ? `
         <div>
             <div style="font-size:8px;font-weight:700;color:${B.textMuted};text-transform:uppercase;letter-spacing:1.5px;margin-bottom:2px">Oficina</div>
             <div style="font-size:12px;font-weight:600;color:${B.text}">${data.oficina}</div>
-        </div>
+        </div>` : ''}
 
         <div>
             <div style="font-size:8px;font-weight:700;color:${B.textMuted};text-transform:uppercase;letter-spacing:1.5px;margin-bottom:2px">Código</div>
@@ -306,7 +313,7 @@ function generateClosureHtml(data) {
                     </tr>`).join('')}
                     <tr style="border-top:1px solid ${B.border};background:${B.bg}">
                         <td style="padding:6px 10px;font-size:9.5px;font-weight:700;color:${B.dark}">Total Gastos</td>
-                        <td style="padding:6px 10px;font-size:9.5px;font-weight:800;color:${B.dark};text-align:right">${fmt(data.gastosMkt)}</td>
+                        <td style="padding:6px 10px;font-size:9.5px;font-weight:800;color:${B.dark};text-align:right">${fmt(totalGastosDetalle)}</td>
                     </tr>
                 </table>
             </div>` : ''}
@@ -339,13 +346,14 @@ function generateClosureHtml(data) {
                 ${tieneAutoDcac ? `
                 <!-- Info Vehículo de la Empresa -->
                 <div style="background:${B.bg};border-radius:8px;padding:8px 10px;margin-bottom:8px;border:1px solid ${B.border}">
-                    <div style="display:flex;justify-content:space-between;margin-bottom:6px;border-bottom:1px solid ${B.border};padding-bottom:4px">
+                    <div style="display:flex;justify-content:space-between;margin-bottom:${dcacConAmortizacion ? '6px' : '0'};${dcacConAmortizacion ? 'border-bottom:1px solid ' + B.border + ';padding-bottom:4px' : ''}">
                         <div style="font-size:8px;font-weight:700;color:${B.textMuted};text-transform:uppercase;letter-spacing:1px">Vehículo de la Empresa</div>
                         <div style="display:flex;gap:6px;align-items:center">
                             <span style="font-size:8px;font-weight:600;color:${B.textSec};background:${B.border};padding:2px 4px;border-radius:4px">${fmtNum(data.kms || 0)} km</span>
                             <span style="font-size:9px;font-weight:700;color:${B.dark}">${data.auto || 'Asignado'}</span>
                         </div>
                     </div>
+                    ${dcacConAmortizacion ? `
                     <div style="display:flex;justify-content:space-between;margin-bottom:4px">
                         <div style="font-size:8px;color:${B.textMuted}">Amortización Vehículo DCAC</div>
                         <div style="font-size:9px;font-weight:600;color:${B.danger}">-${fmt(data.amortizacioneDcac || 0)}</div>
@@ -353,7 +361,7 @@ function generateClosureHtml(data) {
                     <div style="display:flex;justify-content:space-between;margin-top:6px;padding-top:4px;border-top:1px dashed ${B.border}">
                         <div style="font-size:8.5px;font-weight:800;color:${B.dark}">Descuento Neto</div>
                         <div style="font-size:9.5px;font-weight:800;color:${B.danger}">-${fmt(data.amortizacioneDcac || 0)}</div>
-                    </div>
+                    </div>` : ''}
                 </div>` : ''}
             </div>
         </div>
@@ -364,13 +372,14 @@ function generateClosureHtml(data) {
 
             <table style="width:100%;border-collapse:collapse">
                 ${isPorCuenta ? `
+                ${data.minimo > 0 ? `
                 <tr>
                     <td style="padding:8px 10px;font-size:10px;color:${B.textSec}">Mínimo Garantizado</td>
                     <td style="padding:8px 10px;font-size:11px;font-weight:600;color:${B.textSec};text-align:right">
                         ${fmt(data.minimo)}
                         ${!minimoActivo ? `<span style="color:${B.success};margin-left:4px;font-size:12px">✓</span>` : ''}
                     </td>
-                </tr>
+                </tr>` : ''}
                 <tr style="background:${B.bg}">
                     <td style="padding:8px 10px;font-size:10px;font-weight:600;color:${B.dark}">Grandes Cuentas</td>
                     <td style="padding:8px 10px;font-size:11px;font-weight:700;color:${B.dark};text-align:right">${fmt(data.grandesCuentas || 0)}</td>
@@ -384,13 +393,14 @@ function generateClosureHtml(data) {
                     <td style="padding:8px 10px;font-size:11px;font-weight:600;color:${B.text};text-align:right">${fmt(data.activacionCIS || 0)}</td>
                 </tr>
                 ` : `
+                ${data.minimo > 0 ? `
                 <tr>
-                    <td style="padding:8px 10px;font-size:10px;color:${B.textSec}">Mínimo Garantizado</td>
+                    <td style="padding:8px 10px;font-size:10px;color:${B.textSec}">${isOperario ? 'Fijo Base (Mínimo)' : 'Mínimo Garantizado'}</td>
                     <td style="padding:8px 10px;font-size:11px;font-weight:600;color:${B.textSec};text-align:right">
                         ${fmt(data.minimo)}
-                        ${!minimoActivo ? `<span style="color:${B.success};margin-left:4px;font-size:12px">✓</span>` : ''}
+                        ${isOperario ? `<span style="color:${B.primary};margin-left:4px;font-size:10px">+</span>` : (!minimoActivo ? `<span style="color:${B.success};margin-left:4px;font-size:12px">✓</span>` : '')}
                     </td>
-                </tr>
+                </tr>` : ''}
                 <tr style="background:${B.bg}">
                     <td style="padding:8px 10px;font-size:10px;font-weight:600;color:${B.dark}">Variable Personal</td>
                     <td style="padding:8px 10px;font-size:11px;font-weight:700;color:${data.variable_personal < 0 ? B.danger : B.dark};text-align:right">${fmt(data.variable_personal)}</td>
@@ -408,8 +418,18 @@ function generateClosureHtml(data) {
                 `}
                 <tr style="border-top:1px solid ${B.border}">
                     <td style="padding:10px 10px;font-size:10px;font-weight:800;color:${B.dark}">TOTAL CONCEPTOS</td>
-                    <td style="padding:10px 10px;font-size:11px;font-weight:800;color:${B.dark};text-align:right">${fmt(data.cierreReal)}</td>
+                    <td style="padding:10px 10px;font-size:11px;font-weight:800;color:${B.dark};text-align:right">${fmt(data.sueldoFinal || (data.cierreReal - totalRendiciones - (data.ajusteEspecial || 0)))}</td>
                 </tr>
+                ${(data.ajusteEspecial || 0) !== 0 ? `
+                <tr style="background:${B.bg}">
+                    <td style="padding:8px 10px;font-size:10px;color:${B.text}">Ajuste Especial Gastos (-20% Comp. Personal)</td>
+                    <td style="padding:8px 10px;font-size:11px;font-weight:700;color:${B.danger};text-align:right">${fmt(data.ajusteEspecial || 0)}</td>
+                </tr>` : ''}
+                ${tieneAutoPropio ? `
+                <tr style="background:${B.bg}">
+                    <td style="padding:8px 10px;font-size:10px;color:${B.text}">Rendición Neta (Movilidad)</td>
+                    <td style="padding:8px 10px;font-size:11px;font-weight:700;color:${totalRendiciones >= 0 ? B.success : B.danger};text-align:right">${totalRendiciones >= 0 ? '+' : ''}${fmt(totalRendiciones)}</td>
+                </tr>` : ''}
             </table>
 
             ${hasAjustesToShow ? `
