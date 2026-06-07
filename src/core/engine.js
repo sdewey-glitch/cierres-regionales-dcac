@@ -1035,8 +1035,10 @@ async function calculateDynamicMonth(year, month) {
             const esVehiculoEmpresa = kmsEntry.tipoVehiculo.toLowerCase().includes('dcac') ||
                 res.auto.toLowerCase().includes('empresa');
             if (esVehiculoEmpresa) {
-                // Auto de la empresa: amortización se mantiene, NO hay reintegro de KMs
+                // Auto de la empresa: la empresa asume el 100% del costo (biblia 08_gastos_y_deducciones)
+                // → NO hay reintegro de KMs NI descuento de amortización al comercial
                 res.reintegroMovilidad = 0;
+                res.amortizacioneDcac = 0;
             }
             else {
                 // Auto propio: reintegro por KMs, NO hay amortización DCAC
@@ -1049,7 +1051,8 @@ async function calculateDynamicMonth(year, month) {
             res.kms = 0;
             res.reintegroMovilidad = 0;
             res.gastosMovilidad = 0;
-            // Amortización se mantiene — puede haber amortización sin KMS cargados aún
+            // Sin KMS cargado: si hay amortEntry es auto de empresa → sin descuento (biblia 08_gastos)
+            res.amortizacioneDcac = 0;
         }
         // 5b2. Viajes CRM (autos propios) - enriquecer con viajes individuales del CRM
         const viajesEntry = viajesPropios.find(v => v.año === year && v.mes === month &&
