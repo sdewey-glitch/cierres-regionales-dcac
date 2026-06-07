@@ -44,11 +44,19 @@ Cada vez que se cambia una regla de negocio, una columna del Sheet, una fórmula
 ### ❌ Error: `readSheet` con `UNFORMATTED_VALUE` devuelve fechas como número serial
 `sheets.ts` usa `valueRenderOption: 'UNFORMATTED_VALUE'`. Esto hace que los campos de tipo DATE en Google Sheets lleguen como **número serial** (ej: `46943` = 2026-05-29), NO como texto "2026-05-29".
 
-**Regla**: Al filtrar por fecha en cualquier función que use `readSheet`, siempre manejar ambos formatos:
+---
+
+### ❌ Error: Columna idx 33 de la hoja Bajada — formato YYYYMM, NO fecha
+**El campo idx 33 (columna AH) de la hoja Bajada contiene AñoMes en formato `YYYYMM`** (ej: `202605` = mayo 2026), **NO una fecha**. El código anterior intentaba parsearlo como número serial de Google Sheets, obteniendo año ~2454 y filtrando TODOS los lotes → 0 lotes → snapshot devuelto sin modificar → escala incorrecta.
+
+**Regla**: Al filtrar por período en `readBajada`, verificar PRIMERO si el valor >= 100000 (es YYYYMM):
 ```typescript
 const fechaRaw = r[33];
-let rowYear, rowMonth;
-if (typeof fechaRaw === 'string' && fechaRaw.includes('-')) {
+if (typeof fechaRaw === 'number' && fechaRaw >= 100000) {
+    // Formato YYYYMM (202605 = mayo 2026)
+    rowYear  = Math.floor(fechaRaw / 100);
+    rowMonth = fechaRaw % 100;
+} else if (typeof fechaRaw === 'string' && fechaRaw.includes('-')) {
     // Texto: "2026-05-29"
     const p = fechaRaw.split('-');
     rowYear = parseInt(p[0]); rowMonth = parseInt(p[1]);
