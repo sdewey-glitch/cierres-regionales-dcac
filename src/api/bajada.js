@@ -59,14 +59,21 @@ async function readBajada(sheetName = BAJADA_SHEET, filterYear, filterMonth) {
         const idLote = parseInt(col(r, 0));
         if (!idLote || isNaN(idLote))
             continue;
-        // Filtrar por fecha de operación (idx 33 = AH = Fecha)
-        // IMPORTANTE: readSheet usa UNFORMATTED_VALUE, así que las fechas pueden venir como:
-        //   a) String texto "YYYY-MM-DD" (si la celda está formateada como texto)
-        //   b) Número serial de Google Sheets, ej: 46943 = 2026-05-29 (días desde 1899-12-30)
+        // Filtrar por AñoMes (idx 33 = AH = AñoMes del período de operación)
+        // IMPORTANTE: La columna AH contiene el período en formato YYYYMM (ej: 202605 = mayo 2026).
+        // readSheet usa UNFORMATTED_VALUE, así que puede venir como:
+        //   a) Número YYYYMM (ej: 202605) — identificable porque >= 100000
+        //   b) String texto "YYYY-MM-DD" (si la celda está formateada como texto)
+        //   c) Número serial de Google Sheets (40000-99999, días desde 1899-12-30)
         if (filterYear !== undefined && filterMonth !== undefined) {
             const fechaRaw = r[33];
             let rowYear, rowMonth;
-            if (typeof fechaRaw === 'string' && fechaRaw.includes('-')) {
+            if (typeof fechaRaw === 'number' && !isNaN(fechaRaw) && fechaRaw >= 100000) {
+                // Formato YYYYMM (ej: 202605 = mayo 2026, 202606 = junio 2026)
+                rowYear = Math.floor(fechaRaw / 100);
+                rowMonth = fechaRaw % 100;
+            }
+            else if (typeof fechaRaw === 'string' && fechaRaw.includes('-')) {
                 // Formato texto: "2026-05-29"
                 const parts = fechaRaw.split('-');
                 rowYear = parseInt(parts[0]);
