@@ -33,11 +33,50 @@ Cada vez que se cambia una regla de negocio, una columna del Sheet, una fórmula
 - Los snapshots y datos persistentes deben guardarse en **Google Sheets** o un servicio externo compatible con Vercel (Blob, DB, etc.)
 - **No usar `fs.writeFile`** ni acceso a disco local en código que corra en producción
 
+### 4. 🚫 NUNCA hacer `git push` sin autorización explícita del usuario
+**El flujo de trabajo es: editar en local → compilar (`npx tsc`) → probar localmente → informar al usuario → esperar su OK → push.**
+- **NO hacer `git push` automáticamente** después de un fix, aunque funcione correctamente
+- **NO hacer `git commit && git push` en el mismo comando** por defecto
+- El `git commit` local está bien (para tener registro del cambio)
+- El `git push` solo cuando el usuario lo pide explícitamente (ej: "subí los cambios", "hace el push", "deployá")
+
 ---
 
 ## 🐛 ERRORES COMUNES — No repetir
 
 ### ❌ Error: `AñoMes` en Bajada ≠ mes de operación (ya documentado arriba)
+
+---
+
+### ❌ Error: `resultadoReg` en bajada.ts sumaba 100% en vez de 2/3-1/3
+
+**Archivo**: `src/api/bajada.ts` — función `loadAgentDataFromBajada`, bloque REGIONAL.
+
+**Problema**: El loop que acumula `regResultado` sumaba `lote.resultadoTopeado` (el 100% del resultado del lote) para cualquier lote donde la provincia del AC vendedor o comprador matcheara. Esto inflaba la bolsa regional porque lotes donde el AC de la provincia solo estaba en el lado compra (1/3) se contaban como 100%.
+
+**La fórmula correcta** (igual que la planilla de Sheets):
+```
+resultado_regional = Σ(lotes donde prov_vend=Prov) × 2/3
+                   + Σ(lotes donde prov_comp=Prov) × 1/3
+```
+
+**Casos resultantes**:
+| Situación | Factor correcto |
+|---|---|
+| Solo vende (prov_vend = Prov) | 2/3 del lote |
+| Solo compra (prov_comp = Prov) | 1/3 del lote |
+| Ambos lados (prov_vend = prov_comp = Prov) | 2/3 + 1/3 = 100% |
+
+**Corrección aplicada** (Junio 2026):
+```typescript
+const esVend = pVend === provinciaNombre;
+const esComp = pComp === provinciaNombre;
+const resProporcional = (esVend ? lote.resultadoTopeado * (2 / 3) : 0)
+                      + (esComp ? lote.resultadoTopeado * (1 / 3) : 0);
+regResultado += resProporcional;
+```
+
+**⚠️ NO revertir** a `regResultado += lote.resultadoTopeado` (sin split). Eso vuelve a inflar el resultado regional.
 
 ---
 

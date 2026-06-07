@@ -28,6 +28,7 @@ const sheets_1 = require("./sheets");
 const snapshot_1 = require("../core/snapshot");
 const env_1 = require("../config/env");
 const calculator_1 = require("../core/calculator");
+const inputs_1 = require("../core/inputs");
 const router = express_1.default.Router();
 const BAJADA_SHEET = 'Bajada';
 // ── Helpers de columna ───────────────────────────────────────────────────────
@@ -95,6 +96,10 @@ async function readBajada(sheetName = BAJADA_SHEET, filterYear, filterMonth) {
         const existing = map.get(idLote);
         if (existing) {
             existing.filas++;
+            if (col(r, 2) && !existing.rsVendedora)
+                existing.rsVendedora = col(r, 2);
+            if (col(r, 3) && !existing.rsCompradora)
+                existing.rsCompradora = col(r, 3);
             if (col(r, 24) && !existing.acVendedor)
                 existing.acVendedor = col(r, 24);
             if (col(r, 25) && !existing.acComprador)
@@ -115,6 +120,8 @@ async function readBajada(sheetName = BAJADA_SHEET, filterYear, filterMonth) {
                 cantidad: num(r, 4),
                 fecha: col(r, 33),
                 añoMes: col(r, 34),
+                rsVendedora: col(r, 2), // C - sociedad_vendedora
+                rsCompradora: col(r, 3), // D - sociedad_compradora
                 acVendedor: col(r, 24),
                 acComprador: col(r, 25),
                 provACVend: col(r, 26), // AA - Prov_AC_Vendedor
@@ -247,20 +254,8 @@ async function loadAgentDataFromBajada(year, month, agentName, sheetName = BAJAD
             op.ganancia_personal_compra = Math.round((op.resultado_topeado_compra || 0) * nuevaEscala);
         }
     }
-    // Recalcular cierreReal (misma fórmula del engine)
-    const totalComponentes = (result.componenteP || 0) + (result.componenteR || 0) + (result.componenteO || 0);
-    const isOperarioCarga = (result.tipo || '').toLowerCase().includes('operario');
-    const sueldoFinal = isOperarioCarga
-        ? (result.minimo || 0) + (result.componenteP || 0) + (result.ajustes || 0)
-        : Math.max(result.minimo || 0, totalComponentes + (result.ajustes || 0));
-    let reintegroNeto = result.reintegroMovilidad || 0;
-    if (reintegroNeto > 0)
-        reintegroNeto -= (result.gastosMendelMovilidad || 0);
-    let ajusteEspecial = 0;
-    if (result.asociadoComercial.toLowerCase() === 'pablo cieri') {
-        ajusteEspecial = (result.componenteP || 0) * -0.20;
-    }
-    result.cierreReal = Math.round(sueldoFinal + reintegroNeto - (result.amortizacioneDcac || 0) + ajusteEspecial);
+    // ⚠️ NOTA: cierreReal se recalcula al FINAL del proceso, después de actualizar
+    // componenteR y componenteO en los bloques Regional y Oficina que siguen.
     // ── Recalcular bloque REGIONAL desde la bajada ──────────────────────────────
     //
     // Según biblia_planilla.md (secc. 4 - Arquitectura de Bolsas):
@@ -282,30 +277,40 @@ async function loadAgentDataFromBajada(year, month, agentName, sheetName = BAJAD
         for (const [, lote] of bajadaMap) {
             const pVend = (lote.provACVend || '').trim().toLowerCase();
             const pComp = (lote.provACComp || '').trim().toLowerCase();
-            if (pVend !== provinciaNombre && pComp !== provinciaNombre)
+            const esVend = pVend === provinciaNombre;
+            const esComp = pComp === provinciaNombre;
+            if (!esVend && !esComp)
                 continue;
+            // Aplicar el mismo split que la fórmula de Sheets:
+            //   SUMAR.SI.CONJUNTO(AC, AH, AñoMes, AA, Prov)*(2/3)   → lado venta
+            //   SUMAR.SI.CONJUNTO(AC, AH, AñoMes, AB, Prov)*(1/3)   → lado compra
+            // Si ambos lados son de la provincia: 2/3 + 1/3 = 100%
+            // Si solo vende: 2/3
+            // Si solo compra: 1/3
+            const resProporcional = (esVend ? lote.resultadoTopeado * (2 / 3) : 0)
+                + (esComp ? lote.resultadoTopeado * (1 / 3) : 0);
             regTropas++;
             regCabezas += lote.cantidad;
-            regResultado += lote.resultadoTopeado;
+            regResultado += resProporcional;
             const tipoLow = (lote.tipo || '').toLowerCase();
             if (tipoLow.includes('neo')) {
-                regResNeo += lote.resultadoTopeado;
+                regResNeo += resProporcional;
                 regCabNeo += lote.cantidad;
             }
             else if (tipoLow.includes('invernada')) {
-                regResInv += lote.resultadoTopeado;
+                regResInv += resProporcional;
                 regCabInv += lote.cantidad;
             }
             else if (tipoLow.includes('faena')) {
-                regResFaena += lote.resultadoTopeado;
+                regResFaena += resProporcional;
                 regCabFaena += lote.cantidad;
             }
             else if (tipoLow.includes('cria') || tipoLow.includes('cría')) {
-                regResCria += lote.resultadoTopeado;
+                regResCria += resProporcional;
                 regCabCria += lote.cantidad;
             }
             else {
-                regResMag += lote.resultadoTopeado;
+                regResMag += resProporcional;
                 regCabMag += lote.cantidad;
             }
         }
@@ -324,8 +329,73 @@ async function loadAgentDataFromBajada(year, month, agentName, sheetName = BAJAD
         result.cabInvNeoReg = regCabNeo;
         const bolsaScale = await (0, calculator_1.getExactScale)(regCabezas, 'escalaProvincial', year, month);
         result.bolsaRegion = bolsaScale;
+        // ── Calcular tajada desde Bajada (igual que engine con Q95) ───────────
+        // Lógica (biblia_planilla.md secc. 4):
+        //   tajada = soc_únicas_del_AC / Σ(soc_únicas_de_todos_los_ACs_del_pool)
+        // El "pool" = todos los ACs cuya provincia coincide (prov_vend o prov_comp = provinciaNombre).
+        // Para cada AC del pool se cuentan sus RS únicas (col C para venta, col D para compra)
+        // sobre TODOS los lotes del período (no solo los de la provincia), igual que el engine.
+        //
+        // PRIORIDAD: 1) Config_Tajada override manual  2) Cálculo Bajada  3) Snapshot fallback
+        const añoMesPad = `${year}${String(month).padStart(2, '0')}`;
+        // Paso 1: identificar qué ACs pertenecen al pool de esta OFICINA
+        // (igual que engine: poolKey = res.oficina, cols AF/AG = Ofi_Vendedora/Ofi_Compradora)
+        const poolACs = new Set();
+        for (const [, lote] of bajadaMap) {
+            if ((lote.ofVendedora || '').trim().toLowerCase() === oficinaNombre && lote.acVendedor)
+                poolACs.add(lote.acVendedor.trim().toLowerCase());
+            if ((lote.ofCompradora || '').trim().toLowerCase() === oficinaNombre && lote.acComprador)
+                poolACs.add(lote.acComprador.trim().toLowerCase());
+        }
+        // Paso 2: contar RS únicas por AC del pool (vendor → col C, buyer → col D)
+        const acUniqueSoc = new Map();
+        for (const [, lote] of bajadaMap) {
+            if (lote.acVendedor) {
+                const ac = lote.acVendedor.trim().toLowerCase();
+                if (poolACs.has(ac) && lote.rsVendedora) {
+                    if (!acUniqueSoc.has(ac))
+                        acUniqueSoc.set(ac, new Set());
+                    acUniqueSoc.get(ac).add(lote.rsVendedora.toUpperCase().trim());
+                }
+            }
+            if (lote.acComprador) {
+                const ac = lote.acComprador.trim().toLowerCase();
+                if (poolACs.has(ac) && lote.rsCompradora) {
+                    if (!acUniqueSoc.has(ac))
+                        acUniqueSoc.set(ac, new Set());
+                    acUniqueSoc.get(ac).add(lote.rsCompradora.toUpperCase().trim());
+                }
+            }
+        }
+        // Paso 3: calcular tajada
+        let totalPoolSoc = 0;
+        for (const [, socSet] of acUniqueSoc)
+            totalPoolSoc += socSet.size;
+        const agentKey = agentName.trim().toLowerCase();
+        const agentSocCount = acUniqueSoc.get(agentKey)?.size || 0;
+        const tajadaBajada = totalPoolSoc > 0 ? agentSocCount / totalPoolSoc : 0;
+        if (tajadaBajada > 0) {
+            result.tajadaRegion = tajadaBajada;
+            console.log(`[bajada] 📊 Tajada desde Bajada: ${agentName} = ${(tajadaBajada * 100).toFixed(2)}% (${agentSocCount} soc / ${totalPoolSoc} pool — ${poolACs.size} ACs en oficina "${oficinaNombre}")`);
+        }
+        else {
+            console.log(`[bajada] ⚠️ Sin datos RS en Bajada para ${agentName} (oficina="${oficinaNombre}") → snapshot: ${((result.tajadaRegion || 0) * 100).toFixed(2)}%`);
+        }
+        // Config_Tajada tiene prioridad máxima (override manual)
+        try {
+            const tajadaData = await (0, inputs_1.fetchTajada)();
+            const tajadaHist = tajadaData.find((t) => String(t.añoMes) === añoMesPad
+                && t.comercial.toLowerCase() === agentName.trim().toLowerCase());
+            if (tajadaHist && tajadaHist.porcentajeTajada > 0) {
+                result.tajadaRegion = tajadaHist.porcentajeTajada;
+                console.log(`[bajada] 🎯 Override manual Config_Tajada: ${result.asociadoComercial} = ${(result.tajadaRegion * 100).toFixed(2)}%`);
+            }
+        }
+        catch (e) {
+            console.warn(`[bajada] ⚠️ No se pudo leer Config_Tajada: ${e.message}`);
+        }
         result.componenteR = Math.round(regResultado * bolsaScale * (result.tajadaRegion || 0));
-        console.log(`[bajada] 🏢 Regional (${result.provincia}): tropas=${regTropas}, cab=${regCabezas}, res=${regResultado} → componenteR=${result.componenteR}`);
+        console.log(`[bajada] 🏢 Regional (${result.provincia}): tropas=${regTropas}, cab=${regCabezas}, res=${regResultado}, tajada=${((result.tajadaRegion || 0) * 100).toFixed(2)}% → componenteR=${result.componenteR}`);
     }
     if (oficinaNombre) {
         // ── OFICINA: filtrar por oficina directa (AF/AG) ───────────────────
@@ -336,31 +406,44 @@ async function loadAgentDataFromBajada(year, month, agentName, sheetName = BAJAD
         for (const [, lote] of bajadaMap) {
             const ofVend = (lote.ofVendedora || '').trim().toLowerCase();
             const ofComp = (lote.ofCompradora || '').trim().toLowerCase();
-            // Sólo donde la OFICINA es la que opera (pseudo-usuario directo)
+            // Sólo donde la OFICINA es el operador DIRECTO (pseudo-usuario)
             if (ofVend !== oficinaNombre && ofComp !== oficinaNombre)
                 continue;
+            // ⚠️ FILTRO CLAVE: excluir lotes donde hay un AC individual asignado.
+            // Cuando Prov_AC_Vend (col AA) o Prov_AC_Comp (col AB) tiene valor,
+            // ese lote pertenece al Componente REGIONAL del AC, no a la Oficina.
+            // Solo contamos lotes donde la Oficina opera directamente (sin AC individual).
+            const hasRealACVend = (lote.provACVend || '').trim() !== '';
+            const hasRealACComp = (lote.provACComp || '').trim() !== '';
+            if (hasRealACVend || hasRealACComp)
+                continue;
+            // Aplicar split 2/3-1/3 igual que en el bloque Regional
+            const esOfiVend = ofVend === oficinaNombre;
+            const esOfiComp = ofComp === oficinaNombre;
+            const resProporcional = (esOfiVend ? lote.resultadoTopeado * (2 / 3) : 0)
+                + (esOfiComp ? lote.resultadoTopeado * (1 / 3) : 0);
             ofiTropas++;
             ofiCabezas += lote.cantidad;
-            ofiResultado += lote.resultadoTopeado;
+            ofiResultado += resProporcional;
             const tipoLow = (lote.tipo || '').toLowerCase();
             if (tipoLow.includes('neo')) {
-                ofiResNeo += lote.resultadoTopeado;
+                ofiResNeo += resProporcional;
                 ofiCabNeo += lote.cantidad;
             }
             else if (tipoLow.includes('invernada')) {
-                ofiResInv += lote.resultadoTopeado;
+                ofiResInv += resProporcional;
                 ofiCabInv += lote.cantidad;
             }
             else if (tipoLow.includes('faena')) {
-                ofiResFaena += lote.resultadoTopeado;
+                ofiResFaena += resProporcional;
                 ofiCabFaena += lote.cantidad;
             }
             else if (tipoLow.includes('cria') || tipoLow.includes('cría')) {
-                ofiResCria += lote.resultadoTopeado;
+                ofiResCria += resProporcional;
                 ofiCabCria += lote.cantidad;
             }
             else {
-                ofiResMag += lote.resultadoTopeado;
+                ofiResMag += resProporcional;
                 ofiCabMag += lote.cantidad;
             }
         }
@@ -382,7 +465,23 @@ async function loadAgentDataFromBajada(year, month, agentName, sheetName = BAJAD
         result.componenteO = Math.round(ofiResultado * escalaOfi * (result.opOficina || 0));
         console.log(`[bajada] 🏢 Oficina (${result.oficina}): tropas=${ofiTropas}, cab=${ofiCabezas}, res=${ofiResultado} → componenteO=${result.componenteO}`);
     }
-    console.log(`[bajada] ✅ ${agentName}: resultado_bajada=${result.resultado_final_ajustado} → componenteP=${result.componenteP} → cierreReal=${result.cierreReal}`);
+    // ── Recalcular cierreReal con componenteR y componenteO definitivos ────────
+    // (memoria.md: no calcular cierreReal antes de tener los componentes finales)
+    const isOperarioCarga = (result.tipo || '').toLowerCase().includes('operario');
+    const totalComponentesFinal = (result.componenteP || 0) + (result.componenteR || 0) + (result.componenteO || 0);
+    const sueldoFinal = isOperarioCarga
+        ? (result.minimo || 0) + (result.componenteP || 0) + (result.ajustes || 0)
+        : Math.max(result.minimo || 0, totalComponentesFinal + (result.ajustes || 0));
+    let reintegroNeto = result.reintegroMovilidad || 0;
+    if (reintegroNeto > 0)
+        reintegroNeto -= (result.gastosMendelMovilidad || 0);
+    let ajusteEspecial = 0;
+    if (result.asociadoComercial.toLowerCase() === 'pablo cieri') {
+        ajusteEspecial = (result.componenteP || 0) * -0.20;
+    }
+    result.sueldoBruto = totalComponentesFinal;
+    result.cierreReal = Math.round(sueldoFinal + reintegroNeto - (result.amortizacioneDcac || 0) + ajusteEspecial);
+    console.log(`[bajada] ✅ ${agentName}: resultado_bajada=${result.resultado_final_ajustado} → componenteP=${result.componenteP} | componenteR=${result.componenteR} | componenteO=${result.componenteO} → cierreReal=${result.cierreReal}`);
     return result;
 }
 // ── GET /api/bajada/debug-lote/:id — ver valores raw de una fila ────────────
