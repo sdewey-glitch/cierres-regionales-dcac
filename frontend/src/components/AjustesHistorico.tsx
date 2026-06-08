@@ -94,7 +94,17 @@ export default function AjustesHistorico({ API_URL, activeYear, activeMonth }: P
       const json = await res.json();
       const list = Array.isArray(json) ? json : (json.data || []);
       const dynAvail = json.dynamicAvailable !== false;
-      setData(list.map((d: any) => ({ ...d, dynamicAvailable: dynAvail })));
+      setData(list.map((d: any) => ({
+        ...d,
+        dynamicAvailable: dynAvail,
+        tropas: (d.tropas || []).map((t: any) => ({
+          ...t,
+          // compatibilidad: backend viejo usa "resultado_dinamico", nuevo usa "resultado_dinamico_asignable"
+          resultado_dinamico_asignable: t.resultado_dinamico_asignable ?? t.resultado_dinamico ?? t.resultado_estatico,
+          // compatibilidad: backend viejo usa "escala_pct", nuevo usa "effective_escala"
+          effective_escala: t.effective_escala ?? t.escala_pct ?? 0,
+        })),
+      })));
     } catch (e: any) {
       setError(e.message || 'Error de conexión');
     } finally {

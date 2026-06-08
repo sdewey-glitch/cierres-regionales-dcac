@@ -1119,10 +1119,21 @@ router.get('/ajustes-historico', async (req, res) => {
             const ac_de_tropa  = col[7] || '';
             const escala_pct_raw = Number(col[8]) || 0;
             const excluida = (col[9] || '').toString().toUpperCase() === 'TRUE';
-            // Cuando col I está vacío/0, derivar escala del ratio ganancia/resultado
-            const effective_escala = escala_pct_raw > 0
-                ? escala_pct_raw
-                : (resultado_estatico > 0 ? (ganancia_estatica / resultado_estatico) * 100 : 0);
+            // Cuando col I está vacío/0 (registros viejos de dispatch.js sin escala),
+            // derivar escala del ratio ganancia/resultado. Si ambos son 0 → escala 0.
+            // NUNCA producir NaN (0/0 = NaN en JS) — si no se puede derivar, usar 0.
+            let effective_escala = escala_pct_raw;
+            if (effective_escala <= 0) {
+                if (resultado_estatico > 0 && ganancia_estatica !== 0) {
+                    effective_escala = (ganancia_estatica / resultado_estatico) * 100;
+                } else if (resultado_estatico < 0 && ganancia_estatica !== 0) {
+                    effective_escala = (ganancia_estatica / resultado_estatico) * 100;
+                } else {
+                    effective_escala = 0; // no podemos derivar → delta = 0
+                }
+            }
+            // Sanitizar por si acaso (nunca NaN ni Infinity al JSON)
+            if (!isFinite(effective_escala)) effective_escala = 0;
             // Normalizar unicode para comparar nombres con acentos correctamente
             const norm = s => (s || '').normalize('NFC').toLowerCase().trim();
             const isVendedor  = norm(ac_de_tropa) === norm(ac_vendedor);
