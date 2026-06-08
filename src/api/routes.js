@@ -1098,7 +1098,21 @@ router.get('/ajustes-historico', async (req, res) => {
         // 5. Filtrar por añoMesCierre (col A)
         const filtered = allRows.filter(col => String(col[0]) === añoMesCierre);
         // 6. Filtrar por AñoMes_Tropa en los 3 meses válidos (col B)
-        const rows = filtered.filter(col => validMonths.includes(String(col[1])));
+        const rawRows = filtered.filter(col => validMonths.includes(String(col[1])));
+        // 6b. Desduplicar por (AñoMes_Tropa, id_lote): si hay dos versiones del mismo lote
+        // (ej: freeze viejo sin col I + freeze bajada con col I), quedarse con la que tiene escala (col I).
+        // Esto evita que se dupliquen los valores cuando el Sheet tiene historial de múltiples freezes.
+        const deduped = new Map();
+        for (const col of rawRows) {
+            const key = `${col[1]}_${col[2]}`; // AñoMesTropa_idLote
+            const existing = deduped.get(key);
+            const hasEscala = col[8] !== undefined && col[8] !== '' && Number(col[8]) > 0;
+            const existingHasEscala = existing && existing[8] !== undefined && existing[8] !== '' && Number(existing[8]) > 0;
+            if (!existing || (hasEscala && !existingHasEscala)) {
+                deduped.set(key, col);
+            }
+        }
+        const rows = Array.from(deduped.values());
         // 7. Fetch Q95 dinámico
         let q95 = [];
         let dynamicAvailable = true;
