@@ -1142,11 +1142,17 @@ router.get('/ajustes-historico', async (req, res) => {
             const q95Row = q95.find(op => String(op.id_lote) === String(id_lote));
             let resultado_dinamico_asignable;
             if (q95Row) {
-                const rv = Number(q95Row.resultado_topeado_venta || 0);
-                const rc = Number(q95Row.resultado_topeado_compra || 0);
-                const total_q95 = (rv !== 0 || rc !== 0)
-                    ? rv + rc
-                    : Number(q95Row.resultado_final || q95Row.resultado_total_proyectado || 0);
+                // Campos reales del Q95: resultado_venta, resultado_compra, resultado_ajustado
+                const rv = Number(q95Row.resultado_venta || q95Row.resultado_topeado_venta || 0);
+                const rc = Number(q95Row.resultado_compra || q95Row.resultado_topeado_compra || 0);
+                const total_q95 = Number(
+                    q95Row.resultado_ajustado ||
+                    q95Row.resultado_total ||
+                    q95Row.resultado_final ||
+                    q95Row.resultado_total_proyectado ||
+                    (rv + rc) ||
+                    0
+                );
                 if (isVendedor && isComprador) {
                     resultado_dinamico_asignable = total_q95;
                 } else if (isVendedor) {
