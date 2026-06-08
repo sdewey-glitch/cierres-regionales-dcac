@@ -12,6 +12,7 @@ import VariablesHub from './components/VariablesHub';
 import Envios from './components/Envios';
 import ConfigPanel from './components/ConfigPanel';
 import BajadaComparador from './components/BajadaComparador';
+import AjustesHistorico from './components/AjustesHistorico';
 import { MONTHS } from './constants';
 
 
@@ -49,7 +50,7 @@ function App() {
   const isSimulador = searchParams.get('simulador') === 'true';
   const isRestricted = !!sharedAgent || isReadonly || isSimulador;
 
-  const [activeTab, setActiveTab] = useState<'cierre' | 'simulador' | 'resumen' | 'roster' | 'cuentas' | 'hub' | 'comparador' | 'bajada' | 'wizard' | 'manuales' | 'variables' | 'envios' | 'config'>((isReadonly || isSimulador) ? 'simulador' : 'hub');
+  const [activeTab, setActiveTab] = useState<'cierre' | 'simulador' | 'resumen' | 'roster' | 'cuentas' | 'hub' | 'comparador' | 'bajada' | 'wizard' | 'manuales' | 'variables' | 'envios' | 'config' | 'ajustes-historico'>((isReadonly || isSimulador) ? 'simulador' : 'hub');
 
   useEffect(() => {
     // Inject print styles
@@ -639,6 +640,7 @@ function App() {
     { id: 'variables', label: 'Variables', icon: Layers },
     { id: 'comparador', label: 'Validador', icon: RefreshCw },
     { id: 'bajada', label: 'Bajada vs Sistema', icon: Database },
+    { id: 'ajustes-historico', label: 'Ajustes Retro', icon: TrendingUp },
     { id: 'cuentas', label: 'Cuentas', icon: Database },
     { id: 'simulador', label: 'Simulador', icon: Calculator },
     { id: 'manuales', label: 'Manuales', icon: BookOpen },
@@ -775,6 +777,7 @@ function App() {
         {activeTab === 'envios' && <Envios API_URL={API_URL} activeYear={activeYear} activeMonth={activeMonth} data={data} onRefresh={refreshSnapshotData} />}
         {activeTab === 'config' && <ConfigPanel API_URL={API_URL} activeYear={activeYear} activeMonth={activeMonth} />}
         {activeTab === 'bajada' && <BajadaComparador API_URL={API_URL} activeYear={activeYear} activeMonth={activeMonth} />}
+        {activeTab === 'ajustes-historico' && <AjustesHistorico API_URL={API_URL} activeYear={activeYear} activeMonth={activeMonth} />}
 
         {activeTab === 'roster' && (
           <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="bg-white rounded-xl shadow-xl border border-gray-200 overflow-hidden w-full mt-2 relative transition-all duration-300 hover:shadow-2xl hover:-translate-y-1">

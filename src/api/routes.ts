@@ -1098,6 +1098,112 @@ router.post('/generate/agent', async (req, res) => {
     }
 });
 
+// GET /api/ajustes-historico — comparativa estático vs dinámico por comercial
+router.get('/ajustes-historico', async (req, res) => {
+    try {
+        const { year, month } = req.query;
+        if (!year || !month)
+            return res.status(400).json({ error: 'year y month requeridos' });
+        const yearNum = Number(year);
+        const monthNum = Number(month);
+        // 1. Mes del cierre anterior (source): si selector = Junio 2026 → sourceMes = Mayo 2026
+        let sourceYear = yearNum;
+        let sourceMes = monthNum - 1;
+        if (sourceMes <= 0) {
+            sourceMes += 12;
+            sourceYear -= 1;
+        }
+        // 2. añoMesCierre = mes del cierre anterior como string YYYYMM (ej. 202605)
+        const añoMesCierre = `${sourceYear}${String(sourceMes).padStart(2, '0')}`;
+        // 3. 3 meses válidos calculados desde el mes del SELECTOR (M-1, M-2, M-3)
+        const validMonths: string[] = [];
+        for (let i = 1; i <= 3; i++) {
+            let m = monthNum - i;
+            let y = yearNum;
+            if (m <= 0) { m += 12; y -= 1; }
+            validMonths.push(`${y}${String(m).padStart(2, '0')}`);
+        }
+        // 4. Leer hoja 'Ajustes Historico'!A:J
+        const allRows = await readSheet(config.HUB_CIERRES_ID, "'Ajustes Historico'!A:J");
+        // 5. Filtrar por añoMesCierre (col A)
+        const filtered = allRows.filter((col: any[]) => String(col[0]) === añoMesCierre);
+        // 6. Filtrar por AñoMes_Tropa en los 3 meses válidos (col B)
+        const rows = filtered.filter((col: any[]) => validMonths.includes(String(col[1])));
+        // 7. Fetch Q95 dinámico
+        let q95: any[] = [];
+        let dynamicAvailable = true;
+        try {
+            q95 = await fetchQ95();
+        } catch (q95Err: any) {
+            console.warn('[ajustes-historico] ⚠️ No se pudo obtener Q95, usando solo datos estáticos:', q95Err.message);
+            dynamicAvailable = false;
+        }
+        // 8. Procesar cada fila
+        const loteItems = rows.map((col: any[]) => {
+            const id_lote = col[2];
+            const resultado_estatico = Number(col[3]) || 0;
+            const ganancia_estatica = Number(col[4]) || 0;
+            const ac_vendedor: string = col[5] || '';
+            const ac_comprador: string = col[6] || '';
+            const ac_de_tropa: string = col[7] || '';
+            const escala_pct = Number(col[8]) || 0;
+            const excluida = (col[9] || '').toString().toUpperCase() === 'TRUE';
+            // Buscar en q95
+            const q95Row = q95.find((op: any) => String(op.id_lote) === String(id_lote));
+            let resultado_dinamico: number;
+            if (q95Row) {
+                // Preferir resultado_topeado_venta + resultado_topeado_compra, sino resultado_final o resultado_total_proyectado
+                const rv = Number(q95Row.resultado_topeado_venta || 0);
+                const rc = Number(q95Row.resultado_topeado_compra || 0);
+                if (rv !== 0 || rc !== 0) {
+                    resultado_dinamico = rv + rc;
+                } else {
+                    resultado_dinamico = Number(q95Row.resultado_final || q95Row.resultado_total_proyectado || 0);
+                }
+            } else {
+                // No encontrado → delta = 0
+                resultado_dinamico = resultado_estatico;
+            }
+            const ganancia_dinamica = resultado_dinamico * (escala_pct / 100);
+            const delta = ganancia_dinamica - ganancia_estatica;
+            return {
+                id_lote,
+                anioMesTropa: String(col[1]),
+                resultado_estatico,
+                ganancia_estatica,
+                resultado_dinamico,
+                ganancia_dinamica,
+                delta,
+                ac_vendedor,
+                ac_comprador,
+                ac_de_tropa,
+                escala_pct,
+                excluida
+            };
+        });
+        // 9. Agrupar por ac_de_tropa
+        const byComercial = new Map<string, any>();
+        for (const item of loteItems) {
+            const key: string = item.ac_de_tropa || '(sin asignar)';
+            if (!byComercial.has(key)) {
+                byComercial.set(key, { comercial: key, tropas: [], totalEstatico: 0, totalDinamico: 0, totalDelta: 0 });
+            }
+            const group = byComercial.get(key)!;
+            group.tropas.push(item);
+            group.totalEstatico += item.resultado_estatico;
+            group.totalDinamico += item.resultado_dinamico;
+            group.totalDelta += item.delta;
+        }
+        // 10. Ordenar por absDelta descendente
+        const result = Array.from(byComercial.values())
+            .map(g => ({ ...g, absDelta: Math.abs(g.totalDelta) }))
+            .sort((a, b) => b.absDelta - a.absDelta);
+        res.json({ dynamicAvailable, data: result });
+    } catch (e: any) {
+        res.status(500).json({ error: e.message });
+    }
+});
+
 // Endpoint para consultar retroactivos de un mes
 router.get('/retroactivos', async (req, res) => {
     const { year, month } = req.query;

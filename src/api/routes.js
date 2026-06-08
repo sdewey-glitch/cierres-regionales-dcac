@@ -175,12 +175,31 @@ router.post('/snapshots/freeze', async (req, res) => {
         }
         const allTropaRows = [];
         for (const { y, m } of monthsToProcess) {
-            const snap = await (0, snapshot_1.loadMonthSnapshot)(y, m);
-            if (!snap) {
-                console.log(`[freeze] ⚠️ No hay snapshot para ${y}-${m}, saltando`);
-                continue;
+            // Si source=bajada: usar loadAgentDataFromBajada para obtener valores de la hoja Bajada
+            // en lugar del snapshot Q95. Si falla o no hay datos en bajada → fallback al snapshot.
+            let agentResult = null;
+            if (useBajada) {
+                try {
+                    agentResult = await (0, bajada_1.loadAgentDataFromBajada)(y, m, agentName, bajadaSheetName);
+                    if (agentResult && agentResult.operacionesDetalle) {
+                        console.log(`[freeze] 🗒️ Ajustes Historico: usando datos de ${bajadaSheetName} para ${agentName} (mes ${y}-${m})`);
+                    } else {
+                        agentResult = null;
+                    }
+                } catch (bajadaErr) {
+                    console.warn(`[freeze] ⚠️ Error cargando bajada para mes ${y}-${m}, fallback a snapshot: ${bajadaErr.message}`);
+                    agentResult = null;
+                }
             }
-            const agentResult = snap.find((r) => r.asociadoComercial.toLowerCase() === agentName.toLowerCase());
+            // Fallback: leer del snapshot en memoria (Q95)
+            if (!agentResult) {
+                const snap = await (0, snapshot_1.loadMonthSnapshot)(y, m);
+                if (!snap) {
+                    console.log(`[freeze] ⚠️ No hay snapshot para ${y}-${m}, saltando`);
+                    continue;
+                }
+                agentResult = snap.find((r) => r.asociadoComercial.toLowerCase() === agentName.toLowerCase());
+            }
             if (!agentResult || !agentResult.operacionesDetalle) {
                 console.log(`[freeze] ⚠️ Sin datos de ${agentName} en ${y}-${m}`);
                 continue;
@@ -199,17 +218,17 @@ router.post('/snapshots/freeze', async (req, res) => {
                 }
                 allTropaRows.push([
                     añoMesCierre, // Col A: Mes del cierre congelado
-                    opYearMonth, // Col B: Mes real de la operación
-                    op.id_lote, // Col C: ID tropa/lote
-                    totalResultado, // Col D: Resultado empresa
-                    ganancia, // Col E: Resultado ajustado (ganancia del comercial)
-                    op.comercial_venta || '', // Col F: AC Vendedor
+                    opYearMonth,  // Col B: Mes real de la operación
+                    op.id_lote,   // Col C: ID tropa/lote
+                    totalResultado, // Col D: Resultado punta congelado (bajada o Q95)
+                    ganancia,     // Col E: Ganancia personal = col D × escala
+                    op.comercial_venta || '',  // Col F: AC Vendedor
                     op.comercial_compra || '', // Col G: AC Comprador
-                    agentName, // Col H: Asociado congelado (para poder borrar por descongelado)
-                    agentResult.escalaGen != null ? Math.round(agentResult.escalaGen * 10000) / 100 : '' // Col I: Escala % (ej: 21.81)
+                    agentName,    // Col H: Asociado congelado
+                    agentResult.escalaGen != null ? Math.round(agentResult.escalaGen * 10000) / 100 : '' // Col I: Escala %
                 ]);
             }
-            console.log(`[freeze] 📋 ${agentResult.operacionesDetalle.length} tropas del mes ${y}-${m} para ${agentName}`);
+            console.log(`[freeze] 📋 ${agentResult.operacionesDetalle.length} tropas del mes ${y}-${m} para ${agentName} (${useBajada ? bajadaSheetName : 'Q95'})`);
         }
         if (allTropaRows.length > 0) {
             await (0, sheets_1.appendSheet)(env_1.config.HUB_CIERRES_ID, "'Ajustes Historico'!A:I", allTropaRows);
@@ -1046,6 +1065,129 @@ router.post('/generate/agent', async (req, res) => {
     }
     catch (e) {
         console.error('Error recalculando agente:', e);
+        res.status(500).json({ error: e.message });
+    }
+});
+// GET /api/ajustes-historico — comparativa estático vs dinámico por comercial
+router.get('/ajustes-historico', async (req, res) => {
+    try {
+        const { year, month } = req.query;
+        if (!year || !month)
+            return res.status(400).json({ error: 'year y month requeridos' });
+        const yearNum = Number(year);
+        const monthNum = Number(month);
+        // 1. Mes del cierre anterior (source): si selector = Junio 2026 → sourceMes = Mayo 2026
+        let sourceYear = yearNum;
+        let sourceMes = monthNum - 1;
+        if (sourceMes <= 0) {
+            sourceMes += 12;
+            sourceYear -= 1;
+        }
+        // 2. añoMesCierre = mes del cierre anterior como string YYYYMM (ej. 202605)
+        const añoMesCierre = `${sourceYear}${String(sourceMes).padStart(2, '0')}`;
+        // 3. 3 meses válidos calculados desde el mes del SELECTOR (M-1, M-2, M-3)
+        const validMonths = [];
+        for (let i = 1; i <= 3; i++) {
+            let m = monthNum - i;
+            let y = yearNum;
+            if (m <= 0) { m += 12; y -= 1; }
+            validMonths.push(`${y}${String(m).padStart(2, '0')}`);
+        }
+        // 4. Leer hoja 'Ajustes Historico'!A:J
+        const allRows = await (0, sheets_1.readSheet)(env_1.config.HUB_CIERRES_ID, "'Ajustes Historico'!A:J");
+        // 5. Filtrar por añoMesCierre (col A)
+        const filtered = allRows.filter(col => String(col[0]) === añoMesCierre);
+        // 6. Filtrar por AñoMes_Tropa en los 3 meses válidos (col B)
+        const rows = filtered.filter(col => validMonths.includes(String(col[1])));
+        // 7. Fetch Q95 dinámico
+        let q95 = [];
+        let dynamicAvailable = true;
+        try {
+            q95 = await (0, metabase_1.fetchQ95)();
+        }
+        catch (q95Err) {
+            console.warn('[ajustes-historico] ⚠️ No se pudo obtener Q95, usando solo datos estáticos:', q95Err.message);
+            dynamicAvailable = false;
+        }
+        // 8. Procesar cada fila
+        const loteItems = rows.map(col => {
+            const id_lote = col[2];
+            const resultado_estatico  = Number(col[3]) || 0;  // col D: punta result congelada → Res. Ajustado ANTES
+            const ganancia_estatica   = Number(col[4]) || 0;  // col E: col D × escala → VAR ANTES
+            const ac_vendedor  = col[5] || '';
+            const ac_comprador = col[6] || '';
+            const ac_de_tropa  = col[7] || '';
+            const escala_pct_raw = Number(col[8]) || 0;
+            const excluida = (col[9] || '').toString().toUpperCase() === 'TRUE';
+            // Cuando col I está vacío/0, derivar escala del ratio ganancia/resultado
+            const effective_escala = escala_pct_raw > 0
+                ? escala_pct_raw
+                : (resultado_estatico > 0 ? (ganancia_estatica / resultado_estatico) * 100 : 0);
+            // Normalizar unicode para comparar nombres con acentos correctamente
+            const norm = s => (s || '').normalize('NFC').toLowerCase().trim();
+            const isVendedor  = norm(ac_de_tropa) === norm(ac_vendedor);
+            const isComprador = norm(ac_de_tropa) === norm(ac_comprador);
+            // Buscar en Q95 para resultado dinámico
+            const q95Row = q95.find(op => String(op.id_lote) === String(id_lote));
+            let resultado_dinamico_asignable;
+            if (q95Row) {
+                const rv = Number(q95Row.resultado_topeado_venta || 0);
+                const rc = Number(q95Row.resultado_topeado_compra || 0);
+                const total_q95 = (rv !== 0 || rc !== 0)
+                    ? rv + rc
+                    : Number(q95Row.resultado_final || q95Row.resultado_total_proyectado || 0);
+                if (isVendedor && isComprador) {
+                    resultado_dinamico_asignable = total_q95;
+                } else if (isVendedor) {
+                    resultado_dinamico_asignable = rv !== 0 ? rv : total_q95 * (2 / 3);
+                } else if (isComprador) {
+                    resultado_dinamico_asignable = rc !== 0 ? rc : total_q95 * (1 / 3);
+                } else {
+                    // rol no determinado: escalar proporcionalmente al congelado
+                    const ref = rv !== 0 || rc !== 0 ? rv + rc : total_q95;
+                    const ratio = resultado_estatico > 0 && ref > 0 ? resultado_estatico / ref : 1;
+                    resultado_dinamico_asignable = total_q95 * ratio;
+                }
+            } else {
+                resultado_dinamico_asignable = resultado_estatico; // no hallado → delta 0
+            }
+            const ganancia_dinamica = resultado_dinamico_asignable * (effective_escala / 100);
+            const delta = ganancia_dinamica - ganancia_estatica;
+            return {
+                id_lote,
+                anioMesTropa:             String(col[1]),
+                resultado_estatico,           // "Res. Ajustado ANTES"
+                ganancia_estatica,            // "VAR ANTES"
+                resultado_dinamico_asignable, // "Res. Ajustado AHORA"
+                ganancia_dinamica,            // "VAR AHORA"
+                delta,
+                ac_vendedor,
+                ac_comprador,
+                ac_de_tropa,
+                effective_escala,
+                excluida
+            };
+        });
+        // 9. Agrupar por ac_de_tropa
+        const byComercial = new Map();
+        for (const item of loteItems) {
+            const key = item.ac_de_tropa || '(sin asignar)';
+            if (!byComercial.has(key)) {
+                byComercial.set(key, { comercial: key, tropas: [], totalEstatico: 0, totalDinamico: 0, totalDelta: 0 });
+            }
+            const group = byComercial.get(key);
+            group.tropas.push(item);
+            group.totalEstatico += item.ganancia_estatica;
+            group.totalDinamico += item.ganancia_dinamica;
+            group.totalDelta    += item.delta;
+        }
+        // 10. Ordenar por absDelta descendente
+        const result = Array.from(byComercial.values())
+            .map(g => ({ ...g, absDelta: Math.abs(g.totalDelta) }))
+            .sort((a, b) => b.absDelta - a.absDelta);
+        res.json({ dynamicAvailable, data: result });
+    }
+    catch (e) {
         res.status(500).json({ error: e.message });
     }
 });

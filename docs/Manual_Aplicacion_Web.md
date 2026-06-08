@@ -86,8 +86,10 @@ graph LR
 | `Envios.tsx` | 39KB | Generación PDF + despacho email |
 | `Comparator.tsx` | 27KB | Validador V3 vs V4 |
 | `Estrategia.tsx` | 22KB | Visualización de estrategia |
-| `Ajustes.tsx` | 12KB | Vista de ajustes retroactivos |
-| `Wizard.tsx` | 11KB | Wizard de configuración |
+| `Ajustes.tsx` | 12KB | Vista de ajustes retroactivos (tarjeta del Hub) |
+| `AjustesHistorico.tsx` | 25KB | **Módulo completo de Ajustes Retro** con selector de mes, tabla ANTES vs AHORA |
+| `BajadaComparador.tsx` | 13KB | Comparador Bajada vs Q95 tropa a tropa |
+| `Wizard.tsx` | 11KB | Wizard de configuración paso a paso |
 | `SortableTable.tsx` | 8KB | Tabla genérica reutilizable |
 | `MermaidChart.tsx` | 5KB | Wrapper de diagramas Mermaid |
 
@@ -290,6 +292,7 @@ Requiere N ≥ 4 agentes
 | 3 | `GET` | `/api/roster` | Lista ACs activos del roster | ✅ Activo |
 | 4 | `POST` | `/api/roster` | Crea/actualiza un AC | ⚠️ Hardcoded Sheet ID |
 | 5 | `GET` | `/api/retroactivos` | Ajustes retroactivos del período | ✅ Activo |
+| 5b | `GET` | `/api/ajustes-historico` | Ajustes históricos con ANTES vs AHORA (nuevo módulo) | ✅ Activo |
 | 6 | `GET` | `/api/cuentas` | Cuentas especiales (KAM) | ✅ Activo |
 | 7 | `POST` | `/api/cuentas` | Sobreescribe cuentas KAM | ⚠️ Sin validación |
 | 8 | `GET` | `/api/mendel` | Gastos Mendel | ✅ Activo |
@@ -490,15 +493,96 @@ bruto = baseMin + variableP + compR + compO
 - Detección de desvíos por agente (%, absoluto)
 - Clasificación: ok / minor / major (umbral $50K)
 
-### 10-14. Componentes Auxiliares
+### 10. AjustesHistorico.tsx — Módulo de Ajustes Retroactivos
+
+**Propósito:** Muestra la comparativa tropa a tropa entre los valores congelados al cierre anterior (ANTES) y los valores actuales de Q95 (AHORA). Permite cuantificar cuánto cambió la ganancia de cada comercial en las tropas de los 3 meses anteriores.
+
+**Selector de mes:** El usuario elige el mes del **próximo cierre** (ej. Junio). El sistema automáticamente busca el cierre congelado de **Mayo** (`AñoMes_Cierre = 202605`) y las tropas de Mayo, Abril y Marzo.
+
+**Columnas tabla ANTES:**
+- Resultado empresa (Col D de Ajustes Historico — ya con 2/3 ó 1/3 aplicado)
+- VAR Venta / VAR Compra
+- Total
+- Resultado Ajustado (Col E = Col D × Escala%)
+
+**Columnas tabla AHORA:**
+- Resultado empresa actual (Q95 fresca)
+- VAR Venta / VAR Compra actuales
+- Total actual
+- Resultado Ajustado actual
+
+**Última columna:** Ajuste = Res. Ajustado AHORA − Res. Ajustado ANTES
+
+**Ordenamiento de tropas:** M-1 primero → M-2 → M-3. Dentro de cada mes, por ajuste descendente.
+
+**Endpoint:** `GET /api/ajustes-historico?year=YYYY&month=M`
+
+---
+
+### 11. BajadaComparador.tsx — Bajada vs Sistema
+
+**Propósito:** Compara lote a lote la hoja Bajada vs el snapshot Q95 actual. Muestra diferencias de resultado, lotes solo en Bajada, y lotes solo en el sistema.
+
+**Endpoint:** `GET /api/bajada/comparar?year=YYYY&month=M[&sheet=Bajada 2]`
+
+---
+
+### 12-16. Componentes Auxiliares
 
 | Componente | Propósito |
 |---|---|
 | `Estrategia.tsx` | Visualización de workflows con Mermaid |
-| `Ajustes.tsx` | Vista embebida de ajustes retroactivos |
+| `Ajustes.tsx` | Vista embebida de ajustes retroactivos (tarjeta Hub) |
 | `Wizard.tsx` | Wizard de configuración paso a paso |
 | `SortableTable.tsx` | Tabla genérica con sort + formato |
 | `MermaidChart.tsx` | Wrapper de renderizado Mermaid |
+
+---
+
+## ❄️ Ciclo de Vida del Congelado (Freeze)
+
+### 1. Congelar un cierre (`POST /api/snapshots/freeze`)
+
+Al congelar un AC, el sistema ejecuta en orden:
+
+1. **Marca como congelado** en `Cierres_Congelados` (Sheets)
+2. **Escribe en Ajustes Historico** las tropas del mes actual + 3 meses anteriores:
+   - Si `source=bajada`: usa `loadAgentDataFromBajada()` → valores de la hoja Bajada
+   - Si `source=metabase` (default): usa el snapshot Q95 en memoria
+   - Fallback: si bajada falla para un mes → usa snapshot Q95
+3. **Escribe en Historico_Cierres + Historico_Tropas**:
+   - Si `source=bajada`: llama `loadAgentDataFromBajada()` directamente (bajada fresca)
+   - Si `source=metabase`: usa snapshot Q95
+
+### 2. Qué datos quedan en cada lugar
+
+| Tabla              | `source=bajada`           | `source=metabase`    |
+|--------------------|---------------------------|----------------------|
+| `Ajustes Historico`| Valores de hoja Bajada    | Snapshot Q95         |
+| `Historico_Cierres`| Bajada directo            | Snapshot Q95         |
+| `Historico_Tropas` | Bajada directo            | Snapshot Q95         |
+| `Cierres_Congelados`| Marca congelado (igual)  | Marca congelado      |
+
+### 3. Estructura de Ajustes Historico — columnas
+
+| Col | Nombre           | Contenido                                                                    |
+|-----|------------------|------------------------------------------------------------------------------|
+| A   | `AñoMes_Cierre`  | Mes del cierre (ej. `202605`)                                                |
+| B   | `AñoMes_Tropa`   | Mes de la operación (M, M-1, M-2, M-3)                                      |
+| C   | `ID_Tropa`       | ID del lote                                                                  |
+| D   | `Resultado`      | Resultado punta del AC (2/3 si vendedor, 1/3 si comprador, 100% si ambos)   |
+| E   | `Resultado_Ajustado` | Ganancia personal = Col D × Escala% (NO es otro 2/3)                    |
+| F   | `AC_Vendedor`    | AC en rol venta                                                              |
+| G   | `AC_Comprador`   | AC en rol compra                                                             |
+| H   | `AC_de_tropa`    | AC congelado (para poder borrar por descongelado)                            |
+| I   | `Escala %`       | Escala aplicada (ej. `20.64`)                                                |
+| J   | `Excluida`       | `TRUE` si la tropa fue excluida manualmente                                  |
+
+### 4. Descongelar (`POST /api/snapshots/unfreeze`)
+
+- Quita la marca de `Cierres_Congelados`
+- Elimina las filas correspondientes de `Ajustes Historico` (por AC + AñoMes_Cierre)
+- Elimina de `Historico_Cierres` y `Historico_Tropas`
 
 ---
 
@@ -512,7 +596,7 @@ bruto = baseMin + variableP + compR + compO
 | `HUB_SPREADSHEET_ID` | Configuración | Config_Minimos, Config_Escalas |
 | `HUB_CONFIGURACIONES_ID` | Ajustes | Ajustes |
 | `HUB_GASTOS_ID` | Gastos | BDGASTOS, KMS, Kms & $, Amort_DCAC |
-| `HUB_CIERRES_ID` | Cierres | Bajada_Estatica, Ajustes_Retro, Detalle_Retro, Config_Tajada, Envio_Reportes, Historial_Envios |
+| `HUB_CIERRES_ID` | Cierres | Bajada_Estatica, **Ajustes Historico**, Cierres_Congelados, Historico_Cierres, Historico_Tropas, Bajada, Bajada 2, Config_Tajada, Envio_Reportes, Historial_Envios |
 | `MASTER_ROSTER_ID` | Roster | Asociados Comerciales (30 columnas) |
 | `MENDEL_SPREADSHEET_ID` | Mendel | Base Mendel, Correlaciones |
 | `SOURCE_SPREADSHEET_ID` | Legacy | Migración (legacy) |
@@ -620,6 +704,9 @@ bruto = baseMin + variableP + compR + compO
 | **Retroactivo** | Ajuste por diferencia entre snapshot y recálculo |
 | **Bolsa** | Pool de resultados regionales/oficina |
 | **Escala** | Curva logarítmica de comisión vs volumen |
+| **Bajada** | Hoja de liquidación del sistema anterior, usada como fuente alternativa al Q95 para congelar cierres |
+| **Ajustes Historico** | Hoja Sheets con las tropas congeladas de cada AC (cols A-J) usada como base del cálculo retroactivo |
+| **ANTES / AHORA** | Términos del módulo de ajustes: ANTES = valores congelados al cierre, AHORA = valores dinámicos de Q95 |
 
 ---
 

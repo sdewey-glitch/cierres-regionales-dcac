@@ -855,7 +855,7 @@ const AcGroupAccordion: React.FC<{ acName: string; list: any[] }> = ({ acName, l
       color: 'from-amber-500 to-orange-600',
       badge: 'RETROACTIVOS',
       badgeColor: 'bg-amber-500/10 text-amber-600 border-amber-500/15',
-      action: () => setActiveView('ajustes'),
+      action: () => setActiveTab('ajustes-historico'),
     },
     {
       id: 'manual',
